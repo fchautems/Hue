@@ -10,11 +10,12 @@
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.1</span></div></div>
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.2</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>⌁</span> Courbes horaires</button>
       <button class="nav-item" data-tab="diagnostics"><span>☷</span> Diagnostics & logs</button>
+      <button class="nav-item" data-tab="setup"><span>⌁</span> Connexion au pont</button>
     </nav>
     <div class="sidebar-bottom"><span class="status-dot" id="bridge-dot"></span><span id="bridge-label">Connexion en cours…</span><small id="bridge-ip">Pont Hue</small></div>
   </aside>
@@ -23,6 +24,23 @@
     <header class="topbar"><div><div class="eyebrow">PHILIPS HUE / ENVIRONNEMENT LOCAL</div><h1 id="page-title">Tableau de bord</h1><p id="page-subtitle">Éclairage, simulation et suivi en temps réel.</p></div><div class="top-time"><span>HEURE DU SERVEUR</span><strong id="real-clock">--:--:--</strong></div></header>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="error-banner" class="error-banner hidden"></div>
+
+    <section id="tab-setup" class="tab hidden">
+      <div class="setup-hero"><div class="eyebrow">PREMIÈRE INSTALLATION</div><h2>Connecter le pont Philips Hue</h2><p>Tout se fait ici. Aucun fichier de configuration à modifier et aucune commande à saisir.</p></div>
+      <div class="card setup-card">
+        <div class="setup-step"><div class="step-n">1</div><div><h3>Découvrir ton pont</h3><p>Le serveur recherche le pont sur ton réseau. Tu peux aussi indiquer directement son adresse IP.</p>
+          <div class="setup-row"><button id="setup-discover" type="button" class="btn primary">Rechercher le pont</button><select id="setup-bridges" class="field" aria-label="Pont détecté"><option value="">Aucun pont sélectionné</option></select></div>
+          <label class="field-label" for="setup-ip">Adresse IP du pont (si la découverte échoue)</label>
+          <input id="setup-ip" class="field setup-ip" placeholder="10.0.0.2" autocomplete="off" inputmode="decimal" value="10.0.0.2">
+        </div></div>
+        <div class="setup-step"><div class="step-n">2</div><div><h3>Autoriser la connexion</h3><p>Clique sur « Démarrer l'association », puis appuie sur le gros bouton physique de ton pont Hue. Le programme cherchera automatiquement une clé pendant 45 secondes.</p>
+          <button id="setup-pair" type="button" class="btn primary">Démarrer l'association</button>
+          <button id="setup-cancel" type="button" class="btn muted hidden">Annuler</button>
+          <p id="setup-status" class="setup-status" aria-live="polite">Prêt pour la recherche.</p>
+        </div></div>
+        <div class="setup-step"><div class="step-n">3</div><div><h3>Configuration automatique</h3><p>Après l'association, le programme enregistre la clé sur ce PC et affiche les ampoules. Elle ne sera jamais envoyée sur GitHub.</p><div id="setup-connected" class="hidden"></div></div></div>
+      </div>
+    </section>
 
     <section id="tab-dashboard" class="tab">
       <div class="stat-strip">
@@ -84,7 +102,7 @@
       <div class="section-title space-top"><h2>Journal des événements</h2><span>Connexion, commandes, erreurs, démarrages</span></div>
       <div class="card log-card"><div class="log-controls"><span>Dernières 150 lignes · fichier logs/hue.log</span><button id="refresh-logs" class="btn muted">↻ Rafraîchir</button></div><pre id="log-display">Chargement…</pre></div>
     </section>
-    <footer>Hue Lab 0.1 · Service Python local · API Philips Hue v2 · Les identifiants restent sur le PC</footer>
+    <footer>Hue Lab 0.2 · Service Python local · API Philips Hue v2 · Les identifiants restent sur le PC</footer>
   </main>
 </div>
 <dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="15"></div><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>

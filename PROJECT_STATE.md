@@ -32,9 +32,12 @@ Mise à jour : 2026-10-23
 ## Prochaine action
 - Cloner ou mettre à jour le dépôt sur le PC, démarrer l’application, exporter les diagnostics des 3 modèles et tester la remise sous tension ; ajuster ensuite la stratégie de démarrage selon les capacités réellement observées.
 
-## Correctif du lancement Windows — 2026-10-23
-- Signalement utilisateur : `ModuleNotFoundError: No module named 'fastapi'` lors du lancement de `demarrer_hue.bat`.
-- Lanceur : vérification de Python et des modules `fastapi`, `uvicorn`, `requests`, `jinja2` ; installation automatique via `python -m pip install -r requirements.txt` si un module manque ; contrôle final avant démarrage.
-- `Jinja2` ajouté à `requirements.txt` pour les templates HTML ; consignes de démarrage du `README.md` mises à jour.
-- Vérification : cohérence statique du lanceur et des dépendances. **Test réel du batch sous Windows et du pont Hue à effectuer sur le PC utilisateur**. Les 13 tests précédents concernent la version initiale.
-- Prochaine action : `git pull` puis double-clic sur `demarrer_hue.bat` et vérification de http://127.0.0.1:8765.
+## v0.2 — Parcours autonome de connexion — 2026-10-23
+- **Décision durable :** toute découverte / association doit s'effectuer dans l'interface Web, sans CLI ni manipulation du fichier de configuration.
+- Ajout du modèle public `hue_config.example.json` (IP connue du pont, clé vide) et de la création automatique de `.hue_config.json` sur le PC ; vraie clé jamais suivie par Git.
+- Ajout des routes `GET /api/setup/status`, `GET /api/setup/discover`, `POST /api/setup/pair` ; refus des IP non privées, association via le bouton physique, validation de la clé par appel à `/clip/v2/resource/light`, écriture atomique de la config et démarrage du contrôleur après succès.
+- Ajout d'un onglet de connexion avec découverte, sélection ou IP manuelle, et attente automatisée pendant 45 secondes de l'appui sur le bouton. Écran affiché à la première installation ou en cas de clé refusée.
+- L'appairage coupe les automatismes existants lors d'un changement de client et réinitialise les caches pour éviter de commander des appareils obsolètes.
+- Tests : **20 tests Python réussis**, dont cas 101, clé invalide, IP invalide, routes Web et absence de clé dans les réponses. `node --check` sur JS OK. Écran affiché avec Chromium en environnement isolé, sans erreur JS ; accès HTTP via navigateur local non disponible à cause d'une restriction du navigateur de test.
+- **Non vérifié :** appairage et redémarrage Windows avec un pont Hue réel. Contrôle à effectuer sur le PC utilisateur.
+- **Prochaine action :** synchroniser le dépôt, double-cliquer `demarrer_hue.bat` et appairer exclusivement via l'onglet Connexion au pont ; puis vérifier la présence des trois ampoules et les diagnostics.

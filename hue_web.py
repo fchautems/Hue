@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import copy
+import ipaddress
 from datetime import datetime
 import json
+import os
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -23,6 +25,7 @@ from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minute
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / ".hue_config.json"
+CONFIG_EXAMPLE = ROOT / "hue_config.example.json"
 SETTINGS_PATH = ROOT / "hue_settings.json"
 LOG_DIR = ROOT / "logs"
 LOG_DIR.mkdir(exist_ok=True)
@@ -135,16 +138,37 @@ class HueServer:
                 self.log.exception("Erreur inattendue dans la surveillance")
             self._stop.wait(2)
 
+    def attach_client(self, client):
+        """Change de pont sans réutiliser les anciennes ampoules ou automatismes."""
+        with self.lock:
+            self.client = client
+            self.lights = []
+            self.devices = []
+            self.connectivity = []
+            self.last_poll = None
+            self.last_error = None
+            self.previous_online.clear()
+            self.previous_on.clear()
+            self.reconnect_pending.clear()
+            self.last_sent.clear()
+            self.power_tests.clear()
+            self.settings["auto"] = False
+            self.sim["apply"] = False
+
     def poll(self):
-        if not self.client:
+        with self.lock:
+            client = self.client
+        if not client:
             with self.lock:
-                self.last_error = "Fichier .hue_config.json absent ou invalide. Copie-le depuis ton prototype CLI."
+                self.last_error = "Pont non associé. Ouvre l'onglet Connexion pour le configurer."
             return
         try:
-            lights = self.client.resource("light")
-            devices = self.client.resource("device")
-            connectivity = self.client.resource("zigbee_connectivity")
+            lights = client.resource("light")
+            devices = client.resource("device")
+            connectivity = client.resource("zigbee_connectivity")
             with self.lock:
+                if self.client is not client:
+                    return  # Ancienne réponse réseau après changement de pont.
                 current_online = {}
                 status_by_device = {c.get("owner", {}).get("rid"): c.get("status") for c in connectivity}
                 for l in lights:
@@ -187,6 +211,8 @@ class HueServer:
                 self.last_error = None
         except HueError as e:
             with self.lock:
+                if self.client is not client:
+                    return
                 self.last_error = str(e)
             if time.monotonic() - self._error_last_logged > 30:
                 self._error_last_logged = time.monotonic()
@@ -288,6 +314,7 @@ class HueServer:
         with self.lock:
             return {
                 "bridge_ip": self.client.ip if self.client else None,
+                "needs_setup": self.client is None or "unauthorized" in (self.last_error or "").lower(),
                 "connected": self.client is not None and self.last_poll is not None and self.last_error is None,
                 "error": self.last_error,
                 "last_poll": self.last_poll,
@@ -426,16 +453,135 @@ class HueServer:
             }
 
 
-def load_client():
-    if not CONFIG_PATH.exists():
-        logger.warning("Aucune configuration: .hue_config.json manquant dans %s", ROOT)
-        return None
+def local_bridge_ip(value):
+    """N'accepte que les IPv4 privées du LAN (pas de nom DNS ni URL)."""
     try:
+        ip = ipaddress.IPv4Address(str(value).strip())
+    except ipaddress.AddressValueError as e:
+        raise ValueError("Adresse IPv4 du pont invalide.") from e
+    networks = (ipaddress.IPv4Network("10.0.0.0/8"),
+                ipaddress.IPv4Network("172.16.0.0/12"),
+                ipaddress.IPv4Network("192.168.0.0/16"))
+    if not any(ip in n for n in networks):
+        raise ValueError("Le pont doit avoir une adresse IPv4 privée du réseau local.")
+    return str(ip)
+
+
+class HueOnboarding:
+    """Découverte, appairage et stockage local sans étape en ligne de commande."""
+    def __init__(self, config_path=CONFIG_PATH, example_path=CONFIG_EXAMPLE, session=None):
+        self.path = Path(config_path)
+        self.example = Path(example_path)
+        self.session = session or requests.Session()
+        self.lock = threading.Lock()
+
+    def ensure_config(self):
+        if self.path.exists():
+            return
+        # Un modèle sans clé est publié sur GitHub ; la clé réelle n'y figure jamais.
+        template = {"ip": "", "key": ""}
+        if self.example.is_file():
+            try:
+                candidate = json.loads(self.example.read_text(encoding="utf-8"))
+                if isinstance(candidate, dict):
+                    template["ip"] = str(candidate.get("ip") or "")
+            except (OSError, ValueError) as e:
+                logger.warning("Modèle de configuration illisible : %s", e)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with self.path.open("x", encoding="utf-8") as stream:
+                json.dump(template, stream, indent=2)
+                stream.write("\n")
+        except FileExistsError:
+            pass
+
+    def public_status(self):
+        try:
+            cfg = json.loads(self.path.read_text(encoding="utf-8"))
+            ip = cfg.get("ip") or ""
+            try:
+                ip = local_bridge_ip(ip)
+            except ValueError:
+                ip = ""
+            return {"ip": ip, "paired": bool(cfg.get("key")), "config_exists": True}
+        except (OSError, ValueError, AttributeError):
+            return {"ip": "", "paired": False, "config_exists": self.path.exists()}
+
+    def discover(self):
+        try:
+            response = self.session.get("https://discovery.meethue.com/", timeout=6)
+            response.raise_for_status()
+            result = response.json()
+        except (requests.RequestException, ValueError) as e:
+            raise HueError("Découverte Hue indisponible. Saisis l'adresse IP du pont, par exemple 10.0.0.2.") from e
+        if not isinstance(result, list):
+            raise HueError("Réponse de découverte Hue invalide. Saisis l'IP manuellement.")
+        found = []
+        for bridge in result:
+            if not isinstance(bridge, dict):
+                continue
+            try:
+                ip = local_bridge_ip(bridge.get("internalipaddress", ""))
+            except ValueError:
+                continue
+            if ip not in found:
+                found.append(ip)
+        return found
+
+    def pair_once(self, ip):
+        ip = local_bridge_ip(ip)
+        try:
+            response = self.session.post(
+                f"https://{ip}/api", json={"devicetype": "hue_lab#pc"},
+                verify=False, timeout=3,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as e:
+            raise HueError(f"Pont {ip} inaccessible. Vérifie l'adresse IP et le réseau.") from e
+        if not isinstance(payload, list) or not payload or not isinstance(payload[0], dict):
+            raise HueError("Réponse d'association inattendue du pont Hue.")
+        item = payload[0]
+        if "error" in item:
+            err = item["error"]
+            if isinstance(err, dict) and err.get("type") == 101:
+                return {"paired": False, "waiting_for_button": True, "ip": ip}
+            # Ne jamais afficher la réponse brute avec d'éventuelles informations privées.
+            raise HueError(f"Association refusée par le pont (code {err.get('type', 'inconnu') if isinstance(err, dict) else 'inconnu'}).")
+        key = item.get("success", {}).get("username") if isinstance(item.get("success"), dict) else None
+        if not isinstance(key, str) or not key.strip():
+            raise HueError("Le pont n'a pas fourni de clé d'application valide.")
+        # Tester effectivement la clé avant d'écrire la configuration définitive.
+        client = HueClient(ip, key)
+        client.resource("light")
+        with self.lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_name(self.path.name + ".tmp")
+            tmp.write_text(json.dumps({"ip": ip, "key": key}, indent=2) + "\n", encoding="utf-8")
+            try:
+                os.chmod(tmp, 0o600)
+            except OSError:
+                pass
+            tmp.replace(self.path)
+            controller.attach_client(client)
+        controller.poll()
+        logger.info("Pont Hue associé et configuration créée automatiquement | %s", ip)
+        return {"paired": True, "waiting_for_button": False, "ip": ip, "lights": len(controller.get_lights())}
+
+
+def load_client():
+    try:
+        setup.ensure_config()
         cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-        return HueClient(cfg["ip"], cfg["key"])
-    except (OSError, ValueError, KeyError) as e:
-        logger.error("Configuration Hue invalide: %s", e)
+        if not isinstance(cfg, dict) or not cfg.get("ip") or not cfg.get("key"):
+            return None
+        return HueClient(local_bridge_ip(cfg["ip"]), cfg["key"])
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        logger.warning("Configuration locale non exploitable (association via l'interface) : %s", type(e).__name__)
         return None
+
+
+setup = HueOnboarding()
 
 
 controller = HueServer(client=load_client(), start_worker=False)
@@ -463,6 +609,21 @@ def index(request: Request):
 @app.get("/api/state")
 def state():
     return controller.state()
+
+
+@app.get("/api/setup/status")
+def setup_status():
+    return ok(setup.public_status())
+
+
+@app.get("/api/setup/discover")
+def setup_discover():
+    return ok({"bridges": setup.discover()})
+
+
+@app.post("/api/setup/pair")
+def setup_pair(data: dict = Body(...)):
+    return ok(setup.pair_once(data.get("ip", "")))
 
 
 @app.post("/api/auto")

@@ -12,6 +12,10 @@ let toastTimeout;
 let seekDragging = false;
 let refreshBusy = false;
 let profileDirty = false;
+let setupInProgress = false;
+let setupFirstShown = false;
+let setupCancelled = false;
+let setupInitDone = false;
 
 function escapeHtml(text) { return String(text ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function mm(minute) { const m = ((Math.floor(minute) % 1440) + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`; }
@@ -96,7 +100,7 @@ function setTab(tab) {
   activeTab=tab;
   $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${tab}`));
   $$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
-  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Courbes & simulation','Un cycle jour-nuit fluide et accéléré pour les essais.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.']};
+  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Courbes & simulation','Un cycle jour-nuit fluide et accéléré pour les essais.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.']};
   $('#page-title').textContent=titles[tab][0]; $('#page-subtitle').textContent=titles[tab][1];
   if(tab==='diagnostics')safe(refreshDiagnostics);
 }
@@ -106,8 +110,9 @@ async function refresh() {
     const s=await api('/api/state');state=s;lastStateAt=performance.now();
     $('#bridge-dot').classList.toggle('online',s.connected);
     $('#bridge-label').textContent=s.connected?'Pont connecté':'Pont non connecté';
-    $('#bridge-ip').textContent=s.bridge_ip??'Configuration requise';
-    $('#error-banner').classList.toggle('hidden',!s.error);
+    $('#bridge-ip').textContent=s.bridge_ip??'Association requise';
+    if(s.needs_setup && !setupFirstShown) {setupFirstShown=true;setTab('setup');initializeSetup();}
+    $('#error-banner').classList.toggle('hidden', !s.error || s.needs_setup);
     $('#error-banner').textContent=s.error||'';
     $('#stat-count').textContent=s.lights.length;
     $('#stat-online').textContent=s.lights.filter(l=>l.status==='connected').length;
@@ -179,8 +184,72 @@ async function refreshLogs(){const lines=await api('/api/logs');$('#log-display'
 function openPowerup(id){powerupId=id;const l=state?.lights.find(l=>l.id===id);$('#powerup-name').textContent=l?.name??id;$('#powerup-preset').value=l?.powerup?.preset||'last_on_state';$('#powerup-brightness').value=15;updatePowerupVisibility();$('#powerup-dialog').showModal();}
 function updatePowerupVisibility(){$('#powerup-brightness-wrap').classList.toggle('hidden',$('#powerup-preset').value!=='custom');}
 function downloadJSON(data,name){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
+function setSetupStatus(message, isError=false) {
+  const el = $('#setup-status');
+  el.textContent = message;
+  el.classList.toggle('bad',isError);
+}
+function setupSelection() {
+  const input = $('#setup-ip');
+  return input.value.trim() || $('#setup-bridges').value;
+}
+async function discoverHue() {
+  setSetupStatus('Recherche du pont sur le réseau…');
+  const button=$('#setup-discover');button.disabled=true;
+  try {
+    const info=await api('/api/setup/discover');
+    const ips=info.bridges||[];
+    const select=$('#setup-bridges');
+    select.innerHTML=ips.length?ips.map(ip=>`<option value="${escapeHtml(ip)}">${escapeHtml(ip)}</option>`).join(''):'<option value="">Aucun pont détecté</option>';
+    if(ips.length){$('#setup-ip').value=ips[0];setSetupStatus(`${ips.length} pont(s) trouvé(s). Démarre l'association.`);}
+    else setSetupStatus('Aucun pont trouvé. Tu peux saisir directement son adresse IP.',true);
+  } catch(e) {setSetupStatus(e.message,true);}
+  finally {button.disabled=false;}
+}
+async function initializeSetup() {
+  if(setupInitDone)return;
+  setupInitDone=true;
+  try {
+    const cfg=await api('/api/setup/status');
+    if(cfg.ip)$('#setup-ip').value=cfg.ip;
+    if(cfg.paired){setSetupStatus('Une configuration existe. Si elle ne fonctionne plus, tu peux refaire l’association.');}
+  } catch(e){setSetupStatus(e.message,true);}
+  await discoverHue();
+}
+async function pairHue() {
+  if(setupInProgress)return;
+  const ip=setupSelection();
+  if(!ip){setSetupStatus('Sélectionne un pont ou saisis son adresse IP.',true);return;}
+  setupInProgress=true;setupCancelled=false;
+  $('#setup-pair').disabled=true;$('#setup-cancel').classList.remove('hidden');
+  const stopAt=Date.now()+45000;
+  try{
+    while(Date.now()<stopAt && !setupCancelled){
+      const sec=Math.ceil((stopAt-Date.now())/1000);
+      setSetupStatus(`Appuie sur le bouton du pont Hue — en attente (${sec} s restantes)…`);
+      try{
+        const result=await api('/api/setup/pair','POST',{ip});
+        if(result.paired){
+          setSetupStatus(`Connexion réussie avec ${result.ip} ! ${result.lights} ampoule(s) trouvée(s).`);
+          $('#setup-connected').classList.remove('hidden');
+          $('#setup-connected').textContent=`✓ Pont connecté : ${result.ip} · ${result.lights} ampoule(s).`;
+          await refresh();
+          setTab('dashboard');
+          showToast('Pont connecté. Configuration enregistrée automatiquement.');
+          return;
+        }
+      }catch(e){setSetupStatus(e.message,true);return;}
+      if(!setupCancelled) await new Promise(resolve=>setTimeout(resolve,1500));
+    }
+    setSetupStatus(setupCancelled?'Association annulée.':'Délai écoulé. Relance l’association et appuie sur le bouton du pont.',!setupCancelled);
+  }finally{setupInProgress=false;$('#setup-pair').disabled=false;$('#setup-cancel').classList.add('hidden');}
+}
 function bindEvents(){
-  $$('.nav-item').forEach(btn=>btn.onclick=()=>setTab(btn.dataset.tab));
+  $('#setup-discover').onclick=()=>safe(discoverHue);
+  $('#setup-bridges').onchange=e=>{if(e.target.value)$('#setup-ip').value=e.target.value;};
+  $('#setup-pair').onclick=()=>safe(pairHue);
+  $('#setup-cancel').onclick=()=>{setupCancelled=true;setSetupStatus('Annulation demandée…');};
+  $$('.nav-item').forEach(btn=>btn.onclick=()=>{setTab(btn.dataset.tab);if(btn.dataset.tab==='setup')safe(initializeSetup);});
   $('#auto-toggle').onchange=e=>safe(async()=>{await api('/api/auto','POST',{enabled:e.target.checked});showToast('Automatisation réelle '+(e.target.checked?'activée':'désactivée'));await refresh();});
   $('#sim-toggle').onchange=e=>safe(async()=>{await api('/api/simulation','POST',{enabled:e.target.checked,running:e.target.checked});await refresh();});
   $('#sim-play').onclick=()=>safe(async()=>{await api('/api/simulation','POST',{running:!state.simulation.running});await refresh();});

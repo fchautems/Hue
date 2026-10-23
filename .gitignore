@@ -1,4 +1,5 @@
 .hue_config.json
+.hue_config.json.tmp
 hue_settings.json
 hue_settings.json.tmp
 logs/

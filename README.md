@@ -1,67 +1,60 @@
-# Hue Lab — interface locale Python + HTML (v0.1)
+# Hue Lab — Interface Web Philips Hue (v0.2)
 
-Cette version **n'écrase pas `hue.py`**, ton prototype CLI existant.
+Application locale Python + HTML permettant de piloter des ampoules Hue, simuler 24 h en accéléré, adapter leur luminosité et diagnostiquer leur comportement après une coupure de courant.
 
-## Installation sur le PC (Windows)
+## Installation Windows — tout depuis l'interface
 
-1. Récupérer les fichiers du dépôt dans `F:\_Projets\Hue`. Conserver les fichiers existants `hue.py` et `.hue_config.json`.
-2. Double-cliquer sur **`demarrer_hue.bat`**. Le lanceur vérifie les modules nécessaires, installe automatiquement les dépendances manquantes depuis `requirements.txt`, puis démarre le serveur. La première installation nécessite une connexion Internet.
-3. Ouvrir **http://127.0.0.1:8765** dans le navigateur.
+1. Récupérer la dernière version du dépôt dans `F:\_Projets\Hue` et conserver les fichiers existants du dossier, notamment `hue.py` (prototype CLI). Si le dossier est déjà un clone Git, `git pull` récupère les mises à jour du code ; cette commande **n'est pas nécessaire pour l'appairage**.
+2. Double-cliquer sur `demarrer_hue.bat` : les dépendances manquantes sont installées automatiquement, puis le serveur est lancé.
+3. Ouvrir `http://127.0.0.1:8765` dans le navigateur. Au premier lancement, l'onglet **Connexion au pont** s'affiche automatiquement :
+   - Cliquer sur **Rechercher le pont** (ou utiliser l'adresse IP proposée `10.0.0.2` si la découverte Internet n'aboutit pas).
+   - Cliquer sur **Démarrer l'association** et appuyer sur le gros bouton du pont Hue.
+   - Le programme retente automatiquement pendant 45 secondes, vérifie la clé, crée la configuration locale et affiche les ampoules.
 
-Lancement manuel alternatif depuis le répertoire du projet :
+**Aucune édition de fichier ni appel à `python hue.py connect` n'est nécessaire.** L'association physique au pont reste obligatoire une seule fois pour autoriser l'application.
 
-```powershell
-python -m pip install -r requirements.txt
-python hue_web.py
-```
+## Configuration et sécurité
 
-Si Python n'est pas accessible depuis la commande `python`, il faut l'installer et l'ajouter au `PATH`. En cas d'échec, la fenêtre du lanceur reste ouverte pour afficher l'erreur.
+- `hue_config.example.json` est **versionné sur GitHub**. Il contient l'adresse IP déjà connue du pont, sans clé secrète. Il sert de modèle au premier démarrage.
+- `.hue_config.json` est **créé automatiquement sur le PC** et contient ensuite la clé d'application fournie par le pont. **Il est exclu de GitHub** via `.gitignore` pour ne pas rendre publiques les commandes de tes lampes.
+- Quand une clé est absente, vide ou refusée, ouvrir l'onglet **Connexion au pont** et refaire l'association directement dans la page.
+- `hue_settings.json` (courbes personnalisées) et `logs/hue.log` (journal) restent aussi locaux.
+- Le serveur écoute par défaut uniquement sur `127.0.0.1` et refuse les adresses externes pour l'association. Les requêtes vers le pont utilisent son HTTPS local sans validation du certificat pour ce prototype.
 
-Le pont déjà associé est utilisé via `F:\_Projets\Hue\.hue_config.json`, créé par `python hue.py connect`. **Ne partage jamais ce fichier.**
+## Fonctions
 
-## Possibilités
+- Tableau de bord : on/off, luminosité et connexion Zigbee déclarée par le pont.
+- Courbes individuelles avec interpolation douce et continuité à minuit.
+- Horloge analogique 24 heures, simulation à vitesse accélérée et mode virtuel sans commandes physiques par défaut.
+- Automatisation temps réel à activer explicitement, sans rallumer volontairement les ampoules éteintes par logiciel.
+- Diagnostics `dimming`, `dynamics`, `powerup`, modèle, Zigbee, journal et export JSON sans clé.
+- Tests de remise sous tension : mesures du temps entre les observations de connectivité Zigbee.
 
-- Dashboard des lampes : état, Zigbee connecté/déconnecté si rapporté, marche/arrêt, luminosité.
-- Profils de luminosité propres à chaque ampoule, avec interpolation `smoothstep` cyclique (sans saut à minuit).
-- Horloge analogique 24 h / 2 aiguilles (heure en 24 h, minute en 60 min), défilement accéléré sur 30, 60, 120, 300 ou 600 secondes par jour, pause et déplacement manuel de l'heure.
-- Simulation **visuelle par défaut** ; activer explicitement « Appliquer aux vraies ampoules » pour commander les ampoules.
-- Automatisation heure réelle **désactivée au démarrage**, réactivable dans Tableau de bord.
-- Diagnostics : capacités déclarées (`dimming`, `dynamics`, `powerup`, couleur), fabricant / modèle, état Zigbee, preset de démarrage et export JSON sans clé API.
-- Dans Diagnostics : « Armer test secteur » avant de couper puis remettre le courant. Mesure la durée entre **deux observations Zigbee**, pas le délai exact de la première lumière.
-- Journaux rotatifs `logs/hue.log` : transitions d'état, connexions, commandes, erreurs, modifications du démarrage.
-- Tester des presets de démarrage `powerup` par ampoule quand l'API signale la fonction.
+## Limitation physique importante
 
-## Test conseillé
+Un interrupteur classique coupe totalement l'alimentation de l'ampoule. Elle ne peut pas interroger le PC avant de se reconnecter. Le comportement initial dépend de son paramètre `powerup` embarqué. L'application peut corriger la luminosité après reconnexion, mais ne peut pas garantir qu'elle sera exacte dès la première milliseconde.
 
-1. Tableau de bord : vérifier les 3 noms et les états ; commander brièvement une ampoule.
-2. Courbes & simulation : cocher **Activer la simulation**, puis déplacer l'horloge. Vérifier la cible calculée (sans action sur la lumière).
-3. Cocher **Appliquer aux vraies ampoules** pour tester la courbe avec l'ampoule réellement allumée.
-4. Diagnostics : noter modèle, `powerup`, `dynamics`, Zigbee. Lancer le journal.
-5. Faire un test **interrupteur mural** : couper, remettre le courant, vérifier l'heure de la reconnexion dans `logs/hue.log` et observer à l'œil la première lumière. Exporter le diagnostic pour examen.
+## Dépannage
 
-## Limites et sécurité
+- Si aucun pont n'est détecté, saisir une adresse locale valide (par exemple `10.0.0.2`) sur la page de connexion.
+- Si le pont refuse l'association, appuyer sur son bouton pendant la phase d'attente, puis relancer si nécessaire.
+- Le lanceur Windows indique les erreurs d'installation éventuelles et conserve la fenêtre ouverte en cas d'échec.
+- Les logs sont dans `logs/hue.log` ; ne pas publier les logs sans les relire.
 
-- Un interrupteur mural coupant le secteur empêche le serveur de communiquer avec l'ampoule éteinte. Le réglage de démarrage `powerup` est une configuration stockée dans l'ampoule : **elle ne peut pas connaître l'heure du PC hors tension**. Une correction peut être envoyée après reconnexion, mais une luminosité immédiatement parfaite n'est pas garantie.
-- `powerup` personnalisé fixe une luminosité de départ **statique**, indépendante de l'heure. Les presets disponibles varient selon les modèles / firmwares.
-- La connectivité Zigbee déclarée par le pont n'est pas une mesure électrique de l'interrupteur. L'observation peut être retardée ; un événement "ON" ne prouve pas un retour secteur.
-- Les transitions sont adoucies via l'API Hue `dynamics.duration` lorsque l'ampoule l'annonce, mais le matériel peut avoir ses limites, surtout en simulation à forte vitesse.
-- La commande n'allume pas automatiquement une ampoule éteinte par logiciel ; elle n'adapte que les ampoules indiquées allumées.
-- HTTPS local du pont avec validation du certificat désactivée pour ce POC (comme l'ancien `hue.py`). Le serveur Web n'écoute que sur `127.0.0.1` (pas accessible à distance sans changer volontairement `--host`).
-- La clé API demeure en local dans `.hue_config.json`, volontairement exclu du ZIP et des rapports ; ne pas publier le dossier `logs` sans le relire.
-- Ce prototype ne fait **aucune écriture `powerup` automatique** pour éviter des écritures non maîtrisées dans la mémoire de l'ampoule. Seule une action explicite dans Diagnostics modifie le preset.
-- Quand le programme est fermé, aucune automatisation PC ne tourne. Ne pas exécuter plusieurs instances du serveur en parallèle.
-
-## Tests hors réseau
+## Tests
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-## Fichiers importants
+Les tests de l'appairage sont effectués avec un faux pont. L'appairage sur le matériel réel reste à valider.
 
-- `hue_web.py` : serveur FastAPI, commandes API Hue v2, diagnostics, journal et superviseur.
-- `hue_core.py` : courbes horaires, interpolation et horloge accélérée.
-- `templates/index.html`, `static/*` : interface HTML/CSS/JS.
-- `hue_settings.json` : courbes enregistrées (créé lors du premier enregistrement).
-- `logs/hue.log` : journal tournant.
-- `PROJECT_STATE.md` : statut de la v0.1, contrôles et prochaine étape.
+## Fichiers
+
+- `hue_web.py` : serveur Web FastAPI, appairage, supervision, diagnostics.
+- `hue_core.py` : logique de courbe et de temps virtuel.
+- `templates/index.html`, `static/app.js`, `static/style.css` : interface Web.
+- `hue_config.example.json` : modèle de configuration versionné sans secret.
+- `.hue_config.json` : configuration privée créée automatiquement et ignorée par Git.
+- `tests/` : tests unitaires et des routes HTTP.
+- `PROJECT_STATE.md` : état vérifié du projet et prochaines actions.
