@@ -1,0 +1,15 @@
+.hue_config.json
+hue_settings.json
+hue_settings.json.tmp
+logs/
+__pycache__/
+.pytest_cache/
+*.pyc
+venv/
+.venv/
+
+# Données locales et archives
+.env
+.env.*
+*.zip
+.DS_Store

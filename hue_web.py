@@ -1,0 +1,542 @@
+"""Hue Web: interface locale, automatismes et diagnostics. Ne modifie pas hue.py."""
+from __future__ import annotations
+
+import argparse
+import copy
+from datetime import datetime
+import json
+import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+import threading
+import time
+
+from fastapi import FastAPI, Request, Body
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+import requests
+import urllib3
+
+from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = ROOT / ".hue_config.json"
+SETTINGS_PATH = ROOT / "hue_settings.json"
+LOG_DIR = ROOT / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+logger = logging.getLogger("hue_web")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+if not logger.handlers:
+    fmt = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+    log_file = RotatingFileHandler(LOG_DIR / "hue.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8")
+    log_file.setFormatter(fmt)
+    logger.addHandler(log_file)
+    log_console = logging.StreamHandler()
+    log_console.setFormatter(fmt)
+    logger.addHandler(log_console)
+
+app = FastAPI(title="Hue Lab", docs_url=None, redoc_url=None)
+app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
+templates = Jinja2Templates(directory=str(ROOT / "templates"))
+
+
+class HueError(Exception):
+    pass
+
+
+class HueClient:
+    def __init__(self, ip, key):
+        if not ip or not key:
+            raise HueError("Configuration Hue invalide (ip/key).")
+        self.ip = ip
+        self.session = requests.Session()
+        self.session.headers.update({"hue-application-key": key})
+        self.session.verify = False  # HTTPS local Hue: certificat non validé dans ce prototype.
+
+    def resource(self, resource, method="GET", payload=None):
+        try:
+            response = self.session.request(
+                method,
+                f"https://{self.ip}/clip/v2/resource/{resource}",
+                json=payload,
+                timeout=4,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except (requests.RequestException, ValueError) as e:
+            raise HueError(f"Pont {self.ip}: {type(e).__name__}: {e}") from e
+        if data.get("errors"):
+            raise HueError(f"API Hue: {data['errors']}")
+        return data.get("data", [])
+
+
+class HueServer:
+    def __init__(self, client=None, settings_path=SETTINGS_PATH, logger_=logger, start_worker=False):
+        self.lock = threading.RLock()
+        self.client = client
+        self.settings_path = Path(settings_path)
+        self.log = logger_
+        self.settings = {"auto": False, "profiles": {}}
+        if self.settings_path.exists():
+            try:
+                loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    self.settings["profiles"] = {k: validate_points(v) for k, v in loaded.get("profiles", {}).items()}
+                    # Sécurité: démarrage toujours en mode manuel; activation explicite dans l'UI.
+            except (OSError, ValueError, TypeError) as e:
+                self.log.warning("Paramètres non chargés : %s", e)
+        self.sim = {"enabled": False, "running": False, "apply": False,
+                    "seconds_per_day": 120, "minute": 8 * 60, "started_at": time.monotonic()}
+        self.lights = []
+        self.devices = []
+        self.connectivity = []
+        self.bridge = []
+        self.last_error = None
+        self.last_poll = None
+        self.previous_online = {}
+        self.previous_on = {}
+        self.reconnect_pending = set()
+        self.last_sent = {}  # id -> {at, target}
+        self.last_user_action = {}  # pour le diagnostic, pas pour masquer la détection physique
+        self.power_tests = {}  # mesures relatives aux observations Zigbee
+        self._stop = threading.Event()
+        self._worker = None
+        self._error_last_logged = 0
+        if start_worker:
+            self.start_worker()
+
+    def start_worker(self):
+        if self._worker is None:
+            self._worker = threading.Thread(target=self._loop, name="HueMonitoring", daemon=True)
+            self._worker.start()
+            self.log.info("Surveillance démarrée (sondage toutes les 2 s).")
+
+    def stop(self):
+        self._stop.set()
+        if self._worker:
+            self._worker.join(timeout=5)
+
+    def save(self):
+        # Sauvegarde atomique. Les secrets de l'API Hue ne sont jamais enregistrés ici.
+        payload = {"profiles": self.settings["profiles"]}
+        tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
+        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(self.settings_path)
+
+    def _loop(self):
+        while not self._stop.is_set():
+            try:
+                self.poll()
+                self.automate()
+            except Exception:
+                self.log.exception("Erreur inattendue dans la surveillance")
+            self._stop.wait(2)
+
+    def poll(self):
+        if not self.client:
+            with self.lock:
+                self.last_error = "Fichier .hue_config.json absent ou invalide. Copie-le depuis ton prototype CLI."
+            return
+        try:
+            lights = self.client.resource("light")
+            devices = self.client.resource("device")
+            connectivity = self.client.resource("zigbee_connectivity")
+            with self.lock:
+                current_online = {}
+                status_by_device = {c.get("owner", {}).get("rid"): c.get("status") for c in connectivity}
+                for l in lights:
+                    uid = l["id"]
+                    status = status_by_device.get(l.get("owner", {}).get("rid"))
+                    online = status == "connected" if status is not None else None
+                    current_online[uid] = online
+                    old_online = self.previous_online.get(uid)
+                    # Une transition offline->online est une observation réseau, pas une preuve de coupure physique.
+                    trial = self.power_tests.get(uid)
+                    if old_online is False and online is True:
+                        self.reconnect_pending.add(uid)
+                        self.log.info("RECONNEXION | %s | connexion Zigbee restaurée", l.get("metadata", {}).get("name", uid))
+                        if trial and trial.get("offline_at") is not None and trial["status"] == "hors ligne observé":
+                            trial["observed_offline_seconds"] = round(time.monotonic() - trial["offline_at"], 2)
+                            trial["status"] = "reconnecté"
+                            trial["reconnected_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+                            self.log.info("TEST SECTEUR | %s | retour Zigbee observé après %.2fs d'état hors-ligne observé (sondage 2s)",
+                                          l.get("metadata", {}).get("name", uid), trial["observed_offline_seconds"])
+                    elif old_online is True and online is False:
+                        self.log.warning("DÉCONNEXION | %s | connexion Zigbee perdue", l.get("metadata", {}).get("name", uid))
+                        if trial and trial["status"] == "armé":
+                            trial["offline_at"] = time.monotonic()
+                            trial["status"] = "hors ligne observé"
+                            self.log.info("TEST SECTEUR | %s | perte Zigbee observée", l.get("metadata", {}).get("name", uid))
+                    if uid not in self.settings["profiles"]:
+                        self.settings["profiles"][uid] = copy.deepcopy(DEFAULT_POINTS)
+                    is_on = l.get("on", {}).get("on")
+                    old_on = self.previous_on.get(uid)
+                    if old_on is False and is_on is True:
+                        self.log.info("ÉTAT | %s | ON observé", l.get("metadata", {}).get("name", uid))
+                    elif old_on is True and is_on is False:
+                        self.log.info("ÉTAT | %s | OFF observé", l.get("metadata", {}).get("name", uid))
+                    self.previous_on[uid] = is_on
+                self.previous_online.update(current_online)
+                self.lights = lights
+                self.devices = devices
+                self.connectivity = connectivity
+                self.last_poll = datetime.now().astimezone().isoformat(timespec="seconds")
+                self.last_error = None
+        except HueError as e:
+            with self.lock:
+                self.last_error = str(e)
+            if time.monotonic() - self._error_last_logged > 30:
+                self._error_last_logged = time.monotonic()
+                self.log.warning("Lecture Hue impossible : %s", e)
+
+    def simulated_time(self):
+        with self.lock:
+            if self.sim["enabled"]:
+                return simulated_minutes(self.sim)
+            return wall_clock_minutes()
+
+    def _mode(self):
+        # Retourne le mode actif, avec priorité à la simulation (sans action si apply=False).
+        with self.lock:
+            if self.sim["enabled"]:
+                return "simulation" if self.sim["apply"] else "observation"
+            return "reel" if self.settings["auto"] else "manuel"
+
+    def automate(self):
+        if not self.client or self.last_error:
+            return
+        with self.lock:
+            mode = self._mode()
+            if mode in ("observation", "manuel"):
+                return
+            minute = simulated_minutes(self.sim) if self.sim["enabled"] else wall_clock_minutes()
+            lights = copy.deepcopy(self.lights)
+            profiles = copy.deepcopy(self.settings["profiles"])
+            status = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
+            pending = set(self.reconnect_pending)
+        for light in lights:
+            uid = light["id"]
+            if "dimming" not in light:
+                continue
+            if not light.get("on", {}).get("on", False):
+                continue  # Ne jamais allumer automatiquement une ampoule éteinte via l'API.
+            state = status.get(light.get("owner", {}).get("rid"))
+            if state is not None and state != "connected":
+                continue
+            target = brightness_at(profiles.get(uid, DEFAULT_POINTS), minute)
+            current = light.get("dimming", {}).get("brightness")
+            last = self.last_sent.get(uid, {})
+            now = time.monotonic()
+            reconnect = uid in pending
+            # Les lectures Hue peuvent être légèrement en retard: ne pas renvoyer en boucle une même cible.
+            if not reconnect and last and now - last["at"] < 3:
+                continue
+            if not reconnect and last and abs(target - last["target"]) < 1.0 and now - last["at"] < 60:
+                continue
+            if not reconnect and isinstance(current, (float, int)) and abs(target - current) < 1.0:
+                continue
+            payload = {"dimming": {"brightness": max(1, min(100, target))}}
+            if "dynamics" in light:
+                payload["dynamics"] = {"duration": 0 if reconnect else (1800 if self.sim["enabled"] else 3500)}
+            try:
+                self.client.resource(f"light/{uid}", "PUT", payload)
+                with self.lock:
+                    self.last_sent[uid] = {"at": now, "target": target}
+                    self.reconnect_pending.discard(uid)
+                self.log.info("AUTO | %s | cible %.1f%% | mode=%s | durée=%dms%s",
+                              light.get("metadata", {}).get("name", uid), target, mode,
+                              payload.get("dynamics", {}).get("duration", 0),
+                              " | correction reconnexion" if reconnect else "")
+            except HueError as e:
+                self.log.error("AUTO refusé | %s | %s", uid, e)
+
+    def get_lights(self):
+        with self.lock:
+            m = self.simulated_time()
+            connections = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
+            devices = {d.get("id"): d for d in self.devices}
+            result = []
+            for l in self.lights:
+                owner = l.get("owner", {}).get("rid")
+                dev = devices.get(owner, {})
+                points = self.settings["profiles"].get(l["id"], DEFAULT_POINTS)
+                result.append({
+                    "id": l["id"],
+                    "name": l.get("metadata", {}).get("name", "Ampoule"),
+                    "on": l.get("on", {}).get("on"),
+                    "brightness": l.get("dimming", {}).get("brightness"),
+                    "target": brightness_at(points, m),
+                    "status": connections.get(owner, "inconnu"),
+                    "model": dev.get("product_data", {}).get("model_id", "inconnu"),
+                    "manufacturer": dev.get("product_data", {}).get("manufacturer_name", "inconnu"),
+                    "capabilities": {
+                        "on": "on" in l,
+                        "dimming": "dimming" in l,
+                        "dynamics": "dynamics" in l,
+                        "powerup": "powerup" in l,
+                        "color_temperature": "color_temperature" in l,
+                        "color": "color" in l,
+                    },
+                    "powerup": l.get("powerup"),
+                })
+            return result
+
+    def state(self):
+        with self.lock:
+            return {
+                "bridge_ip": self.client.ip if self.client else None,
+                "connected": self.client is not None and self.last_poll is not None and self.last_error is None,
+                "error": self.last_error,
+                "last_poll": self.last_poll,
+                "auto": self.settings["auto"],
+                "simulation": public_sim(self.sim),
+                "mode": self._mode(),
+                "minute": round(self.simulated_time(), 3),
+                "lights": self.get_lights(),
+            }
+
+    def profile(self, uid):
+        with self.lock:
+            self.require_light(uid)
+            return copy.deepcopy(self.settings["profiles"].get(uid, DEFAULT_POINTS))
+
+    def require_light(self, uid):
+        light = next((l for l in self.lights if l.get("id") == uid), None)
+        if not light:
+            raise ValueError("Ampoule inconnue. Actualise le pont.")
+        return light
+
+    def set_profile(self, uid, points):
+        cleaned = validate_points(points)
+        with self.lock:
+            self.require_light(uid)
+            self.settings["profiles"][uid] = cleaned
+            self.save()
+        self.log.info("PROFIL | %s | %d points sauvegardés", uid, len(cleaned))
+        return cleaned
+
+    def set_sim(self, data):
+        allowed = {"enabled", "running", "apply", "seconds_per_day", "minute"}
+        if not isinstance(data, dict) or set(data) - allowed:
+            raise ValueError("Paramètres de simulation invalides.")
+        with self.lock:
+            # Réinitialise l'origine temporelle pour garantir une vitesse continue.
+            now_min = simulated_minutes(self.sim)
+            if "seconds_per_day" in data and data["seconds_per_day"] not in (30, 60, 120, 300, 600):
+                raise ValueError("Choisir 30, 60, 120, 300 ou 600 secondes par jour.")
+            if "minute" in data:
+                v = data["minute"]
+                if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v < 1440:
+                    raise ValueError("Minute de simulation invalide.")
+                now_min = float(v)
+            for key in ("enabled", "running", "apply"):
+                if key in data and not isinstance(data[key], bool):
+                    raise ValueError(f"{key} doit être un booléen.")
+            self.sim.update(data)
+            self.sim["minute"] = now_min
+            self.sim["started_at"] = time.monotonic()
+            result = public_sim(self.sim)
+        self.log.info("SIMULATION | %s", json.dumps(result, ensure_ascii=False))
+        return result
+
+    def switch(self, uid, on, brightness=None):
+        if not self.client:
+            raise HueError("Pont non configuré")
+        with self.lock:
+            light = self.require_light(uid)
+            supports_dimming = "dimming" in light
+            name = light.get("metadata", {}).get("name", uid)
+            target = self.get_lights()
+            target = next(x["target"] for x in target if x["id"] == uid)
+        payload = {"on": {"on": on}}
+        if on and supports_dimming:
+            payload["dimming"] = {"brightness": float(brightness if brightness is not None else target)}
+        self.client.resource(f"light/{uid}", "PUT", payload)
+        with self.lock:
+            self.last_user_action[uid] = time.monotonic()
+            self.last_sent.pop(uid, None)
+        self.log.info("MANUEL | %s | %s", name, payload)
+
+    def set_brightness(self, uid, brightness):
+        if isinstance(brightness, bool) or not isinstance(brightness, (float, int)) or not 1 <= brightness <= 100:
+            raise ValueError("La luminosité doit être entre 1 et 100 %.")
+        with self.lock:
+            light = self.require_light(uid)
+            if "dimming" not in light:
+                raise ValueError("Cette ampoule ne propose pas le réglage de luminosité.")
+        payload = {"dimming": {"brightness": float(brightness)}}
+        if "dynamics" in light:
+            payload["dynamics"] = {"duration": 400}
+        self.client.resource(f"light/{uid}", "PUT", payload)
+        self.log.info("MANUEL | %s | luminosité %.1f%%", uid, brightness)
+
+    def set_powerup(self, uid, preset, brightness=None):
+        with self.lock:
+            light = self.require_light(uid)
+            if "powerup" not in light:
+                raise ValueError("Le pont ne signale pas la capacité powerup pour cette ampoule.")
+        if preset not in ("last_on_state", "safety", "powerfail", "custom"):
+            raise ValueError("Preset powerup inconnu")
+        powerup = {"preset": preset}
+        if preset == "custom":
+            if isinstance(brightness, bool) or not isinstance(brightness, (float, int)) or not 1 <= brightness <= 100:
+                raise ValueError("Luminosité custom: 1 à 100 %.")
+            powerup.update({
+                "on": {"mode": "on", "on": {"on": True}},
+                "dimming": {"mode": "dimming", "dimming": float(brightness)},
+            })
+        self.client.resource(f"light/{uid}", "PUT", {"powerup": powerup})
+        self.log.warning("POWERUP MODIFIÉ | %s | %s", uid, json.dumps(powerup))
+        self.poll()
+        return powerup
+
+    def arm_power_test(self, uid):
+        with self.lock:
+            light = self.require_light(uid)
+            name = light.get("metadata", {}).get("name", uid)
+            self.power_tests[uid] = {
+                "status": "armé",
+                "armed_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "offline_at": None,
+                "observed_offline_seconds": None,
+            }
+        self.log.info("TEST SECTEUR ARMÉ | %s | couper puis remettre le courant avec l'interrupteur mural", name)
+        return {"status": "armé", "light": name}
+
+    def diagnostics(self):
+        with self.lock:
+            return {
+                "generated": datetime.now().astimezone().isoformat(),
+                "bridge_ip": self.client.ip if self.client else None,
+                "last_poll": self.last_poll,
+                "last_error": self.last_error,
+                "lights": self.get_lights(),
+                "devices": copy.deepcopy(self.devices),
+                "zigbee_connectivity": copy.deepcopy(self.connectivity),
+                "power_tests": copy.deepcopy(self.power_tests),
+                "notes": [
+                    "Clé d'accès Hue volontairement absente de ce rapport.",
+                    "L'état Zigbee fourni par le pont n'est pas une mesure électrique de la coupure de courant.",
+                    "Le comportement powerup dépend du modèle et de son firmware.",
+                    "Les temps de réveil et les changements lumineux réels doivent être mesurés sur site.",
+                ],
+            }
+
+
+def load_client():
+    if not CONFIG_PATH.exists():
+        logger.warning("Aucune configuration: .hue_config.json manquant dans %s", ROOT)
+        return None
+    try:
+        cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        return HueClient(cfg["ip"], cfg["key"])
+    except (OSError, ValueError, KeyError) as e:
+        logger.error("Configuration Hue invalide: %s", e)
+        return None
+
+
+controller = HueServer(client=load_client(), start_worker=False)
+
+
+def ok(data=None):
+    return {"ok": True, "data": data}
+
+
+@app.exception_handler(ValueError)
+async def invalid(_request: Request, e: ValueError):
+    return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@app.exception_handler(HueError)
+async def unavailable(_request: Request, e: HueError):
+    return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    return templates.TemplateResponse(request, "index.html")
+
+
+@app.get("/api/state")
+def state():
+    return controller.state()
+
+
+@app.post("/api/auto")
+def auto(data: dict = Body(...)):
+    enabled = data.get("enabled")
+    if not isinstance(enabled, bool):
+        raise ValueError("enabled doit être true ou false.")
+    with controller.lock:
+        controller.settings["auto"] = enabled
+    logger.info("AUTOMATISATION RÉELLE | %s", "activée" if enabled else "désactivée")
+    return ok({"enabled": enabled})
+
+
+@app.post("/api/simulation")
+def simulation(data: dict = Body(...)):
+    return ok(controller.set_sim(data))
+
+
+@app.get("/api/profile/{uid}")
+def profile(uid: str):
+    return ok(controller.profile(uid))
+
+
+@app.put("/api/profile/{uid}")
+def set_profile(uid: str, data: dict = Body(...)):
+    return ok(controller.set_profile(uid, data.get("points")))
+
+
+@app.post("/api/light/{uid}/switch")
+def switch(uid: str, data: dict = Body(...)):
+    if not isinstance(data.get("on"), bool):
+        raise ValueError("on doit être un booléen.")
+    controller.switch(uid, data["on"])
+    return ok()
+
+
+@app.post("/api/light/{uid}/brightness")
+def set_brightness(uid: str, data: dict = Body(...)):
+    controller.set_brightness(uid, data.get("brightness"))
+    return ok()
+
+
+@app.post("/api/light/{uid}/powerup")
+def set_powerup(uid: str, data: dict = Body(...)):
+    return ok(controller.set_powerup(uid, data.get("preset"), data.get("brightness")))
+
+
+@app.post("/api/power-test/{uid}/arm")
+def power_test_arm(uid: str):
+    return ok(controller.arm_power_test(uid))
+
+
+@app.get("/api/diagnostics")
+def diagnostics():
+    return controller.diagnostics()
+
+
+@app.get("/api/logs")
+def logs():
+    path = LOG_DIR / "hue.log"
+    if not path.exists():
+        return ok([])
+    return ok(path.read_text(encoding="utf-8", errors="replace").splitlines()[-150:])
+
+
+if __name__ == "__main__":
+    import uvicorn
+    parser = argparse.ArgumentParser(description="Hue Web – contrôle local")
+    parser.add_argument("--host", default="127.0.0.1", help="127.0.0.1 (local) par défaut")
+    parser.add_argument("--port", type=int, default=8765)
+    args = parser.parse_args()
+    controller.start_worker()
+    logger.info("Serveur Hue Web sur http://%s:%s", args.host, args.port)
+    try:
+        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    finally:
+        controller.stop()

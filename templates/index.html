@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hue • Laboratoire de lumière</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.1</span></div></div>
+    <nav class="nav" aria-label="Navigation">
+      <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
+      <button class="nav-item" data-tab="profiles"><span>⌁</span> Courbes horaires</button>
+      <button class="nav-item" data-tab="diagnostics"><span>☷</span> Diagnostics & logs</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="status-dot" id="bridge-dot"></span><span id="bridge-label">Connexion en cours…</span><small id="bridge-ip">Pont Hue</small></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar"><div><div class="eyebrow">PHILIPS HUE / ENVIRONNEMENT LOCAL</div><h1 id="page-title">Tableau de bord</h1><p id="page-subtitle">Éclairage, simulation et suivi en temps réel.</p></div><div class="top-time"><span>HEURE DU SERVEUR</span><strong id="real-clock">--:--:--</strong></div></header>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="error-banner" class="error-banner hidden"></div>
+
+    <section id="tab-dashboard" class="tab">
+      <div class="stat-strip">
+        <div><span>AMPOULES</span><strong id="stat-count">—</strong><small>sur le pont</small></div>
+        <div><span>CONNECTÉES</span><strong id="stat-online">—</strong><small>selon Zigbee</small></div>
+        <div><span>MODE ACTIF</span><strong id="stat-mode">Manuel</strong><small>aucune action sans activation</small></div>
+      </div>
+      <div class="section-title"><h2>Mes lumières</h2><span id="light-updated">Actualisation…</span></div>
+      <div id="light-grid" class="light-grid"><div class="empty">Recherche des ampoules…</div></div>
+      <div class="section-title space-top"><h2>Automatisation</h2><span>Heure réelle, selon les courbes enregistrées</span></div>
+      <div class="card auto-card"><div><h3>Suivi de la luminosité en temps réel</h3><p>Adapte progressivement les ampoules allumées à la courbe horaire. N'allume jamais volontairement une ampoule éteinte.</p></div><label class="switch"><input id="auto-toggle" type="checkbox"><span></span></label></div>
+      <div class="hint">Si l'interrupteur mural coupe le courant, la luminosité au tout premier instant dépend du réglage <strong>powerup</strong> de l'ampoule. Le serveur ne peut intervenir qu'après la reconnexion au pont.</div>
+    </section>
+
+    <section id="tab-profiles" class="tab hidden">
+      <div class="two-col top-section">
+        <div class="card clock-card">
+          <div class="card-head"><div><div class="eyebrow">SIMULATEUR CIRCADIEN</div><h2>Horloge 24 heures</h2></div><span class="chip" id="clock-mode">TEMPS RÉEL</span></div>
+          <div class="clock-container">
+            <svg id="clock-svg" viewBox="0 0 320 320" role="img" aria-label="Horloge analogique à cadran 24 heures">
+              <circle cx="160" cy="160" r="149" fill="#152436" stroke="#3d5165" stroke-width="1.5"/>
+              <circle cx="160" cy="160" r="136" fill="none" stroke="#40566c" stroke-width="1"/>
+              <g id="clock-ticks"></g>
+              <circle cx="160" cy="160" r="83" fill="#1c3044" opacity="0.65"/>
+              <text x="160" y="126" class="clock-day" text-anchor="middle">00 — 24 H</text>
+              <g id="hour-hand"><line x1="160" y1="180" x2="160" y2="73" stroke="#eab763" stroke-width="8" stroke-linecap="round"/></g>
+              <g id="minute-hand"><line x1="160" y1="184" x2="160" y2="46" stroke="#f4f6fb" stroke-width="3" stroke-linecap="round"/></g>
+              <circle cx="160" cy="160" r="8" fill="#eab763"/>
+              <text id="clock-digital" x="160" y="219" class="clock-digital" text-anchor="middle">--:--</text>
+            </svg>
+          </div>
+          <div class="slider-heading"><span>Déplacer le temps simulé</span><strong id="seek-label">08:00</strong></div>
+          <input id="time-slider" class="range" type="range" min="0" max="1439" step="1" value="480">
+          <div class="slider-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+        </div>
+        <div class="card sim-card">
+          <div class="eyebrow">BANC DE TEST</div><h2>Simulation temporelle</h2><p>Fais défiler une journée entière en quelques secondes ou minutes pour observer les transitions.</p>
+          <div class="setting-row"><div><strong>Activer la simulation</strong><small>Utilise l'horloge virtuelle</small></div><label class="switch"><input id="sim-toggle" type="checkbox"><span></span></label></div>
+          <div class="setting-row"><div><strong>Faire tourner l'horloge</strong><small>Pause ou reprise du défilement</small></div><button id="sim-play" class="btn muted">▶ Démarrer</button></div>
+          <label class="field-label" for="sim-speed">Durée d'une journée simulée</label><select id="sim-speed" class="field"><option value="30">30 secondes</option><option value="60">1 minute</option><option selected value="120">2 minutes</option><option value="300">5 minutes</option><option value="600">10 minutes</option></select>
+          <div class="setting-row border-top"><div><strong>Appliquer aux vraies ampoules</strong><small>Sinon, simulation visuelle uniquement</small></div><label class="switch warn-switch"><input id="sim-apply" type="checkbox"><span></span></label></div>
+          <div class="notice" id="sim-notice">Simulation sans commande physique par défaut. Active volontairement l'application pour tester sur les lampes.</div>
+        </div>
+      </div>
+      <div class="section-title space-top"><h2>Courbe de luminosité</h2><span>Personnalisable par ampoule</span></div>
+      <div class="card profile-card">
+        <div class="profile-bar"><label for="profile-light">Ampoule</label><select id="profile-light" class="field"></select><span class="chip" id="profile-target">Cible — %</span></div>
+        <svg id="profile-chart" viewBox="0 0 840 260" preserveAspectRatio="none" role="img" aria-label="Courbe de luminosité entre minuit et minuit"></svg>
+        <div class="profile-foot"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+        <div class="profile-help">Ajoute ou modifie des points horaires. La transition entre les points est adoucie automatiquement et reste continue à minuit.</div>
+        <div id="point-rows" class="point-rows"></div>
+        <div class="profile-actions"><button id="add-point" class="btn muted">+ Ajouter un point</button><button id="save-profile" class="btn primary">Enregistrer la courbe</button></div>
+      </div>
+    </section>
+
+    <section id="tab-diagnostics" class="tab hidden">
+      <div class="section-title"><h2>État du pont et capacités</h2><button id="refresh-diagnostics" class="btn muted">↻ Actualiser</button></div>
+      <div class="card"><div id="diag-meta" class="diag-meta">Lecture du pont…</div><div id="diag-lights" class="diag-lights"></div><div class="diag-actions"><button id="export-diag" class="btn muted">↓ Exporter diagnostic JSON</button></div></div>
+      <div class="section-title space-top"><h2>Journal des événements</h2><span>Connexion, commandes, erreurs, démarrages</span></div>
+      <div class="card log-card"><div class="log-controls"><span>Dernières 150 lignes · fichier logs/hue.log</span><button id="refresh-logs" class="btn muted">↻ Rafraîchir</button></div><pre id="log-display">Chargement…</pre></div>
+    </section>
+    <footer>Hue Lab 0.1 · Service Python local · API Philips Hue v2 · Les identifiants restent sur le PC</footer>
+  </main>
+</div>
+<dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="15"></div><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>
+</body>
+</html>
