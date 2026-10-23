@@ -1,4 +1,4 @@
-# Hue Lab — Interface Web Philips Hue (v0.2)
+# Hue Lab — Interface Web Philips Hue (v0.3)
 
 Application locale Python + HTML permettant de piloter des ampoules Hue, simuler 24 h en accéléré, adapter leur luminosité et diagnostiquer leur comportement après une coupure de courant.
 
@@ -25,9 +25,11 @@ Application locale Python + HTML permettant de piloter des ampoules Hue, simuler
 
 - Tableau de bord : on/off, luminosité et connexion Zigbee déclarée par le pont.
 - Courbes individuelles avec interpolation douce et continuité à minuit.
-- Horloge analogique 24 heures, simulation à vitesse accélérée et mode virtuel sans commandes physiques par défaut.
-- Automatisation temps réel à activer explicitement, sans rallumer volontairement les ampoules éteintes par logiciel.
-- Diagnostics `dimming`, `dynamics`, `powerup`, modèle, Zigbee, journal et export JSON sans clé.
+- Sélecteur unique : Manuel, Temps réel ou Accéléré (ce dernier pilote les ampoules physiques). Horloge 24 h, vitesses, pause et curseur de temps.
+- Temps réel : suivi continu de la courbe locale, sans rallumer les ampoules volontairement éteintes par logiciel.
+- Démarrage sur valeur fixe 10 % proposé pour chaque ampoule compatible via `powerup.custom` : écriture uniquement sur clic, puis relecture du réglage.
+- Reconnexion : SSE Hue v2 et secours par sondage 2 s, transition adaptative 500–2 000 ms ; animation quotidienne par `dynamics.duration` si disponible.
+- Diagnostics `dimming`, `dynamics`, `powerup`, statut SSE, délai observé de correction, modèle, Zigbee, logs et export JSON sans secret.
 - Tests de remise sous tension : mesures du temps entre les observations de connectivité Zigbee.
 
 ## Limitation physique importante
@@ -58,3 +60,15 @@ Les tests de l'appairage sont effectués avec un faux pont. L'appairage sur le m
 - `.hue_config.json` : configuration privée créée automatiquement et ignorée par Git.
 - `tests/` : tests unitaires et des routes HTTP.
 - `PROJECT_STATE.md` : état vérifié du projet et prochaines actions.
+
+## Hue Lab v0.3 — Utilisation
+
+1. Depuis le clone Git, effectuer `git pull`, puis relancer `demarrer_hue.bat`. La configuration locale de v0.2 est préservée.
+2. Choisir le mode depuis le sélecteur en haut de page : **Manuel** (aucune courbe appliquée), **Temps réel** (courbes sur l'heure du PC), **Accéléré** (courbes sur l'horloge virtuelle, commande PHYSIQUE des ampoules).
+3. Dans **Diagnostics**, pour une ampoule annonçant `powerup`, cliquer sur **Démarrage / powerup**, choisir **Luminosité fixe personnalisée**, 10 %, puis **Appliquer au matériel**. Lire le résultat de la vérification par relecture et tester une coupure avec l'interrupteur.
+4. En Temps réel, à la reconnexion, la consigne de la courbe est appliquée par une transition courte et douce. La première lumière dépend de la mémoire et du firmware de l'ampoule.
+5. Les diagnostics donnent le statut des événements SSE et la latence entre observation et envoi de commande ; ils ne mesurent pas le délai optique réel.
+
+Manuel et Temps réel sont mémorisés. Accéléré est réinitialisé en Manuel au redémarrage pour éviter un pilotage intempestif. Le double allumage à 100 % est reporté à une éventuelle v0.4.
+
+**Tests :** 27 tests Python hors réseau sur moteur v0.3 adapté et routes API, et `node --check` sur le JavaScript ; intégration textuelle avec la source v0.2 vérifiée. Pas de test avec tes trois ampoules ni de test complet du projet sur Windows dans cet environnement.

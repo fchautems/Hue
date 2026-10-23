@@ -41,3 +41,14 @@ Mise à jour : 2026-10-23
 - Tests : **20 tests Python réussis**, dont cas 101, clé invalide, IP invalide, routes Web et absence de clé dans les réponses. `node --check` sur JS OK. Écran affiché avec Chromium en environnement isolé, sans erreur JS ; accès HTTP via navigateur local non disponible à cause d'une restriction du navigateur de test.
 - **Non vérifié :** appairage et redémarrage Windows avec un pont Hue réel. Contrôle à effectuer sur le PC utilisateur.
 - **Prochaine action :** synchroniser le dépôt, double-cliquer `demarrer_hue.bat` et appairer exclusivement via l'onglet Connexion au pont ; puis vérifier la présence des trois ampoules et les diagnostics.
+
+## v0.3 — Modes, reconnexion et powerup — 2026-10-23
+- Choix durable : modes exclusifs Manuel / Temps réel / Accéléré, automates contrôlés par un unique mode serveur ; simulation accélérée pilotant les lampes réelles uniquement après sélection explicite.
+- Démarrage matériel : paramètre `powerup.custom` proposé à 10 % par ampoule, écrit sur action utilisateur et contrôlé par relecture API ; test réel du retour secteur restant nécessaire.
+- Réactivité : ajout SSE Hue API v2, reprise automatique du flux, sondage de secours toutes les 2 secondes et transitions à la reconnexion de 0,5 à 2 s selon l'écart.
+- Après redémarrage : mode Manuel ou Temps réel restauré ; Accéléré réinitialisé sur Manuel ; changement de pont réinitialise le pilotage.
+- Diagnostics : état SSE, latence entre détection logicielle et commande après reconnexion, logs sans clé.
+- Contrôles : **27 tests Python réussis** en local sur sources v0.1 adaptées à v0.3, incluant HTTP FastAPI et faux pont ; syntaxe JavaScript Node correcte ; patches v0.3 appliqués proprement aux sources GitHub v0.2 sans chevauchement. Tests Windows/Hue physiques et campagne complète des tests v0.2 encore à effectuer.
+- Limites : la première luminosité est déterminée par le firmware de l'ampoule ; `powerup` et `dynamics` peuvent être absents ; les événements de reconnexion ne prouvent pas la coupure électrique.
+- Prochaine action : synchroniser GitHub, régler powerup 10 % individuellement depuis Diagnostics, tester coupure et transitions puis analyser les logs.
+- Hors périmètre : double extinction/allumage rapide à 100 % (v0.4 ultérieure).

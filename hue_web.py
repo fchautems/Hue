@@ -20,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 import requests
 import urllib3
 
+from hue_v03_runtime import HueEventStream, reconnect_transition_ms
 from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -82,12 +83,14 @@ class HueServer:
         self.client = client
         self.settings_path = Path(settings_path)
         self.log = logger_
-        self.settings = {"auto": False, "profiles": {}}
+        self.settings = {"auto": False, "mode": "manuel", "profiles": {}}
         if self.settings_path.exists():
             try:
                 loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
                     self.settings["profiles"] = {k: validate_points(v) for k, v in loaded.get("profiles", {}).items()}
+                    self.settings["mode"] = loaded.get("mode") if loaded.get("mode") in ("manuel", "reel") else "manuel"
+                    self.settings["auto"] = self.settings["mode"] == "reel"
                     # Sécurité: démarrage toujours en mode manuel; activation explicite dans l'UI.
             except (OSError, ValueError, TypeError) as e:
                 self.log.warning("Paramètres non chargés : %s", e)
@@ -108,6 +111,11 @@ class HueServer:
         self._stop = threading.Event()
         self._worker = None
         self._error_last_logged = 0
+        self._event_wakeup = threading.Event()
+        self._automation_lock = threading.Lock()
+        self._events = HueEventStream(lambda: self.client, self._event_wakeup.set, self._stop, self.log)
+        self.reconnect_at = {}
+        self.reconnect_latency = {}
         if start_worker:
             self.start_worker()
 
@@ -115,16 +123,20 @@ class HueServer:
         if self._worker is None:
             self._worker = threading.Thread(target=self._loop, name="HueMonitoring", daemon=True)
             self._worker.start()
+            self._events.start()
             self.log.info("Surveillance démarrée (sondage toutes les 2 s).")
 
     def stop(self):
         self._stop.set()
+        self._event_wakeup.set()
         if self._worker:
             self._worker.join(timeout=5)
+        if self._events.thread:
+            self._events.thread.join(timeout=3)
 
     def save(self):
         # Sauvegarde atomique. Les secrets de l'API Hue ne sont jamais enregistrés ici.
-        payload = {"profiles": self.settings["profiles"]}
+        payload = {"profiles": self.settings["profiles"], "mode": self.settings["mode"] if self.settings["mode"] in ("manuel", "reel") else "manuel"}
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self.settings_path)
@@ -136,7 +148,9 @@ class HueServer:
                 self.automate()
             except Exception:
                 self.log.exception("Erreur inattendue dans la surveillance")
-            self._stop.wait(2)
+            # Les événements SSE réveillent ce worker plus tôt ; polling de secours toutes les 2 s.
+            self._event_wakeup.wait(2)
+            self._event_wakeup.clear()
 
     def attach_client(self, client):
         """Change de pont sans réutiliser les anciennes ampoules ou automatismes."""
@@ -153,7 +167,14 @@ class HueServer:
             self.last_sent.clear()
             self.power_tests.clear()
             self.settings["auto"] = False
+            self.settings["mode"] = "manuel"
+            self.sim["enabled"] = False
+            self.sim["running"] = False
             self.sim["apply"] = False
+            self.reconnect_at.clear()
+            self.reconnect_latency.clear()
+            self.save()
+            self._event_wakeup.set()
 
     def poll(self):
         with self.lock:
@@ -181,6 +202,7 @@ class HueServer:
                     trial = self.power_tests.get(uid)
                     if old_online is False and online is True:
                         self.reconnect_pending.add(uid)
+                        self.reconnect_at[uid] = time.monotonic()
                         self.log.info("RECONNEXION | %s | connexion Zigbee restaurée", l.get("metadata", {}).get("name", uid))
                         if trial and trial.get("offline_at") is not None and trial["status"] == "hors ligne observé":
                             trial["observed_offline_seconds"] = round(time.monotonic() - trial["offline_at"], 2)
@@ -225,20 +247,46 @@ class HueServer:
             return wall_clock_minutes()
 
     def _mode(self):
-        # Retourne le mode actif, avec priorité à la simulation (sans action si apply=False).
         with self.lock:
-            if self.sim["enabled"]:
-                return "simulation" if self.sim["apply"] else "observation"
-            return "reel" if self.settings["auto"] else "manuel"
+            return self.settings["mode"]
+
+    def set_mode(self, mode):
+        if mode not in ("manuel", "reel", "accelere"):
+            raise ValueError("Mode inconnu : manuel, reel ou accelere.")
+        with self.lock:
+            previous = self.settings["mode"]
+            if mode == previous:
+                return {"mode": mode}
+            self.settings["mode"] = mode
+            self.settings["auto"] = mode == "reel"
+            if mode == "accelere":
+                self.sim["minute"] = wall_clock_minutes()
+            self.sim["enabled"] = mode == "accelere"
+            self.sim["apply"] = mode == "accelere"
+            self.sim["running"] = mode == "accelere"
+            self.sim["started_at"] = time.monotonic()
+            self.last_sent.clear()
+            self.save()
+        self.log.info("MODE | %s -> %s", previous, mode)
+        self._event_wakeup.set()
+        return {"mode": mode}
 
     def automate(self):
         if not self.client or self.last_error:
             return
+        if not self._automation_lock.acquire(blocking=False):
+            return
+        try:
+            self._automate_locked()
+        finally:
+            self._automation_lock.release()
+
+    def _automate_locked(self):
         with self.lock:
             mode = self._mode()
-            if mode in ("observation", "manuel"):
+            if mode == "manuel":
                 return
-            minute = simulated_minutes(self.sim) if self.sim["enabled"] else wall_clock_minutes()
+            minute = simulated_minutes(self.sim) if mode == "accelere" else wall_clock_minutes()
             lights = copy.deepcopy(self.lights)
             profiles = copy.deepcopy(self.settings["profiles"])
             status = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
@@ -266,12 +314,16 @@ class HueServer:
                 continue
             payload = {"dimming": {"brightness": max(1, min(100, target))}}
             if "dynamics" in light:
-                payload["dynamics"] = {"duration": 0 if reconnect else (1800 if self.sim["enabled"] else 3500)}
+                payload["dynamics"] = {"duration": reconnect_transition_ms(current, target) if reconnect else (1800 if mode == "accelere" else 3000)}
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
                     self.last_sent[uid] = {"at": now, "target": target}
                     self.reconnect_pending.discard(uid)
+                    if reconnect:
+                        elapsed = round((time.monotonic() - self.reconnect_at.get(uid, now)) * 1000)
+                        self.reconnect_latency[uid] = elapsed
+                        self.log.info("CORRECTION RECONNEXION | %s | délai API observé %d ms | transition demandée %d ms", uid, elapsed, payload.get("dynamics", {}).get("duration", 0))
                 self.log.info("AUTO | %s | cible %.1f%% | mode=%s | durée=%dms%s",
                               light.get("metadata", {}).get("name", uid), target, mode,
                               payload.get("dynamics", {}).get("duration", 0),
@@ -346,10 +398,12 @@ class HueServer:
         return cleaned
 
     def set_sim(self, data):
-        allowed = {"enabled", "running", "apply", "seconds_per_day", "minute"}
+        allowed = {"running", "seconds_per_day", "minute"}
         if not isinstance(data, dict) or set(data) - allowed:
             raise ValueError("Paramètres de simulation invalides.")
         with self.lock:
+            if self.settings["mode"] != "accelere":
+                raise ValueError("Activer le mode accéléré avant de régler l'horloge virtuelle.")
             # Réinitialise l'origine temporelle pour garantir une vitesse continue.
             now_min = simulated_minutes(self.sim)
             if "seconds_per_day" in data and data["seconds_per_day"] not in (30, 60, 120, 300, 600):
@@ -359,7 +413,7 @@ class HueServer:
                 if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v < 1440:
                     raise ValueError("Minute de simulation invalide.")
                 now_min = float(v)
-            for key in ("enabled", "running", "apply"):
+            for key in ("running",):
                 if key in data and not isinstance(data[key], bool):
                     raise ValueError(f"{key} doit être un booléen.")
             self.sim.update(data)
@@ -418,7 +472,18 @@ class HueServer:
         self.client.resource(f"light/{uid}", "PUT", {"powerup": powerup})
         self.log.warning("POWERUP MODIFIÉ | %s | %s", uid, json.dumps(powerup))
         self.poll()
-        return powerup
+        with self.lock:
+            current = self.require_light(uid).get("powerup", {})
+        actual_dimming = current.get("dimming", {}).get("dimming")
+        matched = current.get("preset") == preset and current.get("configured") is not False
+        if preset == "custom":
+            matched = matched and isinstance(actual_dimming, (int, float)) and abs(actual_dimming - brightness) < 0.6
+        result = {"requested": powerup, "readback": current, "verified_readback": bool(matched)}
+        if not matched:
+            self.log.warning("POWERUP NON CONFIRMÉ | %s | lecture %s", uid, json.dumps(current))
+        else:
+            self.log.info("POWERUP CONFIRMÉ PAR LECTURE | %s | %s (test secteur à faire)", uid, preset)
+        return result
 
     def arm_power_test(self, uid):
         with self.lock:
@@ -444,6 +509,8 @@ class HueServer:
                 "devices": copy.deepcopy(self.devices),
                 "zigbee_connectivity": copy.deepcopy(self.connectivity),
                 "power_tests": copy.deepcopy(self.power_tests),
+                "reconnect_latency_ms": copy.deepcopy(self.reconnect_latency),
+                "event_stream": {"status": self._events.status, "last_event_epoch": self._events.last_event},
                 "notes": [
                     "Clé d'accès Hue volontairement absente de ce rapport.",
                     "L'état Zigbee fourni par le pont n'est pas une mesure électrique de la coupure de courant.",
@@ -631,10 +698,12 @@ def auto(data: dict = Body(...)):
     enabled = data.get("enabled")
     if not isinstance(enabled, bool):
         raise ValueError("enabled doit être true ou false.")
-    with controller.lock:
-        controller.settings["auto"] = enabled
-    logger.info("AUTOMATISATION RÉELLE | %s", "activée" if enabled else "désactivée")
-    return ok({"enabled": enabled})
+    return ok(controller.set_mode("reel" if enabled else "manuel"))
+
+
+@app.post("/api/mode")
+def update_mode(data: dict = Body(...)):
+    return ok(controller.set_mode(data.get("mode")))
 
 
 @app.post("/api/simulation")

@@ -17,6 +17,8 @@ class FakeClient:
     def resource(self, path, method="GET", payload=None):
         if method == "PUT":
             self.calls.append((path, payload))
+            if "powerup" in (payload or {}):
+                self.lights[0]["powerup"] = payload["powerup"]
             return []
         if path == "light":
             return self.lights
@@ -44,11 +46,12 @@ class ServerTests(unittest.TestCase):
     def test_safe_by_default(self):
         self.server.automate()
         self.assertEqual(self.fake.calls, [])
-        self.server.set_sim({"enabled": True, "apply": False, "running": True})
+        self.server.set_mode("manuel")
         self.server.automate()
         self.assertEqual(self.fake.calls, [])
     def test_automatic_only_when_active_and_on(self):
-        self.server.set_sim({"enabled": True, "apply": True, "minute": 600, "running": False})
+        self.server.set_mode("accelere")
+        self.server.set_sim({"minute": 600, "running": False})
         self.server.automate()
         self.assertEqual(len(self.fake.calls), 1)
         self.assertEqual(self.fake.calls[0][1]["dimming"]["brightness"], 100)
@@ -60,7 +63,8 @@ class ServerTests(unittest.TestCase):
     def test_no_command_when_zigbee_disconnected(self):
         self.fake.connectivity[0]["status"] = "disconnected"
         self.server.poll()
-        self.server.set_sim({"enabled": True, "apply": True, "minute": 600})
+        self.server.set_mode("accelere")
+        self.server.set_sim({"minute": 600, "running": False})
         self.server.automate()
         self.assertEqual(self.fake.calls, [])
     def test_reconnect_gets_immediate_duration(self):
@@ -69,9 +73,10 @@ class ServerTests(unittest.TestCase):
         self.fake.connectivity[0]["status"] = "connected"
         self.server.poll()
         self.assertIn("light-a", self.server.reconnect_pending)
-        self.server.set_sim({"enabled": True, "apply": True, "minute": 600})
+        self.server.set_mode("accelere")
+        self.server.set_sim({"minute": 600, "running": False})
         self.server.automate()
-        self.assertEqual(self.fake.calls[0][1]["dynamics"]["duration"], 0)
+        self.assertEqual(self.fake.calls[0][1]["dynamics"]["duration"], 1500)
         self.assertNotIn("light-a", self.server.reconnect_pending)
     def test_preset_writes_only_with_explicit_action(self):
         self.assertEqual(self.fake.calls, [])

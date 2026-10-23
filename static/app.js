@@ -116,18 +116,17 @@ async function refresh() {
     $('#error-banner').textContent=s.error||'';
     $('#stat-count').textContent=s.lights.length;
     $('#stat-online').textContent=s.lights.filter(l=>l.status==='connected').length;
-    const names={manuel:'Manuel',reel:'Temps réel',simulation:'Simulation live',observation:'Simulation visuelle'};
+    const names={manuel:'Manuel',reel:'Temps réel',accelere:'Temps accéléré'};
     $('#stat-mode').textContent=names[s.mode]??s.mode;
     $('#light-updated').textContent=s.last_poll?`Pont actualisé : ${s.last_poll.replace('T',' ').slice(11,19)}`:'En attente du pont';
-    $('#auto-toggle').checked=s.auto;
-    $('#sim-toggle').checked=s.simulation.enabled;
+    if(document.activeElement!==$('#hue-mode'))$('#hue-mode').value=s.mode;
     $('#sim-play').textContent=s.simulation.running?'Ⅱ Pause':'▶ Démarrer';
     $('#sim-play').disabled=!s.simulation.enabled;
     $('#sim-speed').value=s.simulation.seconds_per_day;
-    $('#sim-apply').checked=s.simulation.apply;
-    $('#sim-apply').disabled=!s.simulation.enabled;
-    $('#clock-mode').textContent=s.simulation.enabled?'TEMPS SIMULÉ':'TEMPS RÉEL';
-    $('#sim-notice').textContent=s.simulation.enabled&&s.simulation.apply?'ATTENTION — La simulation commande réellement les ampoules allumées.':'Simulation sans commande physique. Les ampoules ne changent pas avec le temps virtuel.';
+    $('#time-slider').disabled=s.mode!=='accelere';
+    $('#sim-speed').disabled=s.mode!=='accelere';
+    $('#clock-mode').textContent=s.mode==='accelere'?'TEMPS ACCÉLÉRÉ':'HEURE RÉELLE';
+    $('#sim-notice').textContent=s.mode==='accelere'?'Le mode accéléré commande les ampoules réelles.':'Choisir le mode « Accéléré » ci-dessus pour piloter les lampes avec cette horloge.';
     addLightCards(s.lights);
     updateLights(s.lights);
     tickClock();
@@ -174,14 +173,14 @@ function renderChart() {
 }
 async function refreshDiagnostics(){
   const diag=await api('/api/diagnostics');
-  $('#diag-meta').textContent=`Pont ${diag.bridge_ip??'inconnu'} · dernière lecture ${diag.last_poll??'jamais'} · ${diag.lights.length} ampoule(s)`;
-  $('#diag-lights').innerHTML=diag.lights.map(l=>`<div class="diag-item"><div class="diag-head"><div><h3>${escapeHtml(l.name)}</h3><small>${escapeHtml(l.manufacturer)} · ${escapeHtml(l.model)} · ${escapeHtml(l.status)}</small></div><div><button class="btn muted test-power-btn" data-id="${escapeHtml(l.id)}">Armer test secteur</button> <button class="btn muted powerup-btn" data-id="${escapeHtml(l.id)}" ${!l.capabilities.powerup?'disabled':''}>Régler powerup</button></div></div><p><code>${escapeHtml(l.id)}</code></p><div class="capabilities">${Object.entries(l.capabilities).map(([k,v])=>`<span class="cap ${v?'':'no'}">${v?'✓':'–'} ${escapeHtml(k)}</span>`).join('')}</div><p>Powerup déclaré : <code>${escapeHtml(l.powerup?JSON.stringify(l.powerup):'non disponible')}</code></p><p>Test de coupure : <code>${escapeHtml(diag.power_tests?.[l.id]?.status||'non lancé')}${diag.power_tests?.[l.id]?.observed_offline_seconds != null ? ' · Zigbee hors ligne observé '+escapeHtml(diag.power_tests[l.id].observed_offline_seconds)+' s' : ''}</code></p></div>`).join('');
+  $('#diag-meta').textContent=`Pont ${diag.bridge_ip??'inconnu'} · dernière lecture ${diag.last_poll??'jamais'} · ${diag.lights.length} ampoule(s) · événements Hue : ${diag.event_stream?.status??'inconnu'}`;
+  $('#diag-lights').innerHTML=diag.lights.map(l=>`<div class="diag-item"><div class="diag-head"><div><h3>${escapeHtml(l.name)}</h3><small>${escapeHtml(l.manufacturer)} · ${escapeHtml(l.model)} · ${escapeHtml(l.status)}</small></div><div><button class="btn muted test-power-btn" data-id="${escapeHtml(l.id)}">Armer test secteur</button> <button class="btn muted powerup-btn" data-id="${escapeHtml(l.id)}" ${!l.capabilities.powerup?'disabled':''}>Démarrage / powerup</button></div></div><p><code>${escapeHtml(l.id)}</code></p><div class="capabilities">${Object.entries(l.capabilities).map(([k,v])=>`<span class="cap ${v?'':'no'}">${v?'✓':'–'} ${escapeHtml(k)}</span>`).join('')}</div><p>Powerup déclaré : <code>${escapeHtml(l.powerup?JSON.stringify(l.powerup):'non disponible')}</code></p><p>Test de coupure : <code>${escapeHtml(diag.power_tests?.[l.id]?.status||'non lancé')}${diag.power_tests?.[l.id]?.observed_offline_seconds != null ? ' · Zigbee hors ligne observé '+escapeHtml(diag.power_tests[l.id].observed_offline_seconds)+' s' : ''}</code></p></div>`).join('');
   $$('.powerup-btn').forEach(btn=>btn.onclick=()=>openPowerup(btn.dataset.id));
   $$('.test-power-btn').forEach(btn=>btn.onclick=()=>safe(async()=>{await api(`/api/power-test/${encodeURIComponent(btn.dataset.id)}/arm`,'POST',{});showToast('Test armé : coupe puis remets le courant avec l’interrupteur.');await refreshDiagnostics();}));
   await refreshLogs();
 }
 async function refreshLogs(){const lines=await api('/api/logs');$('#log-display').textContent=lines.length?lines.join('\n'):'Aucun événement enregistré.';}
-function openPowerup(id){powerupId=id;const l=state?.lights.find(l=>l.id===id);$('#powerup-name').textContent=l?.name??id;$('#powerup-preset').value=l?.powerup?.preset||'last_on_state';$('#powerup-brightness').value=15;updatePowerupVisibility();$('#powerup-dialog').showModal();}
+function openPowerup(id){powerupId=id;const l=state?.lights.find(l=>l.id===id);$('#powerup-name').textContent=l?.name??id;$('#powerup-preset').value=l?.powerup?.preset||'custom';$('#powerup-brightness').value=l?.powerup?.preset==='custom'?(l.powerup?.dimming?.dimming??10):10;updatePowerupVisibility();$('#powerup-dialog').showModal();}
 function updatePowerupVisibility(){$('#powerup-brightness-wrap').classList.toggle('hidden',$('#powerup-preset').value!=='custom');}
 function downloadJSON(data,name){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
 function setSetupStatus(message, isError=false) {
@@ -250,13 +249,12 @@ function bindEvents(){
   $('#setup-pair').onclick=()=>safe(pairHue);
   $('#setup-cancel').onclick=()=>{setupCancelled=true;setSetupStatus('Annulation demandée…');};
   $$('.nav-item').forEach(btn=>btn.onclick=()=>{setTab(btn.dataset.tab);if(btn.dataset.tab==='setup')safe(initializeSetup);});
-  $('#auto-toggle').onchange=e=>safe(async()=>{await api('/api/auto','POST',{enabled:e.target.checked});showToast('Automatisation réelle '+(e.target.checked?'activée':'désactivée'));await refresh();});
-  $('#sim-toggle').onchange=e=>safe(async()=>{await api('/api/simulation','POST',{enabled:e.target.checked,running:e.target.checked});await refresh();});
+  $('#hue-mode').onchange=e=>safe(async()=>{await api('/api/mode','POST',{mode:e.target.value});showToast('Mode '+e.target.options[e.target.selectedIndex].text+' activé');await refresh();});
+  $('#go-diagnostics').onclick=()=>setTab('diagnostics');
   $('#sim-play').onclick=()=>safe(async()=>{await api('/api/simulation','POST',{running:!state.simulation.running});await refresh();});
   $('#sim-speed').onchange=e=>safe(async()=>{await api('/api/simulation','POST',{seconds_per_day:Number(e.target.value)});await refresh();});
-  $('#sim-apply').onchange=e=>safe(async()=>{await api('/api/simulation','POST',{apply:e.target.checked});showToast(e.target.checked?'La simulation agit maintenant sur les lampes.':'Simulation visuelle uniquement.');await refresh();});
   $('#time-slider').addEventListener('input',e=>{seekDragging=true;$('#seek-label').textContent=mm(Number(e.target.value));$('#hour-hand').setAttribute('transform',`rotate(${Number(e.target.value)/1440*360} 160 160)`);});
-  $('#time-slider').addEventListener('change',e=>safe(async()=>{seekDragging=false;await api('/api/simulation','POST',{enabled:true,minute:Number(e.target.value)});await refresh();renderChart();}));
+  $('#time-slider').addEventListener('change',e=>safe(async()=>{seekDragging=false;await api('/api/simulation','POST',{minute:Number(e.target.value)});await refresh();renderChart();}));
   $('#profile-light').onchange=e=>{selectedId=e.target.value;loadProfile();};
   $('#add-point').onclick=()=>{if(editingPoints.length>=24){showToast('Maximum 24 points',true);return;}editingPoints=readPoints();let next=720;while(editingPoints.some(p=>p.minute===next))next=(next+30)%1440;editingPoints.push({minute:next,brightness:50});editingPoints.sort((a,b)=>a.minute-b.minute);profileDirty=true;renderPointRows();renderChart();};
   $('#save-profile').onclick=()=>safe(async()=>{const points=readPoints();if(points.some(p=>!Number.isFinite(p.minute)||!Number.isFinite(p.brightness)))throw Error('Vérifie les heures et les valeurs.');await api(`/api/profile/${encodeURIComponent(selectedId)}`,'PUT',{points});showToast('Courbe enregistrée');await loadProfile();await refresh();});
@@ -265,6 +263,6 @@ function bindEvents(){
   $('#export-diag').onclick=()=>safe(async()=>downloadJSON(await api('/api/diagnostics'),`hue-diagnostics-${new Date().toISOString().slice(0,10)}.json`));
   $('#powerup-preset').onchange=updatePowerupVisibility;
   $('#cancel-powerup').onclick=()=>$('#powerup-dialog').close();
-  $('#save-powerup').onclick=()=>safe(async()=>{const preset=$('#powerup-preset').value;const brightness=Number($('#powerup-brightness').value);await api(`/api/light/${encodeURIComponent(powerupId)}/powerup`,'POST',{preset,brightness});$('#powerup-dialog').close();showToast('Configuration powerup envoyée');await refresh();await refreshDiagnostics();});
+  $('#save-powerup').onclick=()=>safe(async()=>{const preset=$('#powerup-preset').value;const brightness=Number($('#powerup-brightness').value);const result=await api(`/api/light/${encodeURIComponent(powerupId)}/powerup`,'POST',{preset,brightness});$('#powerup-dialog').close();showToast(result.verified_readback?'Réglage confirmé par lecture du pont. Teste le retour secteur.':'Écriture envoyée mais valeur non confirmée. Consulte Diagnostics.',!result.verified_readback);await refresh();await refreshDiagnostics();});
 }
 initClockFace();bindEvents();tickClock();setInterval(tickClock,250);refresh();setInterval(()=>{refresh();if(activeTab==='profiles'&&!profileDirty)renderChart();},2000);
