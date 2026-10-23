@@ -4,17 +4,18 @@ Cette version **n'écrase pas `hue.py`**, ton prototype CLI existant.
 
 ## Installation sur le PC (Windows)
 
-1. Extraire **le contenu** de l'archive dans `F:\_Projets\Hue`. Conserver tes fichiers existants `hue.py` et `.hue_config.json`.
-2. Depuis ce répertoire :
-
-   ```powershell
-   python -m pip install -r requirements.txt
-   python hue_web.py
-   ```
-
+1. Récupérer les fichiers du dépôt dans `F:\_Projets\Hue`. Conserver les fichiers existants `hue.py` et `.hue_config.json`.
+2. Double-cliquer sur **`demarrer_hue.bat`**. Le lanceur vérifie les modules nécessaires, installe automatiquement les dépendances manquantes depuis `requirements.txt`, puis démarre le serveur. La première installation nécessite une connexion Internet.
 3. Ouvrir **http://127.0.0.1:8765** dans le navigateur.
 
-Ou double-cliquer sur `demarrer_hue.bat` après l'installation des dépendances.
+Lancement manuel alternatif depuis le répertoire du projet :
+
+```powershell
+python -m pip install -r requirements.txt
+python hue_web.py
+```
+
+Si Python n'est pas accessible depuis la commande `python`, il faut l'installer et l'ajouter au `PATH`. En cas d'échec, la fenêtre du lanceur reste ouverte pour afficher l'erreur.
 
 Le pont déjà associé est utilisé via `F:\_Projets\Hue\.hue_config.json`, créé par `python hue.py connect`. **Ne partage jamais ce fichier.**
 

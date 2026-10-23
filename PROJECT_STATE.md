@@ -31,3 +31,10 @@ Mise à jour : 2026-10-23
 
 ## Prochaine action
 - Cloner ou mettre à jour le dépôt sur le PC, démarrer l’application, exporter les diagnostics des 3 modèles et tester la remise sous tension ; ajuster ensuite la stratégie de démarrage selon les capacités réellement observées.
+
+## Correctif du lancement Windows — 2026-10-23
+- Signalement utilisateur : `ModuleNotFoundError: No module named 'fastapi'` lors du lancement de `demarrer_hue.bat`.
+- Lanceur : vérification de Python et des modules `fastapi`, `uvicorn`, `requests`, `jinja2` ; installation automatique via `python -m pip install -r requirements.txt` si un module manque ; contrôle final avant démarrage.
+- `Jinja2` ajouté à `requirements.txt` pour les templates HTML ; consignes de démarrage du `README.md` mises à jour.
+- Vérification : cohérence statique du lanceur et des dépendances. **Test réel du batch sous Windows et du pont Hue à effectuer sur le PC utilisateur**. Les 13 tests précédents concernent la version initiale.
+- Prochaine action : `git pull` puis double-clic sur `demarrer_hue.bat` et vérification de http://127.0.0.1:8765.
