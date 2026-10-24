@@ -12,11 +12,12 @@ class RouteTests(unittest.TestCase):
         self.temp=TemporaryDirectory()
         hue_web.controller=hue_web.HueServer(FakeClient(),Path(self.temp.name)/'settings.json',logging.getLogger('routes'))
         hue_web.controller.poll()
-        self.http=TestClient(hue_web.app)
+        self.client_context=TestClient(hue_web.app)
+        self.http=self.client_context.__enter__()
     def tearDown(self):
+        self.client_context.__exit__(None, None, None)
         hue_web.controller=self.original
         self.temp.cleanup()
-        self.http.close()
     def test_mode_endpoint(self):
         r=self.http.post('/api/mode',json={'mode':'reel'})
         self.assertEqual(r.status_code,200)

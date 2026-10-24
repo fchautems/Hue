@@ -54,11 +54,20 @@ class HueEventStream:
         self.thread = None
         self.status = "arrêté"
         self.last_event = None
+        self._response_lock = threading.Lock()
+        self._response = None
 
     def start(self):
         if self.thread is None or not self.thread.is_alive():
             self.thread = threading.Thread(target=self._run, name="HueEvents", daemon=True)
             self.thread.start()
+
+    def interrupt(self):
+        """Ferme le flux actif pour permettre un arrêt ou un changement de pont immédiat."""
+        with self._response_lock:
+            response = self._response
+        if response is not None:
+            response.close()
 
     def _run(self):
         while not self.stop_event.is_set():
@@ -67,13 +76,16 @@ class HueEventStream:
                 self.status = "en attente du pont"
                 self.stop_event.wait(3)
                 continue
+            response = None
             try:
                 # Une session distincte pour le flux évite de partager requests.Session entre threads.
                 headers = {"hue-application-key": client.session.headers["hue-application-key"], "Accept": "text/event-stream"}
                 with requests.get(
                     f"https://{client.ip}/eventstream/clip/v2",
-                    headers=headers, stream=True, verify=False, timeout=(4, 25)
+                    headers=headers, stream=True, verify=False, timeout=(4, None)
                 ) as response:
+                    with self._response_lock:
+                        self._response = response
                     response.raise_for_status()
                     self.status = "connecté"
                     for line in response.iter_lines(decode_unicode=True):
@@ -90,8 +102,13 @@ class HueEventStream:
                             self.on_change()
             except requests.RequestException as exc:
                 # Ne jamais afficher les en-têtes, donc ne jamais divulguer la clé.
-                self.status = "reconnexion"
-                self.log.info("Flux Hue indisponible (%s), nouvelle tentative", type(exc).__name__)
+                if not self.stop_event.is_set() and client is self.get_client():
+                    self.status = "reconnexion"
+                    self.log.info("Flux Hue indisponible (%s), nouvelle tentative", type(exc).__name__)
+            finally:
+                with self._response_lock:
+                    if self._response is response:
+                        self._response = None
             if not self.stop_event.is_set():
                 self.stop_event.wait(3)
         self.status = "arrêté"

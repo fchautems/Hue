@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from hue_web import HueServer
+from hue_web import HueClient, HueError, HueServer
 
 LIGHT = {"id": "light-a", "metadata": {"name": "Salon"}, "owner": {"rid": "device-a"},
          "on": {"on": True}, "dimming": {"brightness": 50},
@@ -18,6 +18,11 @@ class FakeClient:
         if method == "PUT":
             self.calls.append((path, payload))
             if "powerup" in (payload or {}):
+                powerup = payload["powerup"]
+                if powerup.get("preset") == "custom":
+                    dimming = powerup.get("dimming", {}).get("dimming")
+                    if not isinstance(dimming, dict) or not isinstance(dimming.get("brightness"), (int, float)):
+                        raise ValueError("Schéma powerup.dimming invalide")
                 self.lights[0]["powerup"] = payload["powerup"]
             return []
         if path == "light":
@@ -81,7 +86,10 @@ class ServerTests(unittest.TestCase):
     def test_preset_writes_only_with_explicit_action(self):
         self.assertEqual(self.fake.calls, [])
         self.server.set_powerup("light-a", "custom", 17)
-        self.assertEqual(self.fake.calls[0][1]["powerup"]["dimming"]["dimming"], 17)
+        self.assertEqual(
+            self.fake.calls[0][1]["powerup"]["dimming"]["dimming"]["brightness"],
+            17,
+        )
     def test_power_cycle_diagnostic_uses_observed_zigbee_transition(self):
         self.server.arm_power_test("light-a")
         self.assertEqual(self.server.diagnostics()["power_tests"]["light-a"]["status"], "armé")
@@ -97,6 +105,24 @@ class ServerTests(unittest.TestCase):
     def test_profile_persisted(self):
         self.server.set_profile("light-a", [{"minute": 0, "brightness": 5}, {"minute": 720, "brightness": 99}])
         self.assertTrue((Path(self.tmp.name) / "settings.json").is_file())
+
+    def test_hue_error_keeps_detail_without_exposing_key(self):
+        class Response:
+            status_code = 400
+            def json(self):
+                return {"errors": [{"description": "body contains invalid value"}]}
+            def raise_for_status(self):
+                raise AssertionError("Les erreurs Hue structurées sont traitées avant HTTPError")
+        class Session:
+            def request(self, *args, **kwargs):
+                return Response()
+        client = HueClient("10.0.0.2", "secret-test-key")
+        client.session = Session()
+        with self.assertRaises(HueError) as caught:
+            client.resource("light/light-a", "PUT", {"powerup": {"preset": "custom"}})
+        message = str(caught.exception)
+        self.assertIn("body contains invalid value", message)
+        self.assertNotIn("secret-test-key", message)
 
 if __name__ == "__main__":
     unittest.main()

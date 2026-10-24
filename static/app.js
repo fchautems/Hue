@@ -180,7 +180,7 @@ async function refreshDiagnostics(){
   await refreshLogs();
 }
 async function refreshLogs(){const lines=await api('/api/logs');$('#log-display').textContent=lines.length?lines.join('\n'):'Aucun événement enregistré.';}
-function openPowerup(id){powerupId=id;const l=state?.lights.find(l=>l.id===id);$('#powerup-name').textContent=l?.name??id;$('#powerup-preset').value=l?.powerup?.preset||'custom';$('#powerup-brightness').value=l?.powerup?.preset==='custom'?(l.powerup?.dimming?.dimming??10):10;updatePowerupVisibility();$('#powerup-dialog').showModal();}
+function openPowerup(id){powerupId=id;const l=state?.lights.find(l=>l.id===id);$('#powerup-name').textContent=l?.name??id;$('#powerup-preset').value=l?.powerup?.preset||'custom';$('#powerup-brightness').value=l?.powerup?.preset==='custom'?(l.powerup?.dimming?.dimming?.brightness??10):10;updatePowerupVisibility();$('#powerup-dialog').showModal();}
 function updatePowerupVisibility(){$('#powerup-brightness-wrap').classList.toggle('hidden',$('#powerup-preset').value!=='custom');}
 function downloadJSON(data,name){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
 function setSetupStatus(message, isError=false) {

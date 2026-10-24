@@ -73,7 +73,12 @@ class OnboardingTests(TestCase):
     def test_pair_success_verifies_and_saves_and_updates_server(self):
         self.session.pair_response = [{"success": {"username": "true-key"}}]
         with patch.object(hue_web.HueClient, "resource", side_effect=lambda path, *a, **kw: [{"id": "l1", "owner": {"rid": "d1"}, "on": {"on": True}}] if path == "light" else []):
-            with patch.object(hue_web, "controller", hue_web.HueServer(logger_=logging.getLogger("test")) ) as server:
+            test_settings = Path(self.tmp.name) / "hue_settings.json"
+            with patch.object(
+                hue_web,
+                "controller",
+                hue_web.HueServer(settings_path=test_settings, logger_=logging.getLogger("test")),
+            ) as server:
                 result = self.setup.pair_once("10.0.0.2")
                 self.assertTrue(result["paired"])
                 self.assertEqual(result["lights"], 1)
@@ -99,14 +104,14 @@ class OnboardingTests(TestCase):
     def test_http_endpoints_no_key_exposed(self):
         with patch.object(hue_web, "setup", self.setup):
             self.setup.ensure_config()
-            app = TestClient(hue_web.app)
             self.session.discovered = [{"internalipaddress": "10.0.0.2"}]
-            status = app.get("/api/setup/status")
-            self.assertEqual(status.status_code, 200)
-            self.assertFalse(status.json()["data"]["paired"])
-            self.assertNotIn("key", str(status.json()))
-            self.assertEqual(app.get("/api/setup/discover").json()["data"]["bridges"], ["10.0.0.2"])
-            self.assertTrue(app.post("/api/setup/pair", json={"ip": "10.0.0.2"}).json()["data"]["waiting_for_button"])
-            self.assertEqual(app.post("/api/setup/pair", json={"ip": "127.0.0.1"}).status_code, 400)
-            self.assertEqual(app.get("/").status_code, 200)
-            self.assertIn("Démarrer l'association", app.get("/").text)
+            with TestClient(hue_web.app) as app:
+                status = app.get("/api/setup/status")
+                self.assertEqual(status.status_code, 200)
+                self.assertFalse(status.json()["data"]["paired"])
+                self.assertNotIn("key", str(status.json()))
+                self.assertEqual(app.get("/api/setup/discover").json()["data"]["bridges"], ["10.0.0.2"])
+                self.assertTrue(app.post("/api/setup/pair", json={"ip": "10.0.0.2"}).json()["data"]["waiting_for_button"])
+                self.assertEqual(app.post("/api/setup/pair", json={"ip": "127.0.0.1"}).status_code, 400)
+                self.assertEqual(app.get("/").status_code, 200)
+                self.assertIn("Démarrer l'association", app.get("/").text)

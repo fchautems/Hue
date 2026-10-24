@@ -29,6 +29,8 @@ CONFIG_PATH = ROOT / ".hue_config.json"
 CONFIG_EXAMPLE = ROOT / "hue_config.example.json"
 SETTINGS_PATH = ROOT / "hue_settings.json"
 LOG_DIR = ROOT / "logs"
+POLL_INTERVAL_SECONDS = 1.0
+COMMAND_COOLDOWN_SECONDS = 1.25
 LOG_DIR.mkdir(exist_ok=True)
 logger = logging.getLogger("hue_web")
 logger.setLevel(logging.INFO)
@@ -68,12 +70,35 @@ class HueClient:
                 json=payload,
                 timeout=4,
             )
-            response.raise_for_status()
-            data = response.json()
-        except (requests.RequestException, ValueError) as e:
+        except requests.RequestException as e:
             raise HueError(f"Pont {self.ip}: {type(e).__name__}: {e}") from e
-        if data.get("errors"):
-            raise HueError(f"API Hue: {data['errors']}")
+
+        try:
+            data = response.json()
+        except ValueError as e:
+            try:
+                response.raise_for_status()
+            except requests.RequestException as http_error:
+                raise HueError(
+                    f"Pont {self.ip}: erreur HTTP {response.status_code} sans détail exploitable."
+                ) from http_error
+            raise HueError("Le pont Hue a renvoyé une réponse JSON invalide.") from e
+
+        if isinstance(data, dict) and data.get("errors"):
+            descriptions = []
+            for error in data["errors"]:
+                if isinstance(error, dict):
+                    description = error.get("description")
+                    if isinstance(description, str) and description:
+                        descriptions.append(description)
+            detail = "; ".join(descriptions) or "requête refusée sans détail"
+            raise HueError(f"API Hue (HTTP {response.status_code}) : {detail}")
+        try:
+            response.raise_for_status()
+        except requests.RequestException as e:
+            raise HueError(f"Pont {self.ip}: erreur HTTP {response.status_code}.") from e
+        if not isinstance(data, dict):
+            raise HueError("Le pont Hue a renvoyé une réponse inattendue.")
         return data.get("data", [])
 
 
@@ -124,11 +149,12 @@ class HueServer:
             self._worker = threading.Thread(target=self._loop, name="HueMonitoring", daemon=True)
             self._worker.start()
             self._events.start()
-            self.log.info("Surveillance démarrée (sondage toutes les 2 s).")
+            self.log.info("Surveillance démarrée (sondage de secours toutes les %.1f s).", POLL_INTERVAL_SECONDS)
 
     def stop(self):
         self._stop.set()
         self._event_wakeup.set()
+        self._events.interrupt()
         if self._worker:
             self._worker.join(timeout=5)
         if self._events.thread:
@@ -148,8 +174,8 @@ class HueServer:
                 self.automate()
             except Exception:
                 self.log.exception("Erreur inattendue dans la surveillance")
-            # Les événements SSE réveillent ce worker plus tôt ; polling de secours toutes les 2 s.
-            self._event_wakeup.wait(2)
+            # Les événements SSE réveillent ce worker plus tôt ; polling rapide mais borné en secours.
+            self._event_wakeup.wait(POLL_INTERVAL_SECONDS)
             self._event_wakeup.clear()
 
     def attach_client(self, client):
@@ -174,6 +200,7 @@ class HueServer:
             self.reconnect_at.clear()
             self.reconnect_latency.clear()
             self.save()
+            self._events.interrupt()
             self._event_wakeup.set()
 
     def poll(self):
@@ -208,8 +235,9 @@ class HueServer:
                             trial["observed_offline_seconds"] = round(time.monotonic() - trial["offline_at"], 2)
                             trial["status"] = "reconnecté"
                             trial["reconnected_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
-                            self.log.info("TEST SECTEUR | %s | retour Zigbee observé après %.2fs d'état hors-ligne observé (sondage 2s)",
-                                          l.get("metadata", {}).get("name", uid), trial["observed_offline_seconds"])
+                            self.log.info("TEST SECTEUR | %s | retour Zigbee observé après %.2fs d'état hors-ligne observé (sondage %.1fs)",
+                                          l.get("metadata", {}).get("name", uid), trial["observed_offline_seconds"],
+                                          POLL_INTERVAL_SECONDS)
                     elif old_online is True and online is False:
                         self.log.warning("DÉCONNEXION | %s | connexion Zigbee perdue", l.get("metadata", {}).get("name", uid))
                         if trial and trial["status"] == "armé":
@@ -305,16 +333,24 @@ class HueServer:
             last = self.last_sent.get(uid, {})
             now = time.monotonic()
             reconnect = uid in pending
+            observed_drift = (
+                not reconnect
+                and bool(last)
+                and abs(target - last["target"]) < 1.0
+                and isinstance(current, (float, int))
+                and abs(target - current) >= 1.0
+            )
+            urgent_correction = reconnect or observed_drift
             # Les lectures Hue peuvent être légèrement en retard: ne pas renvoyer en boucle une même cible.
-            if not reconnect and last and now - last["at"] < 3:
+            if last and now - last["at"] < COMMAND_COOLDOWN_SECONDS:
                 continue
-            if not reconnect and last and abs(target - last["target"]) < 1.0 and now - last["at"] < 60:
+            if not urgent_correction and last and abs(target - last["target"]) < 1.0 and now - last["at"] < 60:
                 continue
-            if not reconnect and isinstance(current, (float, int)) and abs(target - current) < 1.0:
+            if not urgent_correction and isinstance(current, (float, int)) and abs(target - current) < 1.0:
                 continue
             payload = {"dimming": {"brightness": max(1, min(100, target))}}
             if "dynamics" in light:
-                payload["dynamics"] = {"duration": reconnect_transition_ms(current, target) if reconnect else (1800 if mode == "accelere" else 3000)}
+                payload["dynamics"] = {"duration": reconnect_transition_ms(current, target) if urgent_correction else (1800 if mode == "accelere" else 3000)}
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
@@ -327,7 +363,7 @@ class HueServer:
                 self.log.info("AUTO | %s | cible %.1f%% | mode=%s | durée=%dms%s",
                               light.get("metadata", {}).get("name", uid), target, mode,
                               payload.get("dynamics", {}).get("duration", 0),
-                              " | correction reconnexion" if reconnect else "")
+                              " | correction reconnexion" if reconnect else (" | correction écart observé" if observed_drift else ""))
             except HueError as e:
                 self.log.error("AUTO refusé | %s | %s", uid, e)
 
@@ -467,17 +503,29 @@ class HueServer:
                 raise ValueError("Luminosité custom: 1 à 100 %.")
             powerup.update({
                 "on": {"mode": "on", "on": {"on": True}},
-                "dimming": {"mode": "dimming", "dimming": float(brightness)},
+                "dimming": {
+                    "mode": "dimming",
+                    "dimming": {"brightness": float(brightness)},
+                },
             })
         self.client.resource(f"light/{uid}", "PUT", {"powerup": powerup})
         self.log.warning("POWERUP MODIFIÉ | %s | %s", uid, json.dumps(powerup))
-        self.poll()
-        with self.lock:
-            current = self.require_light(uid).get("powerup", {})
-        actual_dimming = current.get("dimming", {}).get("dimming")
-        matched = current.get("preset") == preset and current.get("configured") is not False
-        if preset == "custom":
-            matched = matched and isinstance(actual_dimming, (int, float)) and abs(actual_dimming - brightness) < 0.6
+        # Le pont accepte l'écriture avant que le firmware de l'ampoule ait fini
+        # de la mémoriser. Pendant ce bref délai, la relecture renvoie configured=false.
+        current = {}
+        matched = False
+        for attempt in range(6):
+            self.poll()
+            with self.lock:
+                current = copy.deepcopy(self.require_light(uid).get("powerup", {}))
+            actual_dimming = current.get("dimming", {}).get("dimming", {}).get("brightness")
+            matched = current.get("preset") == preset and current.get("configured") is not False
+            if preset == "custom":
+                matched = matched and isinstance(actual_dimming, (int, float)) and abs(actual_dimming - brightness) < 0.6
+            if matched:
+                break
+            if attempt < 5:
+                time.sleep(0.4)
         result = {"requested": powerup, "readback": current, "verified_readback": bool(matched)}
         if not matched:
             self.log.warning("POWERUP NON CONFIRMÉ | %s | lecture %s", uid, json.dumps(current))
