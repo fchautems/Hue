@@ -20,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 import requests
 import urllib3
 
+import hue_update_api
 from hue_v03_runtime import HueEventStream, reconnect_transition_ms
 from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
 
@@ -804,6 +805,26 @@ def logs():
     if not path.exists():
         return ok([])
     return ok(path.read_text(encoding="utf-8", errors="replace").splitlines()[-150:])
+
+
+@app.get("/api/update/status")
+def update_status():
+    return ok(hue_update_api.status())
+
+
+@app.post("/api/update/{action}")
+def update_action(action: str, request: Request, data: dict = Body(...)):
+    # Un code privé est obligatoire, même depuis le réseau local.
+    if action not in ("check", "apply"):
+        raise ValueError("Action de mise à jour inconnue.")
+    ip = request.client.host if request.client else "inconnu"
+    if not hue_update_api.authorize_pin(data.get("pin"), ip):
+        return JSONResponse({"ok": False, "error": "Code de mise à jour incorrect ou temporairement bloqué."}, status_code=403)
+    try:
+        hue_update_api.trigger(action)
+    except RuntimeError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=409)
+    return ok({"queued": True, "action": action})
 
 
 if __name__ == "__main__":

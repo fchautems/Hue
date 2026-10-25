@@ -16,6 +16,7 @@ let setupInProgress = false;
 let setupFirstShown = false;
 let setupCancelled = false;
 let setupInitDone = false;
+let updaterWasBusy = false;
 
 function escapeHtml(text) { return String(text ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function mm(minute) { const m = ((Math.floor(minute) % 1440) + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`; }
@@ -100,9 +101,10 @@ function setTab(tab) {
   activeTab=tab;
   $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${tab}`));
   $$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
-  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Courbes & simulation','Un cycle jour-nuit fluide et accéléré pour les essais.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.']};
+  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Courbes & simulation','Un cycle jour-nuit fluide et accéléré pour les essais.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.'],updates:['Mises à jour','Télécharger les nouvelles versions depuis GitHub, sans PC.']};
   $('#page-title').textContent=titles[tab][0]; $('#page-subtitle').textContent=titles[tab][1];
   if(tab==='diagnostics')safe(refreshDiagnostics);
+  if(tab==='updates')safe(refreshUpdater);
 }
 async function refresh() {
   if(refreshBusy)return; refreshBusy=true;
@@ -243,7 +245,37 @@ async function pairHue() {
     setSetupStatus(setupCancelled?'Association annulée.':'Délai écoulé. Relance l’association et appuie sur le bouton du pont.',!setupCancelled);
   }finally{setupInProgress=false;$('#setup-pair').disabled=false;$('#setup-cancel').classList.add('hidden');}
 }
+
+async function refreshUpdater(){
+  const status=await api('/api/update/status');
+  const installed=$('#update-installed'),remote=$('#update-remote'),label=$('#update-status');
+  installed.textContent=status.installed||'Archive / inconnue';
+  remote.textContent=status.remote||'Pas encore vérifiée';
+  label.textContent=status.message||(status.configured?'Prêt pour la vérification GitHub.':'Migration initiale requise via Termux.');
+  const blocked=!status.configured||!!status.busy;
+  $('#update-check').disabled=blocked;
+  $('#update-apply').disabled=blocked||!status.available;
+  if(updaterWasBusy&&!status.busy&&status.phase==='success'){
+    window.location.reload();return;
+  }
+  updaterWasBusy=!!status.busy;
+}
+async function runUpdater(action){
+  const pin=$('#update-pin').value;
+  if(!pin){showToast('Saisis ton code privé de mise à jour.',true);$('#update-pin').focus();return;}
+  if(action==='apply'&&!window.confirm('Installer la mise à jour GitHub et redémarrer Hue Lab ? Les commandes seront indisponibles quelques instants.'))return;
+  $('#update-check').disabled=true;$('#update-apply').disabled=true;
+  try{
+    await api('/api/update/'+action,'POST',{pin});
+    $('#update-status').textContent=action==='apply'?'Mise à jour demandée. Le serveur va redémarrer…':'Vérification GitHub demandée…';
+    updaterWasBusy=action==='apply';
+    window.setTimeout(()=>safe(refreshUpdater),1200);
+  }catch(e){showToast(e.message,true);await safe(refreshUpdater);}
+}
+
 function bindEvents(){
+  $('#update-check').onclick=()=>safe(()=>runUpdater('check'));
+  $('#update-apply').onclick=()=>safe(()=>runUpdater('apply'));
   $('#setup-discover').onclick=()=>safe(discoverHue);
   $('#setup-bridges').onchange=e=>{if(e.target.value)$('#setup-ip').value=e.target.value;};
   $('#setup-pair').onclick=()=>safe(pairHue);
@@ -265,4 +297,4 @@ function bindEvents(){
   $('#cancel-powerup').onclick=()=>$('#powerup-dialog').close();
   $('#save-powerup').onclick=()=>safe(async()=>{const preset=$('#powerup-preset').value;const brightness=Number($('#powerup-brightness').value);const result=await api(`/api/light/${encodeURIComponent(powerupId)}/powerup`,'POST',{preset,brightness});$('#powerup-dialog').close();showToast(result.verified_readback?'Réglage confirmé par lecture du pont. Teste le retour secteur.':'Écriture envoyée mais valeur non confirmée. Consulte Diagnostics.',!result.verified_readback);await refresh();await refreshDiagnostics();});
 }
-initClockFace();bindEvents();tickClock();setInterval(tickClock,250);refresh();setInterval(()=>{refresh();if(activeTab==='profiles'&&!profileDirty)renderChart();},2000);
+initClockFace();bindEvents();tickClock();setInterval(tickClock,250);refresh();setInterval(()=>{refresh();if(activeTab==='profiles'&&!profileDirty)renderChart();if(activeTab==='updates')refreshUpdater().catch(()=>{$('#update-status').textContent='Connexion interrompue : redémarrage ou serveur indisponible…';});},2000);

@@ -1,0 +1,11 @@
+[Unit]
+Description=Hue Lab - recherche des mises à jour une fois par heure
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+Unit=hue-lab-update@check.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

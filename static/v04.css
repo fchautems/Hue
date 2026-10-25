@@ -1,0 +1,15 @@
+/* Gestion autonome des mises à jour, adaptée aux petits écrans. */
+.update-card { display: grid; gap: 18px; }
+.update-versions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.update-versions > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.update-versions small { opacity: .75; }
+.update-versions strong { overflow-wrap: anywhere; font-family: monospace; font-size: 1rem; }
+.update-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.update-actions .btn:disabled { opacity: .45; cursor: not-allowed; }
+#update-status { min-height: 2.8em; line-height: 1.45; }
+#update-pin { max-width: 330px; }
+@media(max-width: 600px) {
+  .update-versions { grid-template-columns: 1fr; }
+  .update-actions { flex-direction: column; }
+  .update-actions button { width: 100%; }
+}

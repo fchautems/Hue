@@ -72,3 +72,7 @@ Les tests de l'appairage sont effectués avec un faux pont. L'appairage sur le m
 Manuel et Temps réel sont mémorisés. Accéléré est réinitialisé en Manuel au redémarrage pour éviter un pilotage intempestif. Le double allumage à 100 % est reporté à une éventuelle v0.4.
 
 **Tests :** 27 tests Python hors réseau sur moteur v0.3 adapté et routes API, et `node --check` sur le JavaScript ; intégration textuelle avec la source v0.2 vérifiée. Pas de test avec tes trois ampoules ni de test complet du projet sur Windows dans cet environnement.
+
+## Raspberry Pi — mises à jour autonomes (v0.4)
+
+Voir [README_V04.md](README_V04.md) pour la migration initiale via Termux, le bouton de mise à jour GitHub, les sauvegardes et le retour arrière.

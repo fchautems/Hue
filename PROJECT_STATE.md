@@ -52,3 +52,10 @@ Mise à jour : 2026-10-23
 - Limites : la première luminosité est déterminée par le firmware de l'ampoule ; `powerup` et `dynamics` peuvent être absents ; les événements de reconnexion ne prouvent pas la coupure électrique.
 - Prochaine action : synchroniser GitHub, régler powerup 10 % individuellement depuis Diagnostics, tester coupure et transitions puis analyser les logs.
 - Hors périmètre : double extinction/allumage rapide à 100 % (v0.4 ultérieure).
+
+## v0.4 — Gestion des mises à jour sur Raspberry Pi — 2026-10-25
+- Implémentation préparée sur branche `feature/hue-lab-v0.4-updates` : interface de mise à jour, code PIN privé, service systemd utilisateur indépendant, vérification horaire sans installation automatique.
+- Déploiement : sauvegarde config locale, Git fetch + fusion fast-forward, contrôles du nouveau code avant interruption, redémarrage et restauration de l'ancienne version si panne.
+- Première migration : script Termux `updater/bootstrap_pi.sh`, archive locale -> clone Git, `.venv` et données Hue conservées.
+- Tests locaux : 44 tests Python réussis, incluant dépôts Git simulés, restauration sur échec et authentification ; syntaxe JS et bash vérifiée.
+- Non vérifié : installation et fonctionnement sur le Raspberry Pi 2 réel. Ne pas lancer la migration tant que le code n'est pas publié sur `main`.

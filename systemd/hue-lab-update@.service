@@ -1,0 +1,10 @@
+[Unit]
+Description=Hue Lab - mise à jour GitHub (%i)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/share/hue-lab-updater/worker.py %i
+TimeoutStartSec=600
+NoNewPrivileges=true
+UMask=0077
