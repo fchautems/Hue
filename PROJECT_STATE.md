@@ -68,3 +68,11 @@ Mise à jour : 2026-10-23
 - Nouveaux fichiers : `static/v05.css`, `tests/test_v05.py`, `README_V05.md`. La mise à jour autonome v0.4.1 reste inchangée.
 - Vérifications locales : 65 tests Python réussis, contrôle de syntaxe Python/JS, scénarios interface téléphone/ordinateur dans Chromium avec lampes simulées. Pas de test physique Raspberry ou Hue effectué.
 - Suivant : v0.6, couleur et température selon l'heure ; v0.7, prise en compte du soleil et de la météo.
+
+## v0.5.1 — Ergonomie pure (2026-10-25)
+- Aucun changement serveur ni commande Hue, ni modification du contrat JSON des courbes. Les modes et réglages de la v0.5 sont préservés.
+- Nouvelle interface d'édition : points horaires sélectionnables au doigt, mouvement sur la courbe, HH:MM en 24 h et pas de 1 minute, luminosité 1–100%, boutons ± 5, ajout/suppression, annulation et sauvegarde explicite.
+- Contrôle des doublons, 2–24 points, alerte en cas de navigation avec changements non enregistrés ; aucune requête PUT avant confirmation.
+- Simulateur repliable sur mobile, boutons et navigation optimisés pour écrans tactiles, sans modifier le modèle ni le protocole Hue.
+- Fichiers : `static/v051.js`, `static/v051.css`, `tests/test_v051_frontend.py`, `README_V051.md` et `templates/index.html`.
+- Vérifié : 4 tests unitaires nouveaux, `node --check`, interactions simulées dans Chromium (mobile 320 et 390 px, desktop 1320 px). Aucune lampe réelle testée ; la v0.5 doit être installée/testée sur Raspberry.

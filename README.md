@@ -82,3 +82,7 @@ Voir [README_V04.md](README_V04.md) pour la migration initiale via Termux, le bo
 Chaque lampe possède son propre mode **Manuel** ou **Auto**. Le choix de l'heure réelle ou de la simulation accélérée ne s'applique qu'aux lampes en Auto. Les courbes existantes sont conservées à l'installation et les réglages individuels restent locaux.
 
 Consulte [README_V05.md](README_V05.md) pour les étapes de mise à jour depuis l'interface du Raspberry et les limites des transitions selon les ampoules.
+
+## v0.5.1 — Ergonomie mobile des courbes
+
+L’éditeur présente une courbe interactive et des pastilles horaires accessibles au doigt, avec des réglages précis HH:MM / luminosité, l’ajout et la suppression de points, ainsi qu’une sauvegarde et une annulation explicites. La simulation est repliable sur téléphone. Aucune modification du moteur Hue ou des profils enregistrés n’est nécessaire. Détails dans [README_V051.md](README_V051.md).

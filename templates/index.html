@@ -8,12 +8,14 @@
   <link rel="stylesheet" href="/static/v03.css">
   <link rel="stylesheet" href="/static/v04.css">
   <link rel="stylesheet" href="/static/v05.css">
+  <link rel="stylesheet" href="/static/v051.css">
   <script src="/static/app.js?v=05" defer></script>
+  <script src="/static/v051.js?v=051" defer></script>
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.5</span></div></div>
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.5.1</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>⌁</span> Courbes horaires</button>
@@ -61,7 +63,8 @@
     </section>
 
     <section id="tab-profiles" class="tab hidden">
-      <div class="two-col top-section">
+      <button id="v051-simulation-toggle" class="btn muted" type="button" aria-expanded="false" aria-controls="v051-simulator">Afficher la simulation et l’horloge</button>
+      <div class="two-col top-section" id="v051-simulator">
         <div class="card clock-card">
           <div class="card-head"><div><div class="eyebrow">SIMULATEUR CIRCADIEN</div><h2>Horloge 24 heures</h2></div><span class="chip" id="clock-mode">TEMPS RÉEL</span></div>
           <div class="clock-container">
@@ -93,9 +96,9 @@
         <div class="profile-bar"><label for="profile-light">Ampoule</label><select id="profile-light" class="field"></select><span class="chip" id="profile-target">Cible — %</span></div>
         <svg id="profile-chart" viewBox="0 0 840 260" preserveAspectRatio="none" role="img" aria-label="Courbe de luminosité entre minuit et minuit"></svg>
         <div class="profile-foot"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
-        <div class="profile-help">Ajoute ou modifie des points horaires. La transition entre les points est adoucie automatiquement et reste continue à minuit.</div>
+        <div class="profile-help">Sélectionne un point ci-dessous, ou déplace-le directement sur la courbe. Les ampoules ne changent pas avant l’enregistrement.</div>
         <div id="point-rows" class="point-rows"></div>
-        <div class="profile-actions"><button id="add-point" class="btn muted">+ Ajouter un point</button><button id="save-profile" class="btn primary">Enregistrer la courbe</button></div>
+        <div class="profile-actions"><button id="add-point" class="btn muted">+ Ajouter un point</button><span id="profile-edit-status" role="status" aria-live="polite">✓ Courbe enregistrée</span><button id="cancel-profile" class="btn muted" type="button">Annuler</button><button id="save-profile" class="btn primary" type="button">Enregistrer</button></div>
       </div>
     </section>
 
@@ -120,7 +123,7 @@
         <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
     </section>
-    <footer>Hue Lab 0.5 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
+    <footer>Hue Lab 0.5.1 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>
 </div>
 <dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="10"></div><p class="warning-text">Le serveur vérifie le réglage mémorisé, mais le démarrage physique doit être testé à l’interrupteur.</p><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>
