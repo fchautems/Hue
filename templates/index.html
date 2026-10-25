@@ -12,7 +12,7 @@
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.4</span></div></div>
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.4.1</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>⌁</span> Courbes horaires</button>
@@ -112,16 +112,14 @@
           <div><small>Dernière version GitHub</small><strong id="update-remote">—</strong></div>
         </div>
         <p id="update-status" role="status" aria-live="polite">Chargement de l'état des mises à jour…</p>
-        <label class="field-label" for="update-pin">Code privé des mises à jour</label>
-        <input id="update-pin" class="field" type="password" autocomplete="off" minlength="8" placeholder="Code défini lors de l'installation">
         <div class="update-actions">
           <button id="update-check" class="btn muted" type="button">↻ Vérifier GitHub</button>
           <button id="update-apply" class="btn primary" type="button" disabled>Installer et redémarrer</button>
         </div>
-        <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord.</div>
+        <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
     </section>
-    <footer>Hue Lab 0.4 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
+    <footer>Hue Lab 0.4.1 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>
 </div>
 <dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="10"></div><p class="warning-text">Le serveur vérifie le réglage mémorisé, mais le démarrage physique doit être testé à l’interrupteur.</p><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>

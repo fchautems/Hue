@@ -21,8 +21,8 @@ let updaterWasBusy = false;
 function escapeHtml(text) { return String(text ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function mm(minute) { const m = ((Math.floor(minute) % 1440) + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`; }
 function showToast(message, error=false) { const t = $("#toast"); t.textContent=message; t.className=`toast visible${error?' error':''}`; clearTimeout(toastTimeout); toastTimeout=setTimeout(()=>t.classList.remove("visible"),4000); }
-async function api(url, method="GET", data=undefined) {
-  const r = await fetch(url, {method, headers:data===undefined?{}:{"Content-Type":"application/json"}, body:data===undefined?undefined:JSON.stringify(data), cache:"no-store"});
+async function api(url, method="GET", data=undefined, extraHeaders={}) {
+  const r = await fetch(url, {method, headers:{...(data===undefined?{}:{"Content-Type":"application/json"}),...extraHeaders}, body:data===undefined?undefined:JSON.stringify(data), cache:"no-store"});
   const result=await r.json().catch(()=>({error:`Réponse HTTP ${r.status} non JSON`}));
   if (!r.ok || result.ok===false) throw new Error(result.error || `HTTP ${r.status}`);
   return result.data ?? result;
@@ -261,12 +261,10 @@ async function refreshUpdater(){
   updaterWasBusy=!!status.busy;
 }
 async function runUpdater(action){
-  const pin=$('#update-pin').value;
-  if(!pin){showToast('Saisis ton code privé de mise à jour.',true);$('#update-pin').focus();return;}
   if(action==='apply'&&!window.confirm('Installer la mise à jour GitHub et redémarrer Hue Lab ? Les commandes seront indisponibles quelques instants.'))return;
   $('#update-check').disabled=true;$('#update-apply').disabled=true;
   try{
-    await api('/api/update/'+action,'POST',{pin});
+    await api('/api/update/'+action,'POST',{}, {'X-Hue-Update-Request':'1'});
     $('#update-status').textContent=action==='apply'?'Mise à jour demandée. Le serveur va redémarrer…':'Vérification GitHub demandée…';
     updaterWasBusy=action==='apply';
     window.setTimeout(()=>safe(refreshUpdater),1200);

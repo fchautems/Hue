@@ -814,12 +814,10 @@ def update_status():
 
 @app.post("/api/update/{action}")
 def update_action(action: str, request: Request, data: dict = Body(...)):
-    # Un code privé est obligatoire, même depuis le réseau local.
     if action not in ("check", "apply"):
         raise ValueError("Action de mise à jour inconnue.")
-    ip = request.client.host if request.client else "inconnu"
-    if not hue_update_api.authorize_pin(data.get("pin"), ip):
-        return JSONResponse({"ok": False, "error": "Code de mise à jour incorrect ou temporairement bloqué."}, status_code=403)
+    if not hue_update_api.authorized_browser_request(request):
+        return JSONResponse({"ok": False, "error": "Mise à jour autorisée uniquement depuis l'interface locale Hue Lab."}, status_code=403)
     try:
         hue_update_api.trigger(action)
     except RuntimeError as e:

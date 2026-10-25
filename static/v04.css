@@ -7,7 +7,6 @@
 .update-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .update-actions .btn:disabled { opacity: .45; cursor: not-allowed; }
 #update-status { min-height: 2.8em; line-height: 1.45; }
-#update-pin { max-width: 330px; }
 @media(max-width: 600px) {
   .update-versions { grid-template-columns: 1fr; }
   .update-actions { flex-direction: column; }

@@ -1,5 +1,4 @@
 """V0.4 : auth, API, et vérification réelle sur des dépôts Git temporaires."""
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,34 +17,76 @@ import hue_web
 
 
 class ApiTests(TestCase):
+    """v0.4.1 : aucun code, mais POST protégé des sites externes."""
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.pin_path = Path(self.temp.name) / "pin.json"
-        salt = b"0123456789abcdef"
-        record = {"salt": salt.hex(), "iterations": 100000,
-                  "hash": hashlib.pbkdf2_hmac("sha256", b"hello-12345", salt, 100000).hex()}
-        self.pin_path.write_text(json.dumps(record))
-        self.api = TestClient(hue_web.app)
+        self.worker = Path(self.temp.name) / "worker.py"
+        self.unit = Path(self.temp.name) / "update.service"
+        self.worker.write_text("# worker disponible\n")
+        self.unit.write_text("# unité systemd disponible\n")
+        for name, path in (("MANAGER_WORKER", self.worker), ("UPDATE_SERVICE", self.unit)):
+            mock = patch.object(update_api, name, path)
+            mock.start()
+            self.addCleanup(mock.stop)
+        self.api = TestClient(hue_web.app, base_url="http://10.0.0.12:8765", client=("10.0.0.33", 50123))
         self.addCleanup(self.api.close)
-        self.env = patch.object(update_api, "PIN_FILE", self.pin_path)
-        self.env.start()
-        self.addCleanup(self.env.stop)
-        update_api._failures.clear()
+        self.headers = {"X-Hue-Update-Request": "1", "Origin": "http://10.0.0.12:8765"}
 
-    def test_requires_pin_and_fixed_action(self):
-        self.assertEqual(self.api.get("/api/update/status").status_code, 200)
-        self.assertEqual(self.api.post("/api/update/apply", json={"pin": "bad"}).status_code, 403)
+    def test_no_pin_required_check_and_apply(self):
+        status = self.api.get("/api/update/status")
+        self.assertTrue(status.json()["data"]["configured"])
         with patch.object(update_api, "trigger") as trigger:
-            result = self.api.post("/api/update/check", json={"pin": "hello-12345"})
-            self.assertEqual(result.status_code, 200)
-            trigger.assert_called_once_with("check")
-        self.assertEqual(self.api.post("/api/update/shutdown", json={"pin": "hello-12345"}).status_code, 400)
+            result = self.api.post("/api/update/check", json={}, headers=self.headers)
+            self.assertEqual(result.status_code, 200, result.text)
+            self.assertEqual(trigger.call_args.args, ("check",))
+            applied = self.api.post("/api/update/apply", json={}, headers=self.headers)
+            self.assertEqual(applied.status_code, 200, applied.text)
+            self.assertEqual(trigger.call_args.args, ("apply",))
+            self.assertEqual(trigger.call_count, 2)
 
-    def test_rate_limit(self):
-        for _ in range(5):
-            self.assertFalse(update_api.authorize_pin("wrong", "local"))
-        self.assertFalse(update_api.authorize_pin("hello-12345", "local"))
+    def test_requires_interface_header_and_same_origin(self):
+        with patch.object(update_api, "trigger") as trigger:
+            self.assertEqual(self.api.post("/api/update/apply", json={}).status_code, 403)
+            self.assertEqual(self.api.post("/api/update/apply", json={}, headers={
+                "X-Hue-Update-Request": "1", "Origin": "http://evil.example"}).status_code, 403)
+            self.assertEqual(self.api.post("/api/update/apply", json={}, headers={
+                **self.headers, "Sec-Fetch-Site": "cross-site"}).status_code, 403)
+            self.assertEqual(self.api.post("/api/update/apply", json={}, headers={
+                "X-Hue-Update-Request": "1", "Referer": "http://evil.example/"}).status_code, 403)
+            trigger.assert_not_called()
+
+    def test_valid_referer_if_origin_is_absent(self):
+        with patch.object(update_api, "trigger") as trigger:
+            r = self.api.post("/api/update/check", json={}, headers={
+                "X-Hue-Update-Request": "1", "Referer": "http://10.0.0.12:8765/"})
+            self.assertEqual(r.status_code, 200, r.text)
+            trigger.assert_called_once_with("check")
+
+    def test_public_host_and_client_are_refused(self):
+        with patch.object(update_api, "trigger") as trigger:
+            self.assertEqual(self.api.post("/api/update/apply", json={}, headers={
+                "X-Hue-Update-Request": "1", "Host": "example.com", "Origin": "http://example.com"}).status_code, 403)
+            outside = TestClient(hue_web.app, base_url="http://10.0.0.12:8765", client=("8.8.8.8", 50000))
+            try:
+                self.assertEqual(outside.post("/api/update/apply", json={}, headers=self.headers).status_code, 403)
+            finally:
+                outside.close()
+            trigger.assert_not_called()
+
+    def test_status_missing_worker_and_bad_action(self):
+        self.worker.unlink()
+        self.assertFalse(self.api.get("/api/update/status").json()["data"]["configured"])
+        r = self.api.post("/api/update/check", json={}, headers=self.headers)
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(self.api.post("/api/update/shutdown", json={}, headers=self.headers).status_code, 400)
+
+    def test_lan_allowlist(self):
+        for address in ("127.0.0.1", "10.0.0.12", "172.21.4.10", "192.168.1.50", "::1", "fd00::5"):
+            self.assertTrue(update_api._lan_address(address), address)
+        for address in ("8.8.8.8", "1.1.1.1", "172.31.255.2555", "hue.example.org", "127.0.0.1.evil.com"):
+            self.assertFalse(update_api._lan_address(address), address)
 
 
 class WorkerGitTests(TestCase):
