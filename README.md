@@ -86,3 +86,7 @@ Consulte [README_V05.md](README_V05.md) pour les étapes de mise à jour depuis 
 ## v0.5.1 — Ergonomie mobile des courbes
 
 L’éditeur présente une courbe interactive et des pastilles horaires accessibles au doigt, avec des réglages précis HH:MM / luminosité, l’ajout et la suppression de points, ainsi qu’une sauvegarde et une annulation explicites. La simulation est repliable sur téléphone. Aucune modification du moteur Hue ou des profils enregistrés n’est nécessaire. Détails dans [README_V051.md](README_V051.md).
+
+## v0.5.2 — Courbe simple progressive
+
+L’onglet **Courbes horaires** permet de choisir entre la courbe personnalisée à points et une **courbe simple** : début/fin de montée, début/fin de descente, luminosités minimale et maximale. Les rampes sont monotones, arrondies et continues, avec un plateau de jour et un minimum nocturne. La courbe personnalisée existante n’est jamais écrasée. [Détails](README_V052.md).

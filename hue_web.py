@@ -23,6 +23,7 @@ import urllib3
 import hue_update_api
 from hue_v03_runtime import HueEventStream, reconnect_transition_ms
 from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
+from hue_simple_profile import DEFAULT_SIMPLE_PROFILE, simple_brightness_at, validate_simple_profile
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ROOT = Path(__file__).resolve().parent
@@ -112,13 +113,29 @@ class HueServer:
         # Migration v0.4 -> v0.5 : le mode global historique reste lisible,
         # mais chaque ampoule dispose désormais de son propre contrôle.
         self.settings = {"auto": False, "mode": "manuel", "profiles": {},
-                         "light_modes": {}, "manual_states": {}}
+                         "light_modes": {}, "manual_states": {},
+                         "simple_profiles": {}, "profile_types": {}}
         self._legacy_default_auto = False
         if self.settings_path.exists():
             try:
                 loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
                     self.settings["profiles"] = {k: validate_points(v) for k, v in loaded.get("profiles", {}).items()}
+                    simple = loaded.get("simple_profiles", {})
+                    if isinstance(simple, dict):
+                        for uid, raw in simple.items():
+                            if not isinstance(uid, str):
+                                continue
+                            try:
+                                self.settings["simple_profiles"][uid] = validate_simple_profile(raw)
+                            except (ValueError, TypeError):
+                                self.log.warning("Profil simple invalide ignoré pour une lampe.")
+                    profile_types = loaded.get("profile_types", {})
+                    if isinstance(profile_types, dict):
+                        self.settings["profile_types"] = {
+                            uid: kind for uid, kind in profile_types.items()
+                            if isinstance(uid, str) and kind in ("simple", "custom")
+                        }
                     legacy_mode = loaded.get("mode")
                     self.settings["mode"] = legacy_mode if legacy_mode in ("manuel", "reel") else "manuel"
                     self._legacy_default_auto = legacy_mode == "reel"
@@ -196,6 +213,8 @@ class HueServer:
             "mode": self.settings["mode"] if self.settings["mode"] in ("manuel", "reel") else "manuel",
             "light_modes": self.settings["light_modes"],
             "manual_states": self.settings["manual_states"],
+            "simple_profiles": self.settings["simple_profiles"],
+            "profile_types": self.settings["profile_types"],
         }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -427,6 +446,8 @@ class HueServer:
             lights = copy.deepcopy(self.lights)
             modes = dict(self.settings["light_modes"])
             profiles = copy.deepcopy(self.settings["profiles"])
+            simple_profiles = copy.deepcopy(self.settings["simple_profiles"])
+            profile_types = dict(self.settings["profile_types"])
             manual = copy.deepcopy(self.settings["manual_states"])
             status = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
             reconnecting = set(self.reconnect_pending)
@@ -467,7 +488,7 @@ class HueServer:
                 continue  # Auto ne rallume jamais une ampoule éteinte.
             if online is not None and online != "connected":
                 continue
-            target = brightness_at(profiles.get(uid, DEFAULT_POINTS), minute)
+            target = self._target_for(uid, minute, profiles, simple_profiles, profile_types)
             current = light.get("dimming", {}).get("brightness")
             last = self.last_sent.get(uid, {})
             now = time.monotonic()
@@ -517,13 +538,14 @@ class HueServer:
             for l in self.lights:
                 owner = l.get("owner", {}).get("rid")
                 dev = devices.get(owner, {})
-                points = self.settings["profiles"].get(l["id"], DEFAULT_POINTS)
+                uid = l["id"]
                 result.append({
                     "id": l["id"],
                     "name": l.get("metadata", {}).get("name", "Ampoule"),
                     "on": l.get("on", {}).get("on"),
                     "brightness": l.get("dimming", {}).get("brightness"),
-                    "target": brightness_at(points, m),
+                    "target": self._target_for(uid, m),
+                    "profile_type": self.settings["profile_types"].get(uid, "custom"),
                     "control_mode": self.settings["light_modes"].get(l["id"], "manuel"),
                     "manual_state": copy.deepcopy(self.settings["manual_states"].get(l["id"])),
                     "status": connections.get(owner, "inconnu"),
@@ -558,10 +580,57 @@ class HueServer:
                 "lights": self.get_lights(),
             }
 
+    def _target_for(self, uid, minute, profiles=None, simple_profiles=None, profile_types=None):
+        """Consigne calculée selon le type actif de chaque lampe (verrou déjà pris)."""
+        types = self.settings["profile_types"] if profile_types is None else profile_types
+        if types.get(uid) == "simple":
+            data = self.settings["simple_profiles"] if simple_profiles is None else simple_profiles
+            return simple_brightness_at(data.get(uid, DEFAULT_SIMPLE_PROFILE), minute)
+        data = self.settings["profiles"] if profiles is None else profiles
+        return brightness_at(data.get(uid, DEFAULT_POINTS), minute)
+
     def profile(self, uid):
         with self.lock:
             self.require_light(uid)
             return copy.deepcopy(self.settings["profiles"].get(uid, DEFAULT_POINTS))
+
+    def simple_profile(self, uid):
+        with self.lock:
+            self.require_light(uid)
+            return {
+                "type": self.settings["profile_types"].get(uid, "custom"),
+                "params": copy.deepcopy(self.settings["simple_profiles"].get(uid, DEFAULT_SIMPLE_PROFILE)),
+            }
+
+    def _profile_changed(self, uid):
+        """Laisse la transition automatique rejoindre la nouvelle consigne en douceur."""
+        self.last_sent.pop(uid, None)
+        self.auto_transition_pending.add(uid)
+
+    def set_simple_profile(self, uid, params):
+        cleaned = validate_simple_profile(params)
+        with self.lock:
+            self.require_light(uid)
+            self.settings["simple_profiles"][uid] = cleaned
+            self.settings["profile_types"][uid] = "simple"
+            self._profile_changed(uid)
+            self.save()
+        self.log.info("PROFIL SIMPLE | %s | courbe activée", uid)
+        return {"type": "simple", "params": copy.deepcopy(cleaned)}
+
+    def set_profile_type(self, uid, kind):
+        if kind not in ("simple", "custom"):
+            raise ValueError("Type de courbe inconnu.")
+        with self.lock:
+            self.require_light(uid)
+            if kind == "simple":
+                self.settings["simple_profiles"].setdefault(uid, copy.deepcopy(DEFAULT_SIMPLE_PROFILE))
+            if self.settings["profile_types"].get(uid, "custom") != kind:
+                self.settings["profile_types"][uid] = kind
+                self._profile_changed(uid)
+                self.save()
+        self.log.info("PROFIL ACTIF | %s | %s", uid, kind)
+        return self.simple_profile(uid)
 
     def require_light(self, uid):
         light = next((l for l in self.lights if l.get("id") == uid), None)
@@ -574,6 +643,8 @@ class HueServer:
         with self.lock:
             self.require_light(uid)
             self.settings["profiles"][uid] = cleaned
+            self.settings["profile_types"][uid] = "custom"
+            self._profile_changed(uid)
             self.save()
         self.log.info("PROFIL | %s | %d points sauvegardés", uid, len(cleaned))
         return cleaned
@@ -618,8 +689,7 @@ class HueServer:
                 current_brightness = light.get("dimming", {}).get("brightness")
                 stored = self.settings["manual_states"].get(uid, {})
                 if mode == "auto":
-                    target = brightness_at(self.settings["profiles"].get(uid, DEFAULT_POINTS),
-                                           self.simulated_time())
+                    target = self._target_for(uid, self.simulated_time())
                 else:
                     target = stored.get("brightness", current_brightness or 50)
             payload = {"on": {"on": on}}
@@ -954,6 +1024,21 @@ def profile(uid: str):
 @app.put("/api/profile/{uid}")
 def set_profile(uid: str, data: dict = Body(...)):
     return ok(controller.set_profile(uid, data.get("points")))
+
+
+@app.get("/api/profile/simple/{uid}")
+def simple_profile(uid: str):
+    return ok(controller.simple_profile(uid))
+
+
+@app.put("/api/profile/simple/{uid}")
+def update_simple_profile(uid: str, data: dict = Body(...)):
+    return ok(controller.set_simple_profile(uid, data.get("params")))
+
+
+@app.post("/api/profile/type/{uid}")
+def update_profile_type(uid: str, data: dict = Body(...)):
+    return ok(controller.set_profile_type(uid, data.get("type")))
 
 
 @app.post("/api/light/{uid}/switch")

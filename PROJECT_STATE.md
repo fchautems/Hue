@@ -76,3 +76,13 @@ Mise à jour : 2026-10-23
 - Simulateur repliable sur mobile, boutons et navigation optimisés pour écrans tactiles, sans modifier le modèle ni le protocole Hue.
 - Fichiers : `static/v051.js`, `static/v051.css`, `tests/test_v051_frontend.py`, `README_V051.md` et `templates/index.html`.
 - Vérifié : 4 tests unitaires nouveaux, `node --check`, interactions simulées dans Chromium (mobile 320 et 390 px, desktop 1320 px). Aucune lampe réelle testée ; la v0.5 doit être installée/testée sur Raspberry.
+
+## v0.5.2 — Courbe simple continue (2026-10-25)
+- Profil par lampe « Simple » / « Personnalisée », indépendamment du Manuel/Auto. Par défaut, les anciens profils personnalisés restent actifs et intacts.
+- Courbe simple C2 : nuit stable, montée monotone par smootherstep quintique, plateau haut, descente monotone puis nuit stable, sans rebroussement aux jonctions.
+- Réglages : lever (début de montée), fin de montée, début de descente, coucher (fin de descente), luminosités mini/maxi. Validation stricte des horaires et valeurs.
+- Calcul temps réel côté serveur `hue_simple_profile.py`, utilisé en mode réel et accéléré sans modifier les autres consignes Hue. Une ampoule éteinte ne sera pas rallumée.
+- Stockage local seulement : ajout de `simple_profiles` et `profile_types` dans `hue_settings.json`, maintien des `profiles` personnalisés et `light_modes`.
+- UI `static/v052.js` et `static/v052.css` : aperçu indépendant, choix de profil, annulation et activation explicite, contrôles mobiles accessibles.
+- Tests nouveaux : math et API (`tests/test_v052_math.py`, `tests/test_v052_simple.py`), contrôle syntaxe JS, interactions Chromium avec ampoules simulées sur 320, 390 et 1320 px ; tests de l'application complète à exécuter avant déploiement sur Raspberry via le moteur autonome.
+- V0.6 plus tard : températures de blanc/couleurs ; v0.7 : soleil et météo.
