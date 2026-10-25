@@ -7,12 +7,13 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/v03.css">
   <link rel="stylesheet" href="/static/v04.css">
-  <script src="/static/app.js?v=04" defer></script>
+  <link rel="stylesheet" href="/static/v05.css">
+  <script src="/static/app.js?v=05" defer></script>
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.4.1</span></div></div>
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.5</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>⌁</span> Courbes horaires</button>
@@ -25,7 +26,7 @@
 
   <main class="main">
     <header class="topbar"><div><div class="eyebrow">PHILIPS HUE / ENVIRONNEMENT LOCAL</div><h1 id="page-title">Tableau de bord</h1><p id="page-subtitle">Éclairage, simulation et suivi en temps réel.</p></div><div class="top-time"><span>HEURE DU SERVEUR</span><strong id="real-clock">--:--:--</strong></div></header>
-    <div class="mode-control card"><div><strong>Fonctionnement</strong><small>Un seul mode peut commander les ampoules à la fois</small></div><label for="hue-mode" class="field-label">Mode actif</label><select id="hue-mode" class="field" aria-label="Mode de pilotage"><option value="manuel">Manuel — pas de suivi horaire</option><option value="reel">Temps réel — courbe selon l'heure</option><option value="accelere">Accéléré — courbe selon l'horloge virtuelle</option></select></div>
+    <div class="mode-control card"><div><strong>Horloge des lampes en Auto</strong><small>Le choix Manuel ou Auto se fait sur chaque lampe, indépendamment.</small></div><label for="clock-source" class="field-label">Référence horaire</label><select id="clock-source" class="field" aria-label="Horloge des lampes automatiques"><option value="reel">Heure réelle</option><option value="accelere">Simulation accélérée</option></select></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="error-banner" class="error-banner hidden"></div>
 
@@ -50,12 +51,12 @@
       <div class="stat-strip">
         <div><span>AMPOULES</span><strong id="stat-count">—</strong><small>sur le pont</small></div>
         <div><span>CONNECTÉES</span><strong id="stat-online">—</strong><small>selon Zigbee</small></div>
-        <div><span>MODE ACTIF</span><strong id="stat-mode">Manuel</strong><small>aucune action sans activation</small></div>
+        <div><span>LAMPES EN AUTO</span><strong id="stat-mode">0 / —</strong><small>les autres restent indépendantes</small></div>
       </div>
       <div class="section-title"><h2>Mes lumières</h2><span id="light-updated">Actualisation…</span></div>
       <div id="light-grid" class="light-grid"><div class="empty">Recherche des ampoules…</div></div>
       <div class="section-title space-top"><h2>Comportement après coupure secteur</h2><span>À paramétrer par ampoule dans Diagnostics</span></div>
-      <div class="card auto-card"><div><h3>Démarrage doux — 10 % recommandé</h3><p>Configure chaque ampoule compatible à 10 % dans Diagnostics. En mode Temps réel, le serveur corrige ensuite progressivement vers la courbe de luminosité.</p></div><button id="go-diagnostics" class="btn muted">Configurer les ampoules</button></div>
+      <div class="card auto-card"><div><h3>Démarrage doux — 10 % recommandé</h3><p>Configure chaque ampoule compatible à 10 % dans Diagnostics. Pour une lampe en Auto, le serveur corrige ensuite progressivement vers la courbe de luminosité.</p></div><button id="go-diagnostics" class="btn muted">Configurer les ampoules</button></div>
       <div class="hint">Si l'interrupteur mural coupe le courant, la luminosité au tout premier instant dépend du réglage <strong>powerup</strong> de l'ampoule. Le serveur ne peut intervenir qu'après la reconnexion au pont.</div>
     </section>
 
@@ -84,10 +85,10 @@
           <div class="eyebrow">BANC DE TEST</div><h2>Simulation temporelle</h2><p>Fais défiler une journée entière en quelques secondes ou minutes pour observer les transitions.</p>
           <div class="setting-row"><div><strong>Faire tourner l'horloge</strong><small>Pause ou reprise du défilement</small></div><button id="sim-play" class="btn muted">▶ Démarrer</button></div>
           <label class="field-label" for="sim-speed">Durée d'une journée simulée</label><select id="sim-speed" class="field"><option value="30">30 secondes</option><option value="60">1 minute</option><option selected value="120">2 minutes</option><option value="300">5 minutes</option><option value="600">10 minutes</option></select>
-          <div class="notice" id="sim-notice">Le mode Accéléré commande les ampoules réelles. Sélectionne-le dans « Fonctionnement ».</div>
+          <div class="notice" id="sim-notice">La simulation agit seulement sur les lampes placées en Auto.</div>
         </div>
       </div>
-      <div class="section-title space-top"><h2>Courbe de luminosité</h2><span>Personnalisable par ampoule</span></div>
+      <div class="section-title space-top"><h2>Courbe de luminosité</h2><span>Personnalisable par ampoule, appliquée uniquement en Auto</span></div>
       <div class="card profile-card">
         <div class="profile-bar"><label for="profile-light">Ampoule</label><select id="profile-light" class="field"></select><span class="chip" id="profile-target">Cible — %</span></div>
         <svg id="profile-chart" viewBox="0 0 840 260" preserveAspectRatio="none" role="img" aria-label="Courbe de luminosité entre minuit et minuit"></svg>
@@ -119,7 +120,7 @@
         <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
     </section>
-    <footer>Hue Lab 0.4.1 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
+    <footer>Hue Lab 0.5 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>
 </div>
 <dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="10"></div><p class="warning-text">Le serveur vérifie le réglage mémorisé, mais le démarrage physique doit être testé à l’interrupteur.</p><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>

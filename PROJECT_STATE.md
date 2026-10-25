@@ -59,3 +59,12 @@ Mise à jour : 2026-10-23
 - Première migration : script Termux `updater/bootstrap_pi.sh`, archive locale -> clone Git, `.venv` et données Hue conservées.
 - Tests locaux : 44 tests Python réussis, incluant dépôts Git simulés, restauration sur échec et authentification ; syntaxe JS et bash vérifiée.
 - Non vérifié : installation et fonctionnement sur le Raspberry Pi 2 réel. Ne pas lancer la migration tant que le code n'est pas publié sur `main`.
+
+## v0.5 — Pilotage individuel des lampes — 2026-10-25
+- Fonction : commande Manuel/Auto propre à chaque lampe, sans sélecteur global de mode ; la référence horaire « réel/accéléré » est commune seulement aux lampes en Auto.
+- Le contrôle manuel mémorise niveau lumineux et état marche/arrêt localement dans `hue_settings.json` et peut les restaurer après redémarrage du serveur. Les reconnections Zigbee ultérieures ne déclenchent pas de rallumage manuel.
+- Le passage Manuel vers Auto demande une transition de 2 secondes lorsque `dynamics.duration` est disponible, sinon dépend du firmware. Auto respecte l'état OFF d'une ampoule.
+- Migration v0.4.1 : courbes préservées ; mode global ancien « reel » donne Auto par défaut, sinon Manuel. L'horloge accélérée revient à réel au reboot.
+- Nouveaux fichiers : `static/v05.css`, `tests/test_v05.py`, `README_V05.md`. La mise à jour autonome v0.4.1 reste inchangée.
+- Vérifications locales : 65 tests Python réussis, contrôle de syntaxe Python/JS, scénarios interface téléphone/ordinateur dans Chromium avec lampes simulées. Pas de test physique Raspberry ou Hue effectué.
+- Suivant : v0.6, couleur et température selon l'heure ; v0.7, prise en compte du soleil et de la météo.

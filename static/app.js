@@ -70,13 +70,23 @@ function addLightCards(lights) {
   const ids=lights.map(l=>l.id).join("|");
   if (ids===cardIds) return;
   cardIds=ids;
-  $("#light-grid").innerHTML=lights.length?lights.map(l=>`<article class="card light-card" data-id="${escapeHtml(l.id)}"><div class="light-top"><div class="light-icon">☀</div><label class="switch"><input class="light-switch" type="checkbox" aria-label="Allumer ou éteindre ${escapeHtml(l.name)}"><span></span></label></div><h3>${escapeHtml(l.name)}</h3><div class="subline">${escapeHtml(l.model)}</div><div class="light-bottom"><div class="light-level"><span>Luminosité</span><strong class="light-value">— %</strong></div><input class="range light-brightness" type="range" min="1" max="100" step="1"><div class="light-foot"><span class="pill light-status">…</span><button class="tiny light-details" type="button">Voir capacités →</button></div></div></article>`).join(''):'<div class="empty">Aucune ampoule trouvée.</div>';
+  $("#light-grid").innerHTML=lights.length?lights.map(l=>`<article class="card light-card" data-id="${escapeHtml(l.id)}"><div class="light-top"><div class="light-icon">☀</div><label class="switch"><input class="light-switch" type="checkbox" aria-label="Allumer ou éteindre ${escapeHtml(l.name)}"><span></span></label></div><h3>${escapeHtml(l.name)}</h3><div class="subline">${escapeHtml(l.model)}</div><div class="lamp-control"><div class="lamp-control-label">Pilotage de cette lampe</div><div class="lamp-mode-buttons" role="group" aria-label="Pilotage de ${escapeHtml(l.name)}"><button type="button" class="lamp-mode-btn" data-control="manuel" aria-pressed="false">Manuel</button><button type="button" class="lamp-mode-btn" data-control="auto" aria-pressed="false">Auto</button></div><small class="lamp-mode-help"></small></div><div class="light-bottom"><div class="light-level"><span>Luminosité</span><strong class="light-value">— %</strong></div><input class="range light-brightness" type="range" min="1" max="100" step="1"><div class="light-foot"><span class="pill light-status">…</span><div class="light-foot-actions"><button class="tiny light-curve" type="button">Courbe →</button><button class="tiny light-details" type="button">Diagnostic →</button></div></div></div></article>`).join(''):'<div class="empty">Aucune ampoule trouvée.</div>';
   $$(".light-card").forEach(card=>{
     const id=card.dataset.id;
     card.querySelector(".light-switch").addEventListener("change",e=>safe(async()=>{await api(`/api/light/${encodeURIComponent(id)}/switch`,"POST",{on:e.target.checked});showToast('Commande envoyée');await refresh();}));
     const slider=card.querySelector(".light-brightness");
     slider.addEventListener("input",e=>{card.querySelector(".light-value").textContent=`${e.target.value} %`;});
     slider.addEventListener("change",e=>safe(async()=>{await api(`/api/light/${encodeURIComponent(id)}/brightness`,"POST",{brightness:Number(e.target.value)});showToast('Luminosité demandée');await refresh();}));
+    card.querySelectorAll(".lamp-mode-btn").forEach(btn=>btn.addEventListener("click",()=>safe(async()=>{
+      const mode=btn.dataset.control;
+      card.querySelectorAll(".lamp-mode-btn").forEach(b=>b.disabled=true);
+      try{
+        await api(`/api/light/${encodeURIComponent(id)}/control-mode`,"POST",{mode});
+        showToast(mode==='auto'?'Cette lampe suit maintenant sa courbe.':'Cette lampe est maintenant indépendante.');
+        await refresh();
+      }finally{card.querySelectorAll(".lamp-mode-btn").forEach(b=>b.disabled=false);}
+    })));
+    card.querySelector(".light-curve").addEventListener("click",()=>{setTab("profiles");selectedId=id;$('#profile-light').value=id;loadProfile();});
     card.querySelector(".light-details").addEventListener("click",()=>{setTab("diagnostics");});
   });
   const select=$("#profile-light"); const was=selectedId;
@@ -89,9 +99,17 @@ function updateLights(lights) {
     const card=$$(".light-card").find(c=>c.dataset.id===light.id); if(!card)continue;
     const cb=card.querySelector('.light-switch'); const slider=card.querySelector('.light-brightness');
     if(document.activeElement!==cb)cb.checked=!!light.on;
+    const isAuto=light.control_mode==='auto';
     if(document.activeElement!==slider){slider.value=Math.max(1,Math.round(light.brightness??1));card.querySelector('.light-value').textContent=light.brightness==null?'Non disponible':`${Math.round(light.brightness)} %`;}
-    slider.disabled=!light.capabilities.dimming||!light.on||light.status==='disconnected';
+    slider.disabled=isAuto||!light.capabilities.dimming||!light.on||light.status==='disconnected';
+    slider.title=isAuto?'Luminosité réglée par la courbe : passe en Manuel pour la modifier.':'Régler la luminosité';
     cb.disabled=light.status==='disconnected'||!light.capabilities.on;
+    card.querySelectorAll('.lamp-mode-btn').forEach(btn=>{
+      const chosen=btn.dataset.control===light.control_mode;
+      btn.classList.toggle('active',chosen);
+      btn.setAttribute('aria-pressed',String(chosen));
+    });
+    card.querySelector('.lamp-mode-help').textContent=isAuto?`Courbe horaire active · cible ${Math.round(light.target)} %`:'Luminosité libre · indépendante de l’horloge';
     const status=card.querySelector('.light-status');
     status.className='pill light-status'+(light.status==='connected'?' ok':light.status==='disconnected'?' bad':'');
     status.textContent=light.status==='connected'?'● En ligne':light.status==='disconnected'?'● Hors ligne':`● ${light.status}`;
@@ -118,17 +136,16 @@ async function refresh() {
     $('#error-banner').textContent=s.error||'';
     $('#stat-count').textContent=s.lights.length;
     $('#stat-online').textContent=s.lights.filter(l=>l.status==='connected').length;
-    const names={manuel:'Manuel',reel:'Temps réel',accelere:'Temps accéléré'};
-    $('#stat-mode').textContent=names[s.mode]??s.mode;
+    $('#stat-mode').textContent=`${s.auto_count} / ${s.lights.length}`;
     $('#light-updated').textContent=s.last_poll?`Pont actualisé : ${s.last_poll.replace('T',' ').slice(11,19)}`:'En attente du pont';
-    if(document.activeElement!==$('#hue-mode'))$('#hue-mode').value=s.mode;
+    if(document.activeElement!==$('#clock-source'))$('#clock-source').value=s.clock_mode;
     $('#sim-play').textContent=s.simulation.running?'Ⅱ Pause':'▶ Démarrer';
     $('#sim-play').disabled=!s.simulation.enabled;
     $('#sim-speed').value=s.simulation.seconds_per_day;
-    $('#time-slider').disabled=s.mode!=='accelere';
-    $('#sim-speed').disabled=s.mode!=='accelere';
-    $('#clock-mode').textContent=s.mode==='accelere'?'TEMPS ACCÉLÉRÉ':'HEURE RÉELLE';
-    $('#sim-notice').textContent=s.mode==='accelere'?'Le mode accéléré commande les ampoules réelles.':'Choisir le mode « Accéléré » ci-dessus pour piloter les lampes avec cette horloge.';
+    $('#time-slider').disabled=s.clock_mode!=='accelere';
+    $('#sim-speed').disabled=s.clock_mode!=='accelere';
+    $('#clock-mode').textContent=s.clock_mode==='accelere'?'TEMPS ACCÉLÉRÉ':'HEURE RÉELLE';
+    $('#sim-notice').textContent=s.clock_mode==='accelere'?'L’horloge accélérée agit seulement sur les lampes en Auto.':'L’horloge réelle agit seulement sur les lampes en Auto.';
     addLightCards(s.lights);
     updateLights(s.lights);
     tickClock();
@@ -279,7 +296,7 @@ function bindEvents(){
   $('#setup-pair').onclick=()=>safe(pairHue);
   $('#setup-cancel').onclick=()=>{setupCancelled=true;setSetupStatus('Annulation demandée…');};
   $$('.nav-item').forEach(btn=>btn.onclick=()=>{setTab(btn.dataset.tab);if(btn.dataset.tab==='setup')safe(initializeSetup);});
-  $('#hue-mode').onchange=e=>safe(async()=>{await api('/api/mode','POST',{mode:e.target.value});showToast('Mode '+e.target.options[e.target.selectedIndex].text+' activé');await refresh();});
+  $('#clock-source').onchange=e=>safe(async()=>{await api('/api/clock-mode','POST',{mode:e.target.value});showToast('Horloge '+(e.target.value==='reel'?'réelle':'accélérée')+' sélectionnée pour les lampes Auto.');await refresh();});
   $('#go-diagnostics').onclick=()=>setTab('diagnostics');
   $('#sim-play').onclick=()=>safe(async()=>{await api('/api/simulation','POST',{running:!state.simulation.running});await refresh();});
   $('#sim-speed').onchange=e=>safe(async()=>{await api('/api/simulation','POST',{seconds_per_day:Number(e.target.value)});await refresh();});

@@ -76,3 +76,9 @@ Manuel et Temps réel sont mémorisés. Accéléré est réinitialisé en Manuel
 ## Raspberry Pi — mises à jour autonomes (v0.4)
 
 Voir [README_V04.md](README_V04.md) pour la migration initiale via Termux, le bouton de mise à jour GitHub, les sauvegardes et le retour arrière.
+
+## Hue Lab v0.5 — Manuel / Auto par lampe
+
+Chaque lampe possède son propre mode **Manuel** ou **Auto**. Le choix de l'heure réelle ou de la simulation accélérée ne s'applique qu'aux lampes en Auto. Les courbes existantes sont conservées à l'installation et les réglages individuels restent locaux.
+
+Consulte [README_V05.md](README_V05.md) pour les étapes de mise à jour depuis l'interface du Raspberry et les limites des transitions selon les ampoules.

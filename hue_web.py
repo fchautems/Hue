@@ -109,17 +109,44 @@ class HueServer:
         self.client = client
         self.settings_path = Path(settings_path)
         self.log = logger_
-        self.settings = {"auto": False, "mode": "manuel", "profiles": {}}
+        # Migration v0.4 -> v0.5 : le mode global historique reste lisible,
+        # mais chaque ampoule dispose désormais de son propre contrôle.
+        self.settings = {"auto": False, "mode": "manuel", "profiles": {},
+                         "light_modes": {}, "manual_states": {}}
+        self._legacy_default_auto = False
         if self.settings_path.exists():
             try:
                 loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
                     self.settings["profiles"] = {k: validate_points(v) for k, v in loaded.get("profiles", {}).items()}
-                    self.settings["mode"] = loaded.get("mode") if loaded.get("mode") in ("manuel", "reel") else "manuel"
-                    self.settings["auto"] = self.settings["mode"] == "reel"
-                    # Sécurité: démarrage toujours en mode manuel; activation explicite dans l'UI.
+                    legacy_mode = loaded.get("mode")
+                    self.settings["mode"] = legacy_mode if legacy_mode in ("manuel", "reel") else "manuel"
+                    self._legacy_default_auto = legacy_mode == "reel"
+                    modes = loaded.get("light_modes", {})
+                    if isinstance(modes, dict):
+                        self.settings["light_modes"] = {
+                            k: v for k, v in modes.items()
+                            if isinstance(k, str) and v in ("manuel", "auto")
+                        }
+                    states = loaded.get("manual_states", {})
+                    if isinstance(states, dict):
+                        for uid, value in states.items():
+                            if not isinstance(uid, str) or not isinstance(value, dict):
+                                continue
+                            on, brightness = value.get("on"), value.get("brightness")
+                            if (isinstance(on, bool) and isinstance(brightness, (int, float))
+                                    and not isinstance(brightness, bool) and 1 <= brightness <= 100):
+                                self.settings["manual_states"][uid] = {
+                                    "on": on, "brightness": float(brightness)}
             except (OSError, ValueError, TypeError) as e:
                 self.log.warning("Paramètres non chargés : %s", e)
+        # Une horloge accélérée ne redémarre jamais automatiquement après reboot.
+        self.clock_mode = "reel"
+        self.settings["auto"] = any(v == "auto" for v in self.settings["light_modes"].values())
+        # Restaurer une seule fois l'état manuel au démarrage du service, pas après
+        # chaque coupure Zigbee. Un interrupteur mural doit garder son effet.
+        self.manual_restore_pending = set(self.settings["manual_states"])
+        self.auto_transition_pending = set()
         self.sim = {"enabled": False, "running": False, "apply": False,
                     "seconds_per_day": 120, "minute": 8 * 60, "started_at": time.monotonic()}
         self.lights = []
@@ -162,8 +189,14 @@ class HueServer:
             self._events.thread.join(timeout=3)
 
     def save(self):
-        # Sauvegarde atomique. Les secrets de l'API Hue ne sont jamais enregistrés ici.
-        payload = {"profiles": self.settings["profiles"], "mode": self.settings["mode"] if self.settings["mode"] in ("manuel", "reel") else "manuel"}
+        # Sauvegarde atomique : toutes les courbes et préférences restent locales.
+        # Le vieux champ "mode" est conservé pour les configurations v0.4.
+        payload = {
+            "profiles": self.settings["profiles"],
+            "mode": self.settings["mode"] if self.settings["mode"] in ("manuel", "reel") else "manuel",
+            "light_modes": self.settings["light_modes"],
+            "manual_states": self.settings["manual_states"],
+        }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self.settings_path)
@@ -193,8 +226,18 @@ class HueServer:
             self.reconnect_pending.clear()
             self.last_sent.clear()
             self.power_tests.clear()
-            self.settings["auto"] = False
+            # Les anciens identifiants restent stockés pour retrouver les préférences
+            # si une ampoule est temporairement absente du pont.
+            self.manual_restore_pending.clear()
+            self.auto_transition_pending.clear()
+            self.clock_mode = "reel"
             self.settings["mode"] = "manuel"
+            self._legacy_default_auto = False
+            self.settings["auto"] = False
+            # Un nouveau pont est une nouvelle installation : aucune lampe
+            # ne doit passer automatiquement en Auto après l'association.
+            for uid in self.settings["light_modes"]:
+                self.settings["light_modes"][uid] = "manuel"
             self.sim["enabled"] = False
             self.sim["running"] = False
             self.sim["apply"] = False
@@ -247,6 +290,18 @@ class HueServer:
                             self.log.info("TEST SECTEUR | %s | perte Zigbee observée", l.get("metadata", {}).get("name", uid))
                     if uid not in self.settings["profiles"]:
                         self.settings["profiles"][uid] = copy.deepcopy(DEFAULT_POINTS)
+                    if uid not in self.settings["light_modes"]:
+                        self.settings["light_modes"][uid] = (
+                            "auto" if self._legacy_default_auto else "manuel")
+                        self.save()
+                    if uid not in self.settings["manual_states"]:
+                        brightness = l.get("dimming", {}).get("brightness")
+                        on_value = l.get("on", {}).get("on")
+                        if (isinstance(on_value, bool) and isinstance(brightness, (int, float))
+                                and not isinstance(brightness, bool) and 1 <= brightness <= 100):
+                            self.settings["manual_states"][uid] = {
+                                "on": on_value, "brightness": float(brightness)}
+                            self.save()
                     is_on = l.get("on", {}).get("on")
                     old_on = self.previous_on.get(uid)
                     if old_on is False and is_on is True:
@@ -276,27 +331,82 @@ class HueServer:
             return wall_clock_minutes()
 
     def _mode(self):
-        with self.lock:
-            return self.settings["mode"]
+        # Compatibilité avec les clients API de v0.4 uniquement.
+        return self.settings["mode"] if self.clock_mode == "reel" else "accelere"
+
+    def set_clock_mode(self, mode):
+        """Sélectionne l'heure réelle ou accélérée SANS changer Manuel/Auto."""
+        if mode not in ("reel", "accelere"):
+            raise ValueError("Horloge inconnue : reel ou accelere.")
+        with self._automation_lock:
+            with self.lock:
+                previous = self.clock_mode
+                if mode == previous:
+                    return {"clock_mode": mode}
+                self.clock_mode = mode
+                if mode == "accelere":
+                    self.sim["minute"] = wall_clock_minutes()
+                self.sim["enabled"] = mode == "accelere"
+                self.sim["apply"] = mode == "accelere"
+                self.sim["running"] = mode == "accelere"
+                self.sim["started_at"] = time.monotonic()
+                self.last_sent.clear()
+                self.auto_transition_pending.update(
+                    uid for uid, value in self.settings["light_modes"].items() if value == "auto")
+        self.log.info("HORLOGE | %s -> %s", previous, mode)
+        self._event_wakeup.set()
+        return {"clock_mode": mode}
+
+    def set_light_mode(self, uid, mode):
+        """Un changement d'une ampoule ne touche pas aux autres."""
+        if mode not in ("manuel", "auto"):
+            raise ValueError("Choisir Manuel ou Auto.")
+        with self._automation_lock:
+            with self.lock:
+                light = self.require_light(uid)
+                previous = self.settings["light_modes"].get(uid, "manuel")
+                if previous == mode:
+                    return {"id": uid, "mode": mode}
+                if mode == "manuel":
+                    # Geler l'état observé au moment où on quitte la courbe.
+                    brightness = light.get("dimming", {}).get("brightness")
+                    on = light.get("on", {}).get("on")
+                    if isinstance(on, bool) and isinstance(brightness, (int, float)) and 1 <= brightness <= 100:
+                        self.settings["manual_states"][uid] = {
+                            "on": on, "brightness": float(brightness)}
+                    self.auto_transition_pending.discard(uid)
+                    self.manual_restore_pending.discard(uid)
+                else:
+                    # Prochaine passe : consigne automatique avec transition douce.
+                    self.auto_transition_pending.add(uid)
+                self.settings["light_modes"][uid] = mode
+                self.settings["auto"] = any(v == "auto" for v in self.settings["light_modes"].values())
+                self.last_sent.pop(uid, None)
+                self.reconnect_pending.discard(uid)
+                self.save()
+        self.log.info("LAMPE | %s | %s -> %s", uid, previous, mode)
+        self._event_wakeup.set()
+        return {"id": uid, "mode": mode}
 
     def set_mode(self, mode):
+        """Ancienne API globale de compatibilité ; non utilisée dans l'UI v0.5."""
         if mode not in ("manuel", "reel", "accelere"):
             raise ValueError("Mode inconnu : manuel, reel ou accelere.")
-        with self.lock:
-            previous = self.settings["mode"]
-            if mode == previous:
-                return {"mode": mode}
-            self.settings["mode"] = mode
-            self.settings["auto"] = mode == "reel"
-            if mode == "accelere":
-                self.sim["minute"] = wall_clock_minutes()
-            self.sim["enabled"] = mode == "accelere"
-            self.sim["apply"] = mode == "accelere"
-            self.sim["running"] = mode == "accelere"
-            self.sim["started_at"] = time.monotonic()
-            self.last_sent.clear()
-            self.save()
-        self.log.info("MODE | %s -> %s", previous, mode)
+        self.set_clock_mode("accelere" if mode == "accelere" else "reel")
+        with self._automation_lock:
+            with self.lock:
+                for light in self.lights:
+                    uid = light["id"]
+                    self.settings["light_modes"][uid] = "manuel" if mode == "manuel" else "auto"
+                    if mode == "manuel":
+                        self.auto_transition_pending.discard(uid)
+                    else:
+                        self.auto_transition_pending.discard(uid)  # Comportement historique API.
+                self._legacy_default_auto = mode != "manuel"
+                self.settings["mode"] = mode
+                self.settings["auto"] = mode == "reel"
+                self.last_sent.clear()
+                self.save()
         self._event_wakeup.set()
         return {"mode": mode}
 
@@ -312,61 +422,91 @@ class HueServer:
 
     def _automate_locked(self):
         with self.lock:
-            mode = self._mode()
-            if mode == "manuel":
-                return
-            minute = simulated_minutes(self.sim) if mode == "accelere" else wall_clock_minutes()
+            clock_mode = self.clock_mode
+            minute = simulated_minutes(self.sim) if clock_mode == "accelere" else wall_clock_minutes()
             lights = copy.deepcopy(self.lights)
+            modes = dict(self.settings["light_modes"])
             profiles = copy.deepcopy(self.settings["profiles"])
+            manual = copy.deepcopy(self.settings["manual_states"])
             status = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
-            pending = set(self.reconnect_pending)
+            reconnecting = set(self.reconnect_pending)
+            restoring = set(self.manual_restore_pending)
+            transitioning = set(self.auto_transition_pending)
         for light in lights:
             uid = light["id"]
-            if "dimming" not in light:
+            online = status.get(light.get("owner", {}).get("rid"))
+            if modes.get(uid) != "auto":
+                if uid in restoring:
+                    # Premier passage uniquement. Ne pas rejouer cette commande lors
+                    # d'une reconnexion Zigbee ultérieure.
+                    with self.lock:
+                        self.manual_restore_pending.discard(uid)
+                    if online == "connected" and uid in manual:
+                        preference = manual[uid]
+                        desired_on = preference["on"]
+                        desired_brightness = preference["brightness"]
+                        current_on = light.get("on", {}).get("on")
+                        current_brightness = light.get("dimming", {}).get("brightness")
+                        payload = {}
+                        if current_on is not desired_on:
+                            payload["on"] = {"on": desired_on}
+                        if (desired_on and "dimming" in light and
+                                (not isinstance(current_brightness, (float, int)) or
+                                 abs(current_brightness - desired_brightness) >= 1)):
+                            payload["dimming"] = {"brightness": desired_brightness}
+                            if "dynamics" in light:
+                                payload["dynamics"] = {"duration": 1500}
+                        if payload:
+                            try:
+                                self.client.resource(f"light/{uid}", "PUT", payload)
+                                self.log.info("MANUEL RESTAURÉ | %s", uid)
+                            except HueError as exc:
+                                self.log.warning("Restauration manuelle impossible | %s | %s", uid, exc)
                 continue
-            if not light.get("on", {}).get("on", False):
-                continue  # Ne jamais allumer automatiquement une ampoule éteinte via l'API.
-            state = status.get(light.get("owner", {}).get("rid"))
-            if state is not None and state != "connected":
+            if "dimming" not in light or not light.get("on", {}).get("on", False):
+                continue  # Auto ne rallume jamais une ampoule éteinte.
+            if online is not None and online != "connected":
                 continue
             target = brightness_at(profiles.get(uid, DEFAULT_POINTS), minute)
             current = light.get("dimming", {}).get("brightness")
             last = self.last_sent.get(uid, {})
             now = time.monotonic()
-            reconnect = uid in pending
+            reconnect = uid in reconnecting
+            transition = uid in transitioning
             observed_drift = (
-                not reconnect
-                and bool(last)
+                not reconnect and bool(last)
                 and abs(target - last["target"]) < 1.0
                 and isinstance(current, (float, int))
                 and abs(target - current) >= 1.0
             )
-            urgent_correction = reconnect or observed_drift
-            # Les lectures Hue peuvent être légèrement en retard: ne pas renvoyer en boucle une même cible.
+            urgent_correction = reconnect or observed_drift or transition
             if last and now - last["at"] < COMMAND_COOLDOWN_SECONDS:
                 continue
             if not urgent_correction and last and abs(target - last["target"]) < 1.0 and now - last["at"] < 60:
                 continue
-            if not urgent_correction and isinstance(current, (float, int)) and abs(target - current) < 1.0:
+            if isinstance(current, (float, int)) and abs(target - current) < 1.0:
+                with self.lock:
+                    self.auto_transition_pending.discard(uid)
+                    self.reconnect_pending.discard(uid)
                 continue
             payload = {"dimming": {"brightness": max(1, min(100, target))}}
             if "dynamics" in light:
-                payload["dynamics"] = {"duration": reconnect_transition_ms(current, target) if urgent_correction else (1800 if mode == "accelere" else 3000)}
+                payload["dynamics"] = {"duration": (2000 if transition else
+                    reconnect_transition_ms(current, target) if urgent_correction else
+                    1800 if clock_mode == "accelere" else 3000)}
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
                     self.last_sent[uid] = {"at": now, "target": target}
                     self.reconnect_pending.discard(uid)
+                    self.auto_transition_pending.discard(uid)
                     if reconnect:
                         elapsed = round((time.monotonic() - self.reconnect_at.get(uid, now)) * 1000)
                         self.reconnect_latency[uid] = elapsed
-                        self.log.info("CORRECTION RECONNEXION | %s | délai API observé %d ms | transition demandée %d ms", uid, elapsed, payload.get("dynamics", {}).get("duration", 0))
-                self.log.info("AUTO | %s | cible %.1f%% | mode=%s | durée=%dms%s",
-                              light.get("metadata", {}).get("name", uid), target, mode,
-                              payload.get("dynamics", {}).get("duration", 0),
-                              " | correction reconnexion" if reconnect else (" | correction écart observé" if observed_drift else ""))
-            except HueError as e:
-                self.log.error("AUTO refusé | %s | %s", uid, e)
+                        self.log.info("CORRECTION RECONNEXION | %s | délai API observé %d ms", uid, elapsed)
+                self.log.info("AUTO | %s | cible %.1f%% | horloge=%s", uid, target, clock_mode)
+            except HueError as exc:
+                self.log.error("AUTO refusé | %s | %s", uid, exc)
 
     def get_lights(self):
         with self.lock:
@@ -384,6 +524,8 @@ class HueServer:
                     "on": l.get("on", {}).get("on"),
                     "brightness": l.get("dimming", {}).get("brightness"),
                     "target": brightness_at(points, m),
+                    "control_mode": self.settings["light_modes"].get(l["id"], "manuel"),
+                    "manual_state": copy.deepcopy(self.settings["manual_states"].get(l["id"])),
                     "status": connections.get(owner, "inconnu"),
                     "model": dev.get("product_data", {}).get("model_id", "inconnu"),
                     "manufacturer": dev.get("product_data", {}).get("manufacturer_name", "inconnu"),
@@ -407,7 +549,9 @@ class HueServer:
                 "connected": self.client is not None and self.last_poll is not None and self.last_error is None,
                 "error": self.last_error,
                 "last_poll": self.last_poll,
-                "auto": self.settings["auto"],
+                "auto": self.settings["auto"],  # Ancien indicateur compatible v0.4.
+                "auto_count": sum(l.get("control_mode") == "auto" for l in self.get_lights()),
+                "clock_mode": self.clock_mode,
                 "simulation": public_sim(self.sim),
                 "mode": self._mode(),
                 "minute": round(self.simulated_time(), 3),
@@ -439,7 +583,7 @@ class HueServer:
         if not isinstance(data, dict) or set(data) - allowed:
             raise ValueError("Paramètres de simulation invalides.")
         with self.lock:
-            if self.settings["mode"] != "accelere":
+            if self.clock_mode != "accelere":
                 raise ValueError("Activer le mode accéléré avant de régler l'horloge virtuelle.")
             # Réinitialise l'origine temporelle pour garantir une vitesse continue.
             now_min = simulated_minutes(self.sim)
@@ -463,32 +607,63 @@ class HueServer:
     def switch(self, uid, on, brightness=None):
         if not self.client:
             raise HueError("Pont non configuré")
-        with self.lock:
-            light = self.require_light(uid)
-            supports_dimming = "dimming" in light
-            name = light.get("metadata", {}).get("name", uid)
-            target = self.get_lights()
-            target = next(x["target"] for x in target if x["id"] == uid)
-        payload = {"on": {"on": on}}
-        if on and supports_dimming:
-            payload["dimming"] = {"brightness": float(brightness if brightness is not None else target)}
-        self.client.resource(f"light/{uid}", "PUT", payload)
-        with self.lock:
-            self.last_user_action[uid] = time.monotonic()
-            self.last_sent.pop(uid, None)
-        self.log.info("MANUEL | %s | %s", name, payload)
+        if not isinstance(on, bool):
+            raise ValueError("on doit être vrai ou faux")
+        with self._automation_lock:
+            with self.lock:
+                light = self.require_light(uid)
+                supports_dimming = "dimming" in light
+                name = light.get("metadata", {}).get("name", uid)
+                mode = self.settings["light_modes"].get(uid, "manuel")
+                current_brightness = light.get("dimming", {}).get("brightness")
+                stored = self.settings["manual_states"].get(uid, {})
+                if mode == "auto":
+                    target = brightness_at(self.settings["profiles"].get(uid, DEFAULT_POINTS),
+                                           self.simulated_time())
+                else:
+                    target = stored.get("brightness", current_brightness or 50)
+            payload = {"on": {"on": on}}
+            if on and supports_dimming:
+                selected = brightness if brightness is not None else target
+                if isinstance(selected, bool) or not isinstance(selected, (float, int)) or not 1 <= selected <= 100:
+                    raise ValueError("Luminosité : 1 à 100 %")
+                payload["dimming"] = {"brightness": float(selected)}
+            self.client.resource(f"light/{uid}", "PUT", payload)
+            with self.lock:
+                self.last_user_action[uid] = time.monotonic()
+                self.last_sent.pop(uid, None)
+                if mode == "manuel":
+                    self.manual_restore_pending.discard(uid)
+                    self.settings["manual_states"][uid] = {
+                        "on": on, "brightness": float(payload.get("dimming", {}).get("brightness", target))}
+                    self.save()
+                else:
+                    self.auto_transition_pending.add(uid)
+        self.log.info("COMMANDE | %s | %s", name, payload)
+        self._event_wakeup.set()
 
     def set_brightness(self, uid, brightness):
         if isinstance(brightness, bool) or not isinstance(brightness, (float, int)) or not 1 <= brightness <= 100:
             raise ValueError("La luminosité doit être entre 1 et 100 %.")
-        with self.lock:
-            light = self.require_light(uid)
-            if "dimming" not in light:
-                raise ValueError("Cette ampoule ne propose pas le réglage de luminosité.")
-        payload = {"dimming": {"brightness": float(brightness)}}
-        if "dynamics" in light:
-            payload["dynamics"] = {"duration": 400}
-        self.client.resource(f"light/{uid}", "PUT", payload)
+        with self._automation_lock:
+            with self.lock:
+                light = self.require_light(uid)
+                if self.settings["light_modes"].get(uid, "manuel") == "auto":
+                    raise ValueError("Passe cette lampe en Manuel pour régler librement sa luminosité.")
+                if "dimming" not in light:
+                    raise ValueError("Cette ampoule ne propose pas le réglage de luminosité.")
+            payload = {"dimming": {"brightness": float(brightness)}}
+            if "dynamics" in light:
+                payload["dynamics"] = {"duration": 400}
+            self.client.resource(f"light/{uid}", "PUT", payload)
+            with self.lock:
+                manual = self.settings["manual_states"].get(uid, {})
+                self.settings["manual_states"][uid] = {
+                    "on": bool(manual.get("on", light.get("on", {}).get("on", True))),
+                    "brightness": float(brightness)}
+                self.manual_restore_pending.discard(uid)
+                self.last_sent.pop(uid, None)
+                self.save()
         self.log.info("MANUEL | %s | luminosité %.1f%%", uid, brightness)
 
     def set_powerup(self, uid, preset, brightness=None):
@@ -752,7 +927,18 @@ def auto(data: dict = Body(...)):
 
 @app.post("/api/mode")
 def update_mode(data: dict = Body(...)):
+    # Compatibilité des scripts existants (choisit toutes les lampes).
     return ok(controller.set_mode(data.get("mode")))
+
+
+@app.post("/api/clock-mode")
+def clock_mode(data: dict = Body(...)):
+    return ok(controller.set_clock_mode(data.get("mode")))
+
+
+@app.post("/api/light/{uid}/control-mode")
+def light_control_mode(uid: str, data: dict = Body(...)):
+    return ok(controller.set_light_mode(uid, data.get("mode")))
 
 
 @app.post("/api/simulation")
