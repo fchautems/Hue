@@ -136,9 +136,9 @@
   function listLights(){
     const lights=state?.lights||[];
     const existing=rgbSelect.value;
-    rgbSelect.innerHTML=lights.filter(l=>l.capabilities?.color).map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
-    if(lights.some(l=>l.id===existing&&l.capabilities?.color))rgbSelect.value=existing;
-    return lights.filter(l=>l.capabilities?.color);
+    rgbSelect.innerHTML=lights.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
+    if(lights.some(l=>l.id===existing))rgbSelect.value=existing;
+    return lights;
   }
   function discardPrompt(){return !hasChanges()||window.confirm('Tu as des réglages RGB non enregistrés. Les abandonner ?');}
   async function loadLamp(id){
@@ -154,11 +154,11 @@
     }catch(e){if(token===nonce){$('#rgb-status').textContent='Chargement impossible';setFeedback(e.message,true)}}
     finally{if(token===nonce){loading=false;render();}}
   }
-  function open(id){
+  function open(id,skipPrompt=false,refreshIfClean=false){
     const list=listLights();const chosen=id&&list.some(l=>l.id===id)?id:list[0]?.id;
-    if(!chosen){uid=null;$('#rgb-status').textContent='Aucune lampe RGB';setFeedback('Reconnecte le pont Hue pour détecter les lampes RGB.',true);return;}
-    if(uid===chosen&&draft)return;
-    if(!discardPrompt())return;
+    if(!chosen){uid=null;$('#rgb-status').textContent='Aucune lampe détectée';setFeedback('Reconnecte le pont Hue pour détecter les lampes.',true);return;}
+    if(uid===chosen&&draft&&(!refreshIfClean||hasChanges()))return;
+    if(!skipPrompt&&!discardPrompt())return;
     rgbSelect.value=chosen;loadLamp(chosen);
   }
   rgbSelect.addEventListener('change',()=>{
@@ -176,6 +176,7 @@
       saved={data:clone(next),enabled:result.enabled};draft=clone(next);
       setFeedback(result.mode==='auto'?'Profil Simple et couleurs automatiques activés.':'Couleur manuelle enregistrée.'+(!result.on?' Lampe éteinte : pas d’allumage automatique.':''));
       await refresh();
+      window.HueMerged?.afterRgbSave(id);
     }catch(error){setFeedback(error.message,true);showToast(error.message,true)}
     finally{saving=false;render()}
   }));
@@ -183,9 +184,15 @@
   document.querySelector('.nav')?.addEventListener('click',e=>{
     const tab=e.target.closest?.('.nav-item')?.dataset.tab;
     if(!tab)return;
-    if(activeTab==='colors'&&tab!=='colors'&&!discardPrompt()){e.preventDefault();e.stopImmediatePropagation();return;}
-    if(tab==='colors')queueMicrotask(()=>open(uid));
+    if(activeTab==='profiles'&&tab!=='profiles'&&hasChanges()){
+      if(!discardPrompt()){e.preventDefault();e.stopImmediatePropagation();return;}
+      draft=clone(saved.data);render();
+    }
+    if(tab==='profiles')queueMicrotask(()=>open(uid));
   },true);
-  window.addEventListener('beforeunload',e=>{if(activeTab==='colors'&&hasChanges()){e.preventDefault();e.returnValue=''}});
-  window.HueRGB={open};
+  window.addEventListener('beforeunload',e=>{if(hasChanges()){e.preventDefault();e.returnValue=''}});
+  window.HueRGB={
+    open,hasChanges,discardPrompt,currentId:()=>uid,
+    reloadIfClean:id=>{if(uid===id&&!hasChanges())loadLamp(id);}
+  };
 })();

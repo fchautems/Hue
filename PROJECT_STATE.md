@@ -96,3 +96,12 @@ Mise à jour : 2026-10-23
 - Les anciennes courbes personnalisées, modes individuels et clés Hue restent sauvegardés. Aucune conversion automatique des lampes non configurées en couleurs.
 - Couleurs par point personnalisé, soleil et météo : hors v0.6.
 - Tests : conversion couleur et courbes, API Hue simulée, Chromium mobile 320/390 px + bureau 1320 px. Matériel réel : non testé.
+
+## v0.6.1 — Navigation fusionnée, horloge préservée (2026-10-26)
+- Suppression de l'onglet autonome Couleurs RGB ; réunion de la roue et des profils sous Horloge & lumières.
+- Horloge analogique 24 h visible par défaut sur mobile ; seules les commandes de simulation sont repliables.
+- Le sélecteur de lampe est commun aux deux éditeurs, avec synchronisation JavaScript et protection des modifications non sauvegardées.
+- La roue RGB et la courbe couleur simple sont visibles ; l'éditeur de courbe Simple/Personnalisée reste sous détails avancés.
+- Navigation des raccourcis Carte -> Couleurs et Carte -> Courbes corrigée, sans suppression des préférences.
+- Fichiers modifiés : templates/index.html, static/app.js, static/v06.js, static/v052.js ; nouveaux : static/v061.css, static/v061.js, README_V061.md, tests/test_v061_navigation.py.
+- Pas de modification des fichiers Python de pilotage, des API ou de hue_settings.json ; vérifier les lampes réelles après installation.

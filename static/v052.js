@@ -160,6 +160,7 @@
       saved={...params};activeType='simple';viewType='simple';
       showToast('Courbe simple enregistrée et activée.');
       draw();await refresh();
+      window.HueRGB?.reloadIfClean(id);
     } finally {saving=false;updateUI(validate(params));}
   });
   activateCustom.onclick=()=>safe(async()=>{
@@ -167,7 +168,7 @@
     const id=selectedId;saving=true;updateUI();
     try{
       await api(`/api/profile/type/${encodeURIComponent(id)}`,'POST',{type:'custom'});
-      if(selectedId===id){activeType='custom';viewType='custom';showToast('Courbe personnalisée réactivée.');await refresh();}
+      if(selectedId===id){activeType='custom';viewType='custom';showToast('Courbe personnalisée réactivée.');await refresh();window.HueRGB?.reloadIfClean(id);}
     } finally {saving=false;updateUI();}
   });
   const previousLampChange=lampSelect.onchange;
@@ -187,5 +188,9 @@
     simpleDirty=false;
   },true);
   window.addEventListener('beforeunload',e=>{if(simpleDirty){e.preventDefault();e.returnValue='';}});
+  window.HueProfiles={
+    hasUnsaved:()=>simpleDirty||profileDirty,
+    reload:()=>loadProfile()
+  };
   fillFields();updateUI();
 })();

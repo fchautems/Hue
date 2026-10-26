@@ -86,8 +86,14 @@ function addLightCards(lights) {
         await refresh();
       }finally{card.querySelectorAll(".lamp-mode-btn").forEach(b=>b.disabled=false);}
     })));
-    card.querySelector(".light-curve").addEventListener("click",()=>{setTab("profiles");selectedId=id;$('#profile-light').value=id;loadProfile();});
-    card.querySelector(".light-rgb")?.addEventListener("click",()=>{setTab("colors");window.HueRGB?.open(id);});
+    card.querySelector(".light-curve").addEventListener("click",()=>{
+      if(window.HueMerged){window.HueMerged.openCurve(id);return;}
+      setTab("profiles");selectedId=id;$('#profile-light').value=id;loadProfile();
+    });
+    card.querySelector(".light-rgb")?.addEventListener("click",()=>{
+      if(window.HueMerged){window.HueMerged.openColors(id);return;}
+      setTab("profiles");window.HueRGB?.open(id);
+    });
     card.querySelector(".light-details").addEventListener("click",()=>{setTab("diagnostics");});
   });
   const select=$("#profile-light"); const was=selectedId;
@@ -117,11 +123,13 @@ function updateLights(lights) {
   }
 }
 function setTab(tab) {
+  if(tab==="colors")tab="profiles";
   activeTab=tab;
   $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${tab}`));
   $$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
-  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Courbes & simulation','Un cycle jour-nuit fluide et accéléré pour les essais.'],colors:['Couleurs RGB','Choisis une ambiance pour chaque moment de la journée.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.'],updates:['Mises à jour','Télécharger les nouvelles versions depuis GitHub, sans PC.']};
+  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Horloge & lumières','Horloge 24 h, courbes et couleurs réunies au même endroit.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.'],updates:['Mises à jour','Télécharger les nouvelles versions depuis GitHub, sans PC.']};
   $('#page-title').textContent=titles[tab][0]; $('#page-subtitle').textContent=titles[tab][1];
+  if(tab==='profiles' && state?.lights?.length)window.HueRGB?.open(selectedId,false,true);
   if(tab==='diagnostics')safe(refreshDiagnostics);
   if(tab==='updates')safe(refreshUpdater);
 }

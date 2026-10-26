@@ -1,0 +1,35 @@
+/* Hue Lab v0.6.1 — un seul onglet Courbes/Couleurs, horloge toujours visible. */
+#tab-profiles .v061-lamp-bar{padding:16px 20px;margin:18px 0 16px}
+#tab-profiles .v061-lamp-bar .profile-bar{margin:0;gap:13px}
+#tab-profiles .v061-lamp-bar label{font-size:12px;font-weight:650;color:var(--text)}
+#tab-profiles .v061-lamp-bar #profile-light{width:min(100%,380px)}
+#tab-profiles .v061-lamp-bar #profile-target{margin-left:auto;white-space:nowrap}
+#tab-profiles .rgb-integrated{margin:0 0 18px}
+#tab-profiles #tab-colors .rgb-lamp-row{display:none!important}
+#tab-profiles .v061-advanced{margin:16px 0 24px;border:1px solid #3a5267;border-radius:16px;background:#142539;overflow:clip}
+#tab-profiles .v061-advanced>summary{display:flex;justify-content:space-between;align-items:center;gap:14px;min-height:66px;padding:15px 20px;color:#e9f2fa;cursor:pointer;list-style:none}
+#tab-profiles .v061-advanced>summary::-webkit-details-marker{display:none}
+#tab-profiles .v061-advanced>summary strong{display:block;font-size:15px}
+#tab-profiles .v061-advanced>summary small{display:block;color:#a7bdcf;font-size:11px;line-height:1.5;margin-top:4px}
+#tab-profiles .v061-advanced[open]>summary{border-bottom:1px solid #334b60}
+#tab-profiles .v061-advanced[open] .v061-chevron{transform:rotate(180deg)}
+#tab-profiles .v061-chevron{font-size:20px;transition:transform .2s;color:#a9bdcf}
+#tab-profiles .v061-advanced>.section-title{padding:0 20px;margin-top:18px}
+#tab-profiles .v061-advanced>.profile-card{margin:0 15px 15px}
+#tab-profiles .rgb-header-row{flex-wrap:wrap}
+@media(max-width:700px){
+  /* Dans v0.5.1 le bouton cachait aussi l'horloge : v0.6.1 garde le cadran. */
+  #tab-profiles .two-col.top-section{display:grid!important;grid-template-columns:minmax(0,1fr)}
+  #tab-profiles #v061-sim-options{display:none}
+  body.v051-show-simulator #tab-profiles #v061-sim-options{display:block}
+  #tab-profiles .clock-card{padding:16px}
+  #tab-profiles .clock-container svg{width:min(100%,245px)}
+  #tab-profiles .v061-lamp-bar{padding:13px 14px;margin:14px 0}
+  #tab-profiles .v061-lamp-bar #profile-light{width:100%}
+  #tab-profiles .v061-lamp-bar #profile-target{margin-left:0}
+  #tab-profiles .v061-advanced>summary{padding:13px 14px;min-height:65px}
+  #tab-profiles .v061-advanced>.section-title{padding:0 13px}
+  #tab-profiles .v061-advanced>.profile-card{margin:0 7px 7px}
+  #tab-profiles .rgb-integrated{margin-bottom:14px}
+}
+@media(prefers-reduced-motion:reduce){#tab-profiles .v061-chevron{transition:none}}

@@ -94,3 +94,7 @@ L’onglet **Courbes horaires** permet de choisir entre la courbe personnalisée
 ## v0.6 — Couleurs RGB et profils horaires
 
 Depuis **Couleurs RGB** ou le raccourci sur chaque carte, on choisit une lampe, sa couleur et son mode : **Manuel** (roue + saturation + luminosité) ou **Auto** (4 couleurs Matin/Journée/Soir/Nuit, transitions continues et horaires repliables). Les six couleurs rapides et la prévisualisation n'agissent jamais sur le pont avant l'enregistrement. Le mode Auto de cet écran active la courbe **Simple** sans effacer les anciennes courbes personnalisées. [Guide et limites](README_V06.md).
+
+## v0.6.1 — Interface unifiée avec horloge
+
+Les anciens onglets **Courbes horaires** et **Couleurs RGB** ne font plus qu'un : **Horloge & lumières**. L'horloge 24 h est visible sur téléphone ; la roue RGB est en accès direct ; l'éditeur de courbe historique est replié sous « Éditeur de courbe avancé ». Un seul sélecteur choisit l'ampoule pour les deux éditeurs. Aucun changement du pilotage ni des paramètres privés. [Documentation](README_V061.md).
