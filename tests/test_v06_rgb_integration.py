@@ -132,11 +132,11 @@ class RGBApiTests(RGBControllerTests):
     def test_rgb_http_get_put(self):
         get=self.client.get('/api/rgb/light-0')
         self.assertEqual(get.status_code,200)
-        self.assertFalse(get.json()['enabled'])
+        self.assertFalse(get.json()['data']['enabled'])
         put=self.client.put('/api/rgb/light-0',json=payload('auto'))
         self.assertEqual(put.status_code,200)
-        self.assertTrue(put.json()['enabled'])
-        self.assertEqual(self.client.get('/api/rgb/light-1').json()['enabled'],False)
+        self.assertTrue(put.json()['data']['enabled'])
+        self.assertEqual(self.client.get('/api/rgb/light-1').json()['data']['enabled'],False)
 
     def test_rgb_http_invalid_and_unknown(self):
         self.assertEqual(self.client.put('/api/rgb/light-0',json={'mode':'auto'}).status_code,400)
