@@ -508,9 +508,13 @@ class HueServer:
                             payload["dimming"] = {"brightness": desired_brightness}
                             if "dynamics" in light:
                                 payload["dynamics"] = {"duration": 1500}
-                        if payload and "color" in light and uid in self.settings["rgb_manual"] and desired_on:
-                            payload["color"] = {"xy": hsv_to_xy(
-                                self.settings["rgb_manual"][uid], light["color"].get("gamut"))}
+                        if "color" in light and uid in self.settings["rgb_manual"] and desired_on:
+                            desired_xy = hsv_to_xy(
+                                self.settings["rgb_manual"][uid], light["color"].get("gamut"))
+                            if xy_distance(light["color"].get("xy"), desired_xy) >= 0.008:
+                                payload["color"] = {"xy": desired_xy}
+                                if "dynamics" in light:
+                                    payload.setdefault("dynamics", {"duration": 1200})
                         if payload:
                             try:
                                 self.client.resource(f"light/{uid}", "PUT", payload)
@@ -532,7 +536,7 @@ class HueServer:
             current = light.get("dimming", {}).get("brightness")
             last = self.last_sent.get(uid, {})
             now = time.monotonic()
-            xy_changed = target_xy is not None and xy_distance(last.get("xy"), target_xy) >= 0.007
+            xy_changed = target_xy is not None and xy_distance(last.get("xy"), target_xy) >= 0.003
             observed_xy = light.get("color", {}).get("xy") if "color" in light else None
             # Le pont peut encore être en transition. Attendre pour détecter un
             # changement externe plutôt que répéter la même commande en boucle.
@@ -565,7 +569,8 @@ class HueServer:
             if "dynamics" in light:
                 payload["dynamics"] = {"duration": (2000 if transition else
                     reconnect_transition_ms(current, target) if urgent_correction else
-                    1800 if clock_mode == "accelere" else 3000)}
+                    1800 if clock_mode == "accelere" else
+                    8000 if target_xy is not None else 3000)}
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:

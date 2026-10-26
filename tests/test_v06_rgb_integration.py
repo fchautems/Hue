@@ -70,6 +70,18 @@ class RGBControllerTests(unittest.TestCase):
         self.assertEqual(self.server.settings['manual_states']['light-0']['brightness'],26)
         self.assertEqual(self.server.settings['light_modes']['light-0'],'manuel')
 
+    def test_manual_restart_restores_color_even_when_brightness_matches(self):
+        self.server.save_rgb_profile('light-0',payload('manuel'))
+        self.bridge.calls.clear()
+        restarted=HueServer(self.bridge,self.path,logging.getLogger('test_v06'))
+        restarted.poll()
+        restarted.automate()
+        commands=[cmd for path,cmd in self.bridge.calls if path=='light/light-0']
+        self.assertTrue(commands)
+        self.assertIn('color',commands[0])
+        self.assertNotIn('on',commands[0])
+        self.assertNotIn('dimming',commands[0])
+
     def test_manual_off_only_stores_rgb_and_does_not_relight(self):
         self.bridge.lights[0]['on']['on']=False;self.server.poll()
         self.server.save_rgb_profile('light-0',payload('manuel'))
