@@ -90,3 +90,7 @@ L’éditeur présente une courbe interactive et des pastilles horaires accessib
 ## v0.5.2 — Courbe simple progressive
 
 L’onglet **Courbes horaires** permet de choisir entre la courbe personnalisée à points et une **courbe simple** : début/fin de montée, début/fin de descente, luminosités minimale et maximale. Les rampes sont monotones, arrondies et continues, avec un plateau de jour et un minimum nocturne. La courbe personnalisée existante n’est jamais écrasée. [Détails](README_V052.md).
+
+## v0.6 — Couleurs RGB et profils horaires
+
+Depuis **Couleurs RGB** ou le raccourci sur chaque carte, on choisit une lampe, sa couleur et son mode : **Manuel** (roue + saturation + luminosité) ou **Auto** (4 couleurs Matin/Journée/Soir/Nuit, transitions continues et horaires repliables). Les six couleurs rapides et la prévisualisation n'agissent jamais sur le pont avant l'enregistrement. Le mode Auto de cet écran active la courbe **Simple** sans effacer les anciennes courbes personnalisées. [Guide et limites](README_V06.md).

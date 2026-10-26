@@ -86,3 +86,13 @@ Mise à jour : 2026-10-23
 - UI `static/v052.js` et `static/v052.css` : aperçu indépendant, choix de profil, annulation et activation explicite, contrôles mobiles accessibles.
 - Tests nouveaux : math et API (`tests/test_v052_math.py`, `tests/test_v052_simple.py`), contrôle syntaxe JS, interactions Chromium avec ampoules simulées sur 320, 390 et 1320 px ; tests de l'application complète à exécuter avant déploiement sur Raspberry via le moteur autonome.
 - V0.6 plus tard : températures de blanc/couleurs ; v0.7 : soleil et météo.
+
+## Hue Lab v0.6 — Roue de couleur et automatisme RGB (2026-10-26)
+- Nouvelle section mobile Couleurs RGB avec choix de lampe, Manuel/Auto, roue tactile, saturation, luminosité, six préréglages, aperçu, quatre phases et panneau d'horaires repliable.
+- Bouton Couleurs → sur les cartes des ampoules compatibles, mode modifié seulement après validation explicite.
+- hue_rgb.py : HSV -> xy CIE D65, limitation au gamut de l'ampoule, interpolation angulaire la plus courte avec smootherstep pour les phases Matin/Journée/Soir/Nuit.
+- hue_web.py : trois nouvelles clés locales (rgb_profiles, rgb_manual, rgb_auto_enabled), GET/PUT /api/rgb/{uid}, couleur calculée dans la boucle Auto seulement sur les lampes activées RGB et profil Simple.
+- Une lampe éteinte n'est pas rallumée par les couleurs. Le choix manuel s'applique immédiatement uniquement après Enregistrer et si l'ampoule est déjà allumée et joignable. L'état initial après une coupure secteur dépend du powerup de l'ampoule.
+- Les anciennes courbes personnalisées, modes individuels et clés Hue restent sauvegardés. Aucune conversion automatique des lampes non configurées en couleurs.
+- Couleurs par point personnalisé, soleil et météo : hors v0.6.
+- Tests : conversion couleur et courbes, API Hue simulée, Chromium mobile 320/390 px + bureau 1320 px. Matériel réel : non testé.

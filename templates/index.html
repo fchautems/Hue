@@ -10,17 +10,20 @@
   <link rel="stylesheet" href="/static/v05.css">
   <link rel="stylesheet" href="/static/v051.css">
   <link rel="stylesheet" href="/static/v052.css">
+  <link rel="stylesheet" href="/static/v06.css">
   <script src="/static/app.js?v=05" defer></script>
   <script src="/static/v051.js?v=051" defer></script>
   <script src="/static/v052.js?v=052" defer></script>
+  <script src="/static/v06.js?v=060" defer></script>
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.5.2</span></div></div>
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.6</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>⌁</span> Courbes horaires</button>
+      <button class="nav-item" data-tab="colors"><span>◉</span> Couleurs RGB</button>
       <button class="nav-item" data-tab="diagnostics"><span>☷</span> Diagnostics & logs</button>
       <button class="nav-item" data-tab="setup"><span>⌁</span> Connexion au pont</button>
       <button class="nav-item" data-tab="updates"><span>↻</span> Mises à jour</button>
@@ -124,6 +127,104 @@
       </div>
     </section>
 
+    <section id="tab-colors" class="tab hidden" aria-labelledby="rgb-heading">
+      <div class="rgb-header card">
+        <div class="rgb-header-row">
+          <div><div class="eyebrow">HUE LAB / COULEURS</div><h2 id="rgb-heading">Ambiances RGB</h2></div>
+          <span class="rgb-status" id="rgb-status" role="status" aria-live="polite">Chargement…</span>
+        </div>
+        <div class="rgb-lamp-row">
+          <label for="rgb-light">Lampe</label>
+          <select id="rgb-light" class="field" aria-label="Ampoule à configurer"></select>
+        </div>
+        <div class="rgb-seg" role="group" aria-label="Mode de pilotage de cette lampe">
+          <button type="button" id="rgb-manual" data-mode="manuel" aria-pressed="false">Manuel</button>
+          <button type="button" id="rgb-auto" data-mode="auto" aria-pressed="true">Auto</button>
+        </div>
+        <p class="rgb-advisory" id="rgb-mode-advisory">La lumière reste inchangée tant que tu n'enregistres pas.</p>
+
+        <div id="rgb-auto-phases">
+          <h3 class="rgb-section-label">Couleur selon le moment de la journée</h3>
+          <div class="rgb-phase-grid" role="group" aria-label="Choisir le moment">
+            <button type="button" class="rgb-phase" data-phase="morning"><span class="rgb-dot"></span>Matin</button>
+            <button type="button" class="rgb-phase" data-phase="day"><span class="rgb-dot"></span>Journée</button>
+            <button type="button" class="rgb-phase" data-phase="evening"><span class="rgb-dot"></span>Soir</button>
+            <button type="button" class="rgb-phase" data-phase="night"><span class="rgb-dot"></span>Nuit</button>
+          </div>
+        </div>
+
+        <div class="rgb-wheel-layout">
+          <div class="rgb-wheel-wrap">
+            <div id="rgb-wheel" role="slider" tabindex="0" aria-label="Teinte de la couleur, ajuster avec les flèches" aria-valuemin="0" aria-valuemax="359" aria-valuenow="32">
+              <span id="rgb-wheel-cursor"></span>
+            </div>
+            <div class="rgb-hint">Touche ou glisse sur la roue</div>
+          </div>
+          <div class="rgb-controls">
+            <div class="rgb-preview-area">
+              <h3 class="rgb-section-label">Aperçu</h3>
+              <div id="rgb-preview" class="rgb-preview" aria-hidden="true"><svg viewBox="0 0 90 90" fill="none"><path d="M25 40a20 20 0 1 1 40 0c0 10-7 14-10 21H35c-3-7-10-13-10-21Z" fill="white" fill-opacity=".8" stroke="white" stroke-width="2"/><rect x="34" y="64" width="22" height="8" rx="3" fill="white" fill-opacity=".9"/><rect x="37" y="74" width="16" height="6" rx="3" fill="white" fill-opacity=".7"/></svg></div>
+              <output id="rgb-hex" class="rgb-hex">#F2B379</output>
+            </div>
+            <div class="rgb-slider-group">
+              <label for="rgb-sat">Saturation <output id="rgb-sat-value">65 %</output></label>
+              <input id="rgb-sat" type="range" min="0" max="100" step="1" value="65"/>
+            </div>
+            <div class="rgb-slider-group">
+              <label for="rgb-bright"><span id="rgb-bright-label">Luminosité maximale</span> <output id="rgb-bright-value">85 %</output></label>
+              <input id="rgb-bright" type="range" min="1" max="100" step="1" value="85"/>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="rgb-section-label">Couleurs rapides</h3>
+        <div id="rgb-presets" class="rgb-presets" role="group" aria-label="Couleurs prédéfinies">
+          <button type="button" data-h="35" data-s="30"><span style="--swatch:#ffdfa9"></span>Chaud</button>
+          <button type="button" data-h="45" data-s="5"><span style="--swatch:#fff8ed"></span>Neutre</button>
+          <button type="button" data-h="32" data-s="92"><span style="--swatch:#ffb043"></span>Ambre</button>
+          <button type="button" data-h="0" data-s="90"><span style="--swatch:#f34f4f"></span>Rouge</button>
+          <button type="button" data-h="218" data-s="80"><span style="--swatch:#5987f2"></span>Bleu</button>
+          <button type="button" data-h="282" data-s="77"><span style="--swatch:#b874e5"></span>Violet</button>
+        </div>
+
+        <div id="rgb-auto-settings" class="rgb-auto-settings">
+          <div class="rgb-curve-card">
+            <h3 class="rgb-section-label">Courbe de luminosité · 24 heures</h3>
+            <svg id="rgb-curve" viewBox="0 0 600 110" preserveAspectRatio="none" role="img" aria-label="Courbe lisse de luminosité entre 00 h et 24 h">
+              <defs><linearGradient id="rgb-area-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f1c078" stop-opacity=".23"/><stop offset="100%" stop-color="#f1c078" stop-opacity="0"/></linearGradient></defs>
+              <path id="rgb-curve-area" fill="url(#rgb-area-gradient)"/><path id="rgb-curve-line" fill="none" stroke="#f1c078" stroke-width="3" vector-effect="non-scaling-stroke"/>
+              <g id="rgb-time-markers"></g>
+            </svg>
+            <div class="rgb-hours-axis"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span></div>
+            <div id="rgb-color-gradient" class="rgb-color-gradient" role="img" aria-label="Aperçu des transitions de couleur sur 24 heures"></div>
+            <p class="rgb-advisory">Luminosité et couleurs évoluent progressivement, sans saut entre les phases.</p>
+          </div>
+          <div class="rgb-schedule">
+            <button type="button" id="rgb-schedule-toggle" class="rgb-schedule-toggle" aria-controls="rgb-schedule-content" aria-expanded="false">
+              <span class="rgb-schedule-icon">◷</span><span class="rgb-schedule-name"><strong>Horaires de la courbe</strong><small id="rgb-hours-summary">06:15 → 13:00 → 18:00 → 23:00</small></span><span id="rgb-schedule-chevron">⌄</span>
+            </button>
+            <div id="rgb-schedule-content" hidden>
+              <p class="rgb-advisory">Les quatre heures définissent la montée, le plateau et la descente. Minimum et maximum restent indépendants des couleurs.</p>
+              <div class="rgb-time-field"><label for="rgb-wake"><strong>Début du réveil</strong><small>La lumière commence à monter</small></label><input id="rgb-wake" type="time" step="60" value="06:15"/></div>
+              <div class="rgb-time-field"><label for="rgb-morning_end"><strong>Fin de la montée</strong><small>Maximum atteint</small></label><input id="rgb-morning_end" type="time" step="60" value="13:00"/></div>
+              <div class="rgb-time-field"><label for="rgb-evening_start"><strong>Début de la soirée</strong><small>La lumière commence à descendre</small></label><input id="rgb-evening_start" type="time" step="60" value="18:00"/></div>
+              <div class="rgb-time-field"><label for="rgb-bed"><strong>Heure du coucher</strong><small>Minimum nocturne atteint</small></label><input id="rgb-bed" type="time" step="60" value="23:00"/></div>
+              <div class="rgb-level-pair">
+                <div class="rgb-slider-group"><label for="rgb-min">Nuit · minimum <output id="rgb-min-value">10 %</output></label><input id="rgb-min" type="range" min="1" max="30" step="1" value="10"/></div>
+                <div class="rgb-slider-group"><label for="rgb-max">Journée · maximum <output id="rgb-max-value">85 %</output></label><input id="rgb-max" type="range" min="35" max="100" step="1" value="85"/></div>
+              </div>
+              <div id="rgb-validation" class="rgb-validation" role="alert" hidden></div>
+            </div>
+          </div>
+        </div>
+        <div class="rgb-actions">
+          <button id="rgb-revert" type="button" class="btn muted" disabled>Annuler</button>
+          <button id="rgb-save" type="button" class="btn primary" disabled>Enregistrer les réglages</button>
+        </div>
+        <div id="rgb-feedback" role="status" aria-live="polite" class="rgb-feedback">Aucune modification envoyée aux lampes sans enregistrement.</div>
+      </div>
+    </section>
+
     <section id="tab-diagnostics" class="tab hidden">
       <div class="section-title"><h2>État du pont et capacités</h2><button id="refresh-diagnostics" class="btn muted">↻ Actualiser</button></div>
       <div class="card"><div id="diag-meta" class="diag-meta">Lecture du pont…</div><div id="diag-lights" class="diag-lights"></div><div class="diag-actions"><button id="export-diag" class="btn muted">↓ Exporter diagnostic JSON</button></div></div>
@@ -145,7 +246,7 @@
         <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
     </section>
-    <footer>Hue Lab 0.5.2 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
+    <footer>Hue Lab 0.6 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>
 </div>
 <dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="10"></div><p class="warning-text">Le serveur vérifie le réglage mémorisé, mais le démarrage physique doit être testé à l’interrupteur.</p><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>

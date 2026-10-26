@@ -24,6 +24,7 @@ import hue_update_api
 from hue_v03_runtime import HueEventStream, reconnect_transition_ms
 from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
 from hue_simple_profile import DEFAULT_SIMPLE_PROFILE, simple_brightness_at, validate_simple_profile
+from hue_rgb import DEFAULT_RGB_PHASES, DEFAULT_MANUAL_COLOR, rgb_at, hsv_to_xy, xy_distance, validate_hs, validate_rgb_phases
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ROOT = Path(__file__).resolve().parent
@@ -114,7 +115,8 @@ class HueServer:
         # mais chaque ampoule dispose désormais de son propre contrôle.
         self.settings = {"auto": False, "mode": "manuel", "profiles": {},
                          "light_modes": {}, "manual_states": {},
-                         "simple_profiles": {}, "profile_types": {}}
+                         "simple_profiles": {}, "profile_types": {},
+                         "rgb_profiles": {}, "rgb_manual": {}, "rgb_auto_enabled": {}}
         self._legacy_default_auto = False
         if self.settings_path.exists():
             try:
@@ -135,6 +137,30 @@ class HueServer:
                         self.settings["profile_types"] = {
                             uid: kind for uid, kind in profile_types.items()
                             if isinstance(uid, str) and kind in ("simple", "custom")
+                        }
+                    rgb_profiles = loaded.get("rgb_profiles", {})
+                    if isinstance(rgb_profiles, dict):
+                        for uid, raw in rgb_profiles.items():
+                            if not isinstance(uid, str):
+                                continue
+                            try:
+                                self.settings["rgb_profiles"][uid] = validate_rgb_phases(raw)
+                            except (ValueError, TypeError):
+                                self.log.warning("Couleurs automatiques invalides ignorées pour une lampe.")
+                    rgb_manual = loaded.get("rgb_manual", {})
+                    if isinstance(rgb_manual, dict):
+                        for uid, raw in rgb_manual.items():
+                            if not isinstance(uid, str):
+                                continue
+                            try:
+                                self.settings["rgb_manual"][uid] = validate_hs(raw)
+                            except (ValueError, TypeError):
+                                self.log.warning("Couleur manuelle invalide ignorée pour une lampe.")
+                    enabled_colors = loaded.get("rgb_auto_enabled", {})
+                    if isinstance(enabled_colors, dict):
+                        self.settings["rgb_auto_enabled"] = {
+                            uid: True for uid, value in enabled_colors.items()
+                            if isinstance(uid, str) and value is True and uid in self.settings["rgb_profiles"]
                         }
                     legacy_mode = loaded.get("mode")
                     self.settings["mode"] = legacy_mode if legacy_mode in ("manuel", "reel") else "manuel"
@@ -215,6 +241,9 @@ class HueServer:
             "manual_states": self.settings["manual_states"],
             "simple_profiles": self.settings["simple_profiles"],
             "profile_types": self.settings["profile_types"],
+            "rgb_profiles": self.settings["rgb_profiles"],
+            "rgb_manual": self.settings["rgb_manual"],
+            "rgb_auto_enabled": self.settings["rgb_auto_enabled"],
         }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -448,6 +477,8 @@ class HueServer:
             profiles = copy.deepcopy(self.settings["profiles"])
             simple_profiles = copy.deepcopy(self.settings["simple_profiles"])
             profile_types = dict(self.settings["profile_types"])
+            rgb_profiles = copy.deepcopy(self.settings["rgb_profiles"])
+            rgb_enabled = dict(self.settings["rgb_auto_enabled"])
             manual = copy.deepcopy(self.settings["manual_states"])
             status = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
             reconnecting = set(self.reconnect_pending)
@@ -477,6 +508,9 @@ class HueServer:
                             payload["dimming"] = {"brightness": desired_brightness}
                             if "dynamics" in light:
                                 payload["dynamics"] = {"duration": 1500}
+                        if payload and "color" in light and uid in self.settings["rgb_manual"] and desired_on:
+                            payload["color"] = {"xy": hsv_to_xy(
+                                self.settings["rgb_manual"][uid], light["color"].get("gamut"))}
                         if payload:
                             try:
                                 self.client.resource(f"light/{uid}", "PUT", payload)
@@ -489,9 +523,22 @@ class HueServer:
             if online is not None and online != "connected":
                 continue
             target = self._target_for(uid, minute, profiles, simple_profiles, profile_types)
+            target_xy = None
+            if ("color" in light and profile_types.get(uid) == "simple" and
+                    rgb_enabled.get(uid) is True and uid in rgb_profiles):
+                target_xy = hsv_to_xy(
+                    rgb_at(rgb_profiles[uid], simple_profiles.get(uid, DEFAULT_SIMPLE_PROFILE), minute),
+                    light["color"].get("gamut"))
             current = light.get("dimming", {}).get("brightness")
             last = self.last_sent.get(uid, {})
             now = time.monotonic()
+            xy_changed = target_xy is not None and xy_distance(last.get("xy"), target_xy) >= 0.007
+            observed_xy = light.get("color", {}).get("xy") if "color" in light else None
+            # Le pont peut encore être en transition. Attendre pour détecter un
+            # changement externe plutôt que répéter la même commande en boucle.
+            xy_drift = (target_xy is not None and observed_xy is not None
+                        and (not last or now-last["at"] >= 8)
+                        and xy_distance(observed_xy, target_xy) >= 0.025)
             reconnect = uid in reconnecting
             transition = uid in transitioning
             observed_drift = (
@@ -500,17 +547,21 @@ class HueServer:
                 and isinstance(current, (float, int))
                 and abs(target - current) >= 1.0
             )
-            urgent_correction = reconnect or observed_drift or transition
+            urgent_correction = reconnect or observed_drift or transition or xy_drift
             if last and now - last["at"] < COMMAND_COOLDOWN_SECONDS:
                 continue
-            if not urgent_correction and last and abs(target - last["target"]) < 1.0 and now - last["at"] < 60:
+            if (not urgent_correction and last and abs(target - last["target"]) < 1.0
+                    and not xy_changed and now - last["at"] < 60):
                 continue
-            if isinstance(current, (float, int)) and abs(target - current) < 1.0:
+            if (isinstance(current, (float, int)) and abs(target - current) < 1.0
+                    and not xy_changed and not xy_drift):
                 with self.lock:
                     self.auto_transition_pending.discard(uid)
                     self.reconnect_pending.discard(uid)
                 continue
             payload = {"dimming": {"brightness": max(1, min(100, target))}}
+            if target_xy is not None:
+                payload["color"] = {"xy": target_xy}
             if "dynamics" in light:
                 payload["dynamics"] = {"duration": (2000 if transition else
                     reconnect_transition_ms(current, target) if urgent_correction else
@@ -518,7 +569,7 @@ class HueServer:
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
-                    self.last_sent[uid] = {"at": now, "target": target}
+                    self.last_sent[uid] = {"at": now, "target": target, "xy": target_xy}
                     self.reconnect_pending.discard(uid)
                     self.auto_transition_pending.discard(uid)
                     if reconnect:
@@ -546,6 +597,8 @@ class HueServer:
                     "brightness": l.get("dimming", {}).get("brightness"),
                     "target": self._target_for(uid, m),
                     "profile_type": self.settings["profile_types"].get(uid, "custom"),
+                    "rgb_auto": bool(self.settings["rgb_auto_enabled"].get(uid)),
+                    "color_xy": copy.deepcopy(l.get("color", {}).get("xy")),
                     "control_mode": self.settings["light_modes"].get(l["id"], "manuel"),
                     "manual_state": copy.deepcopy(self.settings["manual_states"].get(l["id"])),
                     "status": connections.get(owner, "inconnu"),
@@ -632,6 +685,83 @@ class HueServer:
         self.log.info("PROFIL ACTIF | %s | %s", uid, kind)
         return self.simple_profile(uid)
 
+    def rgb_profile(self, uid):
+        """Données du sélecteur, sans exposer la clé Hue ni les autres lampes."""
+        with self.lock:
+            light = self.require_light(uid)
+            manual = self.settings["manual_states"].get(uid, {})
+            return {
+                "mode": self.settings["light_modes"].get(uid, "manuel"),
+                "profile_type": self.settings["profile_types"].get(uid, "custom"),
+                "simple_params": copy.deepcopy(self.settings["simple_profiles"].get(uid, DEFAULT_SIMPLE_PROFILE)),
+                "colors": copy.deepcopy(self.settings["rgb_profiles"].get(uid, DEFAULT_RGB_PHASES)),
+                "manual": {**copy.deepcopy(self.settings["rgb_manual"].get(uid, DEFAULT_MANUAL_COLOR)),
+                           "b": int(round(manual.get("brightness", light.get("dimming", {}).get("brightness", 65)) or 65))},
+                "enabled": bool(self.settings["rgb_auto_enabled"].get(uid)),
+                "capable": "color" in light and "dimming" in light,
+                "on": light.get("on", {}).get("on") is True,
+                "online": (next((c.get("status") for c in self.connectivity
+                                 if c.get("owner", {}).get("rid") == light.get("owner", {}).get("rid")), None)
+                           == "connected"),
+            }
+
+    def save_rgb_profile(self, uid, data):
+        """Validation intégrale puis sauvegarde atomique par lampe.
+
+        Manuel : appliquer la teinte uniquement si la lampe est déjà allumée.
+        Auto : activer le profil Simple et laisser le worker gérer la transition.
+        """
+        if not isinstance(data, dict) or set(data) != {"mode", "colors", "simple_params", "manual"}:
+            raise ValueError("Configuration RGB incomplète.")
+        mode = data["mode"]
+        if mode not in ("manuel", "auto"):
+            raise ValueError("Mode RGB invalide.")
+        colors = validate_rgb_phases(data["colors"])
+        params = validate_simple_profile(data["simple_params"])
+        manual_raw = data["manual"]
+        if not isinstance(manual_raw, dict) or set(manual_raw) != {"h", "s", "b"}:
+            raise ValueError("Couleur manuelle incomplète.")
+        manual = validate_hs({"h": manual_raw["h"], "s": manual_raw["s"]})
+        brightness = manual_raw["b"]
+        if type(brightness) is not int or not 1 <= brightness <= 100:
+            raise ValueError("Luminosité manuelle : 1 à 100 %.")
+        with self._automation_lock:
+            with self.lock:
+                light = self.require_light(uid)
+                if "color" not in light or "dimming" not in light:
+                    raise ValueError("Cette lampe ne permet pas le pilotage RGB.")
+                current_on = light.get("on", {}).get("on") is True
+                online = (next((c.get("status") for c in self.connectivity
+                                if c.get("owner", {}).get("rid") == light.get("owner", {}).get("rid")), None)
+                          == "connected")
+                xy = hsv_to_xy(manual, light["color"].get("gamut"))
+            if mode == "manuel" and current_on and online:
+                payload = {"color": {"xy": xy}, "dimming": {"brightness": float(brightness)}}
+                if "dynamics" in light:
+                    payload["dynamics"] = {"duration": 900}
+                # Si le pont refuse, ne pas prétendre avoir enregistré.
+                self.client.resource(f"light/{uid}", "PUT", payload)
+            with self.lock:
+                self.settings["rgb_profiles"][uid] = colors
+                self.settings["rgb_manual"][uid] = manual
+                self.settings["simple_profiles"][uid] = params
+                self.settings["rgb_auto_enabled"][uid] = True
+                self.settings["light_modes"][uid] = mode
+                if mode == "auto":
+                    self.settings["profile_types"][uid] = "simple"
+                    self.auto_transition_pending.add(uid)
+                else:
+                    self.auto_transition_pending.discard(uid)
+                    self.manual_restore_pending.discard(uid)
+                    self.settings["manual_states"][uid] = {
+                        "on": current_on, "brightness": float(brightness)}
+                self.settings["auto"] = any(v=="auto" for v in self.settings["light_modes"].values())
+                self.last_sent.pop(uid, None)
+                self.save()
+        self.log.info("RGB | %s | %s | couleurs enregistrées", uid, mode)
+        self._event_wakeup.set()
+        return self.rgb_profile(uid)
+
     def require_light(self, uid):
         light = next((l for l in self.lights if l.get("id") == uid), None)
         if not light:
@@ -698,6 +828,19 @@ class HueServer:
                 if isinstance(selected, bool) or not isinstance(selected, (float, int)) or not 1 <= selected <= 100:
                     raise ValueError("Luminosité : 1 à 100 %")
                 payload["dimming"] = {"brightness": float(selected)}
+            if on and "color" in light:
+                choice = None
+                if mode == "manuel":
+                    choice = self.settings["rgb_manual"].get(uid)
+                elif (self.settings["profile_types"].get(uid, "custom") == "simple"
+                      and self.settings["rgb_auto_enabled"].get(uid)
+                      and uid in self.settings["rgb_profiles"]):
+                    choice = rgb_at(
+                        self.settings["rgb_profiles"][uid],
+                        self.settings["simple_profiles"].get(uid, DEFAULT_SIMPLE_PROFILE),
+                        self.simulated_time())
+                if choice:
+                    payload["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
             self.client.resource(f"light/{uid}", "PUT", payload)
             with self.lock:
                 self.last_user_action[uid] = time.monotonic()
@@ -1039,6 +1182,16 @@ def update_simple_profile(uid: str, data: dict = Body(...)):
 @app.post("/api/profile/type/{uid}")
 def update_profile_type(uid: str, data: dict = Body(...)):
     return ok(controller.set_profile_type(uid, data.get("type")))
+
+
+@app.get("/api/rgb/{uid}")
+def rgb_profile(uid: str):
+    return ok(controller.rgb_profile(uid))
+
+
+@app.put("/api/rgb/{uid}")
+def save_rgb_profile(uid: str, data: dict = Body(...)):
+    return ok(controller.save_rgb_profile(uid, data))
 
 
 @app.post("/api/light/{uid}/switch")
