@@ -147,3 +147,12 @@ Mise à jour : 2026-10-23
 - **Contrôles réalisés** : vérification statique des quatre sites d'écriture, de la priorité manuelle, de tous les chemins de fin du test et des exclusions de l'horloge ; tests de régression ajoutés pour ces scénarios dans `tests/test_vacation.py`.
 - **Non vérifié** : exécution complète des tests Python et essai avec le pont réel, faute d'environnement Raspberry dans cette session.
 - **Prochaine action** : déployer depuis Hue Lab, noter le nombre de lignes dans Historique, lancer `Tester 60 s`, vérifier que ce nombre n'augmente pas durant le test ni pendant les 45 secondes suivant sa fin, puis déclencher une vraie commande après le délai et vérifier la reprise de l'enregistrement.
+
+## Apprentissage suspendu pendant toute la période Vacances (2026-10-28)
+- **Décision durable** : `logs/presence_events.csv` n'est **jamais alimenté tant que Vacances est activé**, pour toutes les ampoules, afin que les scénarios que le moteur exécute ne viennent pas réentraîner le moteur. Le programme continue à lire l'historique antérieur en entrée.
+- `_presence_history_suppressed(uid)` contrôle les quatre sources d'observation `light_on/off` et `zigbee_connected/disconnected`. L'activation de Vacances active immédiatement le blocage ; sa désactivation déclenche 45 s de quarantaine globale avant la reprise des vraies observations pour absorber les retours tardifs.
+- La logique **priorité manuelle Hue pendant 10 minutes** demeure indépendante du blocage des logs (garde séparée `_vacation_test_blocks_override(uid)`). Cette distinction empêche que la nouvelle protection casse l'usage prévu par les voisins.
+- Les logs techniques `logs/hue.log` continuent en Vacances, l'historique antérieur reste visible. L'exclusion couvre aussi les lampes non sélectionnées (choix simple et conservateur).
+- Tests mis à jour : pauses d'apprentissage en mode Vacances, détection d'une commande manuelle ON sans nouvelle ligne CSV, événement d'autre lampe, persistance après redémarrage, délai de reprise de 45 s, régression des tests rapides.
+- **Contrôles** : revue du code et du contrat entre les quatre appels de journalisation et le filtre ; publication des changements GitHub effectuée. **À vérifier** : exécution de la suite Python et essai de télécommande sur Raspberry.
+- **Prochaine action** : mettre Hue Lab à jour, observer la stabilité du tableau Historique pendant Vacances, actionner la télécommande pour confirmer les 10 minutes de priorité ; après désactivation et 45 s, vérifier qu'une nouvelle action apparaît dans Historique.
