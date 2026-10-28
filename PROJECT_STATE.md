@@ -105,3 +105,12 @@ Mise à jour : 2026-10-23
 - Navigation des raccourcis Carte -> Couleurs et Carte -> Courbes corrigée, sans suppression des préférences.
 - Fichiers modifiés : templates/index.html, static/app.js, static/v06.js, static/v052.js ; nouveaux : static/v061.css, static/v061.js, README_V061.md, tests/test_v061_navigation.py.
 - Pas de modification des fichiers Python de pilotage, des API ou de hue_settings.json ; vérifier les lampes réelles après installation.
+
+## Historique de présence — écran compact (2026-10-28)
+- **Décision** : écran séparé « Historique » très simple, en lecture seule, sans nouvelle interaction avec les lampes. Afficher date/heure, nom d'ampoule et nature de l'événement.
+- Le journal existant reste local à `logs/presence_events.csv` et demeure exclu de GitHub. La nouvelle méthode `PresenceLog.recent(limit)` lit les dernières observations en ordre antéchronologique avec mémoire bornée ; route `GET /api/presence/events?limit=40`.
+- L'onglet Historique s'actualise à l'ouverture, sur clic, et toutes les 15 s lorsqu'il est visible ; présentation compacte pour téléphone, horodatage Europe/Zurich. Aucune donnée utilisateur ne transite par GitHub.
+- Les quatre événements possibles sont `light_on`, `light_off`, `zigbee_connected` et `zigbee_disconnected`. Une déconnexion Zigbee ne prouve pas que l'interrupteur mural a été coupé. Aucune donnée initiale fictive n'est créée.
+- **Vérifications réalisées** : syntaxe JavaScript compilée par V8 pour les deux scripts ; contrat statique HTML ↔ JS ↔ route API contrôlé après publication. Le numéro de cache du script principal a été augmenté pour forcer le chargement de la navigation modifiée.
+- **Non vérifié** : exécution de la suite Python dans un clone complet, rendu visuel en navigateur, installation sur le Raspberry et résultat avec le pont réel. Tests Python ajoutés mais non exécutés à ce stade.
+- **Prochaine action** : installer la dernière version depuis Hue Lab, ouvrir « Historique », provoquer un allumage/extinction par télécommande et vérifier la ligne ; pour l'interrupteur secteur, attendre l'observation Zigbee et vérifier séparément.
