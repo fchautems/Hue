@@ -1,0 +1,24 @@
+/* Historique : petit écran de lecture, adapté au mobile. */
+.presence-card{max-width:880px;padding:22px 24px}
+.presence-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px}
+.presence-head h2{font-size:19px;font-weight:650;margin:0 0 5px}
+.presence-head p{font-size:12px}
+.presence-status{color:var(--muted);font-size:11px;padding:7px 0 13px}
+.presence-table-scroll{width:100%;overflow-x:auto}
+.presence-table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}
+.presence-table thead th{font-size:11px;letter-spacing:.02em;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);padding:10px 12px}
+.presence-table tbody td{padding:13px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.presence-table tbody tr:last-child td{border-bottom:none}
+.presence-table .presence-time{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.presence-table .presence-event{font-weight:600;white-space:nowrap}
+.presence-table .presence-empty{color:var(--muted);text-align:center;padding:25px 12px}
+.presence-note{max-width:880px;color:var(--muted);font-size:12px;line-height:1.6;margin:14px 0}
+@media(max-width:700px){
+ .presence-card{padding:15px 11px}
+ .presence-head{align-items:flex-start}
+ .presence-head h2{font-size:17px}
+ .presence-head .btn{padding:9px 10px;white-space:nowrap}
+ .presence-table{font-size:12px}
+ .presence-table thead th,.presence-table tbody td{padding:12px 7px}
+ .presence-table .presence-event{white-space:normal}
+}
