@@ -13,12 +13,14 @@
   <link rel="stylesheet" href="/static/v06.css">
   <link rel="stylesheet" href="/static/v061.css">
   <link rel="stylesheet" href="/static/presence.css">
+  <link rel="stylesheet" href="/static/vacation.css">
   <script src="/static/app.js?v=062" defer></script>
   <script src="/static/v051.js?v=051" defer></script>
   <script src="/static/v052.js?v=052" defer></script>
   <script src="/static/v06.js?v=060" defer></script>
   <script src="/static/v061.js?v=061" defer></script>
   <script src="/static/presence.js?v=01" defer></script>
+  <script src="/static/vacation.js?v=01" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -66,6 +68,18 @@
       </div>
       <div class="section-title"><h2>Mes lumières</h2><span id="light-updated">Actualisation…</span></div>
       <div id="light-grid" class="light-grid"><div class="empty">Recherche des ampoules…</div></div>
+      <section class="card vacation-card" aria-labelledby="vacation-title">
+        <div class="vacation-heading">
+          <div><div class="eyebrow">SIMULATEUR DE PRÉSENCE</div><h2 id="vacation-title">Mode Vacances</h2>
+            <p>Horaires variables d'après les habitudes enregistrées, même sans connexion Internet.</p></div>
+          <span id="vacation-status" class="chip">Chargement…</span>
+        </div>
+        <div id="vacation-lights" class="vacation-lights" aria-label="Lampes à inclure dans le mode Vacances"></div>
+        <div class="vacation-actions"><button id="vacation-toggle" class="btn primary" type="button" disabled>Activer Vacances</button>
+          <span id="vacation-feedback" role="status" aria-live="polite">Laisse les interrupteurs muraux sous tension.</span></div>
+        <div class="vacation-next"><h3>Prochains événements</h3><div id="vacation-preview">Le programme apparaîtra après activation.</div></div>
+        <p class="vacation-note">Pendant Vacances, un allumage manuel avec la télécommande Hue a priorité pendant 10 minutes sur la lampe concernée, puis le programme reprend. Les événements de connexion Zigbee ne sont pas des pressions sur la télécommande.</p>
+      </section>
       <div class="section-title space-top"><h2>Comportement après coupure secteur</h2><span>À paramétrer par ampoule dans Diagnostics</span></div>
       <div class="card auto-card"><div><h3>Démarrage doux — 10 % recommandé</h3><p>Configure chaque ampoule compatible à 10 % dans Diagnostics. Pour une lampe en Auto, le serveur corrige ensuite progressivement vers la courbe de luminosité.</p></div><button id="go-diagnostics" class="btn muted">Configurer les ampoules</button></div>
       <div class="hint">Si l'interrupteur mural coupe le courant, la luminosité au tout premier instant dépend du réglage <strong>powerup</strong> de l'ampoule. Le serveur ne peut intervenir qu'après la reconnexion au pont.</div>
