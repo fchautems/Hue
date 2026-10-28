@@ -517,6 +517,14 @@ class HueServer:
         return {"mode": mode}
 
     def automate(self):
+        # Même sans pont disponible, le test ne doit pas rester marqué actif
+        # indéfiniment si ses 60 secondes sont déjà écoulées.
+        with self.lock:
+            test = self.vacation_test
+            if test and test["running"] and time.monotonic() - test["started_monotonic"] >= 60:
+                test["running"] = False
+                test["status"] = "terminé"
+                self.log.info("VACANCES TEST | délai écoulé ; reprise dès retour du pont")
         if not self.client or self.last_error:
             return
         if not self._automation_lock.acquire(blocking=False):
