@@ -540,6 +540,8 @@ class HueServer:
             if test and test["running"] and time.monotonic() - test["started_monotonic"] >= 60:
                 test["running"] = False
                 test["status"] = "terminé"
+                test["log_block_until"] = max(test.get("log_block_until", 0),
+                                               time.monotonic() + 45)
                 self.log.info("VACANCES TEST | délai écoulé ; reprise dès retour du pont")
         if not self.client or self.last_error:
             return
@@ -846,6 +848,8 @@ class HueServer:
             if elapsed >= 60:
                 test["running"] = False
                 test["status"] = "terminé"
+                test["log_block_until"] = max(test.get("log_block_until", 0),
+                                               time.monotonic() + 45)
                 self.log.info("VACANCES TEST | terminé, reprise du planning réel")
                 return
             lights = {light["id"]: light for light in self.lights}
@@ -895,6 +899,8 @@ class HueServer:
                 if time.monotonic() - test["started_monotonic"] >= 60:
                     test["running"] = False
                     test["status"] = "terminé"
+                    test["log_block_until"] = max(test.get("log_block_until", 0),
+                                                   time.monotonic() + 45)
                     self.log.info("VACANCES TEST | terminé, reprise du planning réel")
 
     def _vacation_apply_locked(self):
