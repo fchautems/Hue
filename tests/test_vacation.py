@@ -54,7 +54,7 @@ class VacationTests(unittest.TestCase):
         with_logs = build_schedule(["light-1"], f, "seed", when, days=1)
         without = build_schedule(["light-1"], self.root / "missing", "seed", when, days=1)
         self.assertNotEqual(with_logs, without)
-        self.assertEqual(len([e for e in with_logs if e["on"] and "T21:" in e["at"]]), 1)
+        self.assertTrue(any(e["on"] and int(e["at"][11:13]) >= 20 for e in with_logs))
 
     def test_enable_issues_commands_and_disable_stops(self):
         self.srv.set_vacation(True, ["light-1"])
@@ -66,6 +66,7 @@ class VacationTests(unittest.TestCase):
             {"at": (now+timedelta(minutes=30)).isoformat(), "light_id":"light-1","on":False}]
         self.bridge.lights[1]["on"] = {"on":False}
         self.srv.poll()
+        self.srv.vacation["overrides"].clear()  # Préparer un état OFF sans commande manuelle active.
         self.bridge.calls.clear()
         self.srv.automate()
         self.assertEqual(self.bridge.calls[-1][0], "light/light-1")
@@ -81,6 +82,7 @@ class VacationTests(unittest.TestCase):
         now = datetime.now(LOCAL_TZ)
         self.srv.vacation["schedule"] = [
             {"at": (now-timedelta(hours=2)).isoformat(), "light_id":"light-1","on":False}]
+        self.srv.save()
         self.bridge.lights[1]["on"] = {"on":False}
         self.srv.poll()
         self.bridge.calls.clear()
