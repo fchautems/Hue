@@ -1234,6 +1234,12 @@ def diagnostics():
     return controller.diagnostics()
 
 
+@app.get("/api/presence/events")
+def presence_events(limit: int = 40):
+    """Lecture seule : observations récentes, jamais les clés du pont."""
+    return ok(controller.presence_log.recent(limit))
+
+
 @app.get("/api/logs")
 def logs():
     path = LOG_DIR / "hue.log"
