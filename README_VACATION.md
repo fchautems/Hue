@@ -106,3 +106,35 @@ sélectionnées et fait défiler un intervalle de **24 heures simulées** en
 Les ampoules doivent rester **sous tension électrique** pendant tout le test.
 Les tests logiciels avec un faux pont et la validation physique sur le
 Raspberry restent à réaliser avant de considérer ce mode comme fiabilisé.
+
+## Historique d'apprentissage et tests (2026-10-28)
+
+Le fichier `logs/presence_events.csv` est un **historique d'habitudes**, pas un
+journal de tests. Les allumages, extinctions et transitions Zigbee ne sont pas
+ajoutés pendant le **test rapide de 60 secondes**, quelle que soit la lampe.
+Les commandes de test ne comptent donc pas comme des comportements habituels.
+
+Lorsqu'un test rapide se termine (automatiquement, par arrêt manuel ou par
+désactivation du mode Vacances), les lampes participant au test restent
+exclues de cet historique pendant **45 secondes supplémentaires** : le pont
+peut encore signaler des changements retardés. Cela évite aussi de prendre
+ces retours d'état pour une action du voisin déclenchant dix minutes
+d'éclairage. Les autres lampes reprennent leur journalisation normale à
+la fin du test.
+
+Le même principe s'applique au mode de **simulation horaire accélérée** de
+l'interface : aucune observation n'entre dans l'historique pendant ce mode,
+puis une période de protection de 45 secondes est appliquée au retour à
+l'horloge réelle.
+
+En revanche, les **logs techniques** de Hue Lab (`logs/hue.log`) restent
+actifs pour diagnostiquer des commandes échouées et suivre le déroulement
+du test. Le test ne supprime ni ne modifie rétroactivement les anciennes
+lignes du CSV. Une action véritable effectuée durant ces périodes de
+protection n'est pas enregistrée dans les statistiques ; c'est un compromis
+volontaire contre la pollution des données.
+
+Tests de non-régression ajoutés pour la suppression pendant le test, les
+transitions Zigbee, l'arrêt manuel, les états retardés, l'expiration, la
+reprise des observations normales et l'horloge accélérée. Leur exécution
+dans l'environnement Raspberry reste à confirmer.
