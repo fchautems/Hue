@@ -447,6 +447,8 @@ class HueServer:
                 previous = self.clock_mode
                 if mode == previous:
                     return {"clock_mode": mode}
+                if self.vacation["enabled"] and mode == "accelere":
+                    raise ValueError("Désactiver Vacances avant la simulation horaire générale.")
                 self.clock_mode = mode
                 if mode == "accelere":
                     self.sim["minute"] = wall_clock_minutes()
@@ -663,6 +665,8 @@ class HueServer:
         with self._automation_lock:
             with self.lock:
                 if enabled:
+                    if self.vacation_test and self.vacation_test["running"]:
+                        raise ValueError("Arrêter le test rapide avant de reconfigurer Vacances.")
                     if self.client is None or self.last_poll is None or self.last_error:
                         raise ValueError("Pont Hue non connecté.")
                     if self.clock_mode != "reel":
@@ -799,6 +803,11 @@ class HueServer:
             if not test or not test["running"]:
                 return
             elapsed = time.monotonic() - test["started_monotonic"]
+            if elapsed >= 60:
+                test["running"] = False
+                test["status"] = "terminé"
+                self.log.info("VACANCES TEST | terminé, reprise du planning réel")
+                return
             lights = {light["id"]: light for light in self.lights}
             connected = {c.get("owner", {}).get("rid"): c.get("status")
                          for c in self.connectivity}
