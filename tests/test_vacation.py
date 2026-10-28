@@ -271,12 +271,34 @@ class VacationTests(unittest.TestCase):
         self.srv.vacation_test["log_block_until"] = time.monotonic() - 5
         self.srv.automate()
         self.assertFalse(self.srv.vacation_test["running"])
-        self.assertTrue(self.srv._vacation_test_blocks_history("light-1"))
+        self.assertTrue(self.srv._presence_history_suppressed("light-1"))
         self.bridge.lights[1]["on"] = {
             "on": not self.bridge.lights[1]["on"]["on"]}
         self.srv.poll()
         self.assertFalse((self.root / "logs" / "presence_events.csv").exists())
         self.assertEqual(self.srv.vacation["overrides"], {})
+
+    def test_accelerated_clock_never_trains_presence_log(self):
+        """Les tests de courbes horaires ne doivent pas contaminer l'historique."""
+        history = self.root / "logs" / "presence_events.csv"
+        self.srv.set_clock_mode("accelere")
+        self.bridge.lights[0]["on"] = {"on": False}
+        self.srv.poll()
+        self.bridge.connectivity[0]["status"] = "disconnected"
+        self.srv.poll()
+        self.assertFalse(history.exists())
+
+        self.srv.set_clock_mode("reel")
+        self.bridge.connectivity[0]["status"] = "connected"
+        self.srv.poll()
+        self.bridge.lights[0]["on"] = {"on": True}
+        self.srv.poll()
+        self.assertFalse(history.exists())
+
+        self.srv._history_resume_after = time.monotonic() - 1
+        self.bridge.lights[0]["on"] = {"on": False}
+        self.srv.poll()
+        self.assertEqual(self.srv.presence_log.recent()[0]["event"], "light_off")
 
     def test_http_routes(self):
         with patch.object(hue_web,"controller",self.srv):
