@@ -771,6 +771,16 @@ class HueServer:
                                        "at": item["at"], "light_id": item["light_id"],
                                        "on": item["on"] is True})
                 events.sort(key=lambda e: (e["due"], e["light_id"]))
+                # À vitesse ×1440, une session de 20 min durerait 0,8 s.
+                # Préserver au moins 2 s allumées par lampe pour voir le résultat.
+                last_on_due = {}
+                for event in events:
+                    uid = event["light_id"]
+                    if event["on"]:
+                        last_on_due[uid] = event["due"]
+                    elif uid in last_on_due:
+                        event["due"] = max(event["due"], last_on_due[uid] + 2)
+                events.sort(key=lambda e: (e["due"], e["light_id"]))
                 started = time.monotonic()
                 self.vacation_test = {
                     "running": True, "status": "en cours", "started_monotonic": started,
