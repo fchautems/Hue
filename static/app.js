@@ -127,8 +127,10 @@ function setTab(tab) {
   activeTab=tab;
   $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${tab}`));
   $$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
-  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Horloge & lumières','Horloge 24 h, courbes et couleurs réunies au même endroit.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.'],updates:['Mises à jour','Télécharger les nouvelles versions depuis GitHub, sans PC.']};
+  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Horloge & lumières','Horloge 24 h, courbes et couleurs réunies au même endroit.'],presence:['Historique','Allumages, extinctions et connexions observés.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.'],updates:['Mises à jour','Télécharger les nouvelles versions depuis GitHub, sans PC.']};
   $('#page-title').textContent=titles[tab][0]; $('#page-subtitle').textContent=titles[tab][1];
+  $('.mode-control').classList.toggle('hidden',tab==='presence');
+  if(tab==='presence')window.HuePresence?.refresh();
   if(tab==='profiles' && state?.lights?.length)window.HueRGB?.open(selectedId,false,true);
   if(tab==='diagnostics')safe(refreshDiagnostics);
   if(tab==='updates')safe(refreshUpdater);
