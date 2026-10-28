@@ -208,6 +208,76 @@ class VacationTests(unittest.TestCase):
                 self.assertEqual(stopped.status_code,200)
                 self.assertFalse(stopped.json()["data"]["running"])
 
+    def test_quick_test_excludes_all_observed_events_from_training_history(self):
+        """ON/OFF et Zigbee observés pendant les 60 s ne deviennent pas des habitudes."""
+        self.srv.set_vacation(True, ["light-1"])
+        self.srv.set_vacation_test("start")
+        self.assertTrue(self.srv.vacation_test["running"])
+        history = self.root / "logs" / "presence_events.csv"
+        self.assertFalse(history.exists())
+
+        # Changement de l'ampoule testée, y compris un état qui ne ressemble
+        # pas à la dernière commande générée par le moteur.
+        self.bridge.lights[1]["on"] = {"on": False}
+        self.srv.poll()
+        self.bridge.lights[1]["on"] = {"on": True}
+        self.srv.poll()
+        self.bridge.connectivity[1]["status"] = "disconnected"
+        self.srv.poll()
+        self.bridge.connectivity[1]["status"] = "connected"
+        self.srv.poll()
+
+        # Par prudence, aucune ligne d'apprentissage n'est écrite durant la démo,
+        # même si une autre lampe change physiquement d'état.
+        self.bridge.lights[2]["on"] = {"on": False}
+        self.srv.poll()
+        self.assertFalse(history.exists())
+        self.assertEqual(self.srv.vacation["overrides"], {})
+
+    def test_quick_test_stop_ignores_late_echo_then_resumes_real_logging(self):
+        history = self.root / "logs" / "presence_events.csv"
+        self.bridge.lights[1]["on"] = {"on": False}
+        self.srv.poll()
+        self.bridge.lights[1]["on"] = {"on": True}
+        self.srv.poll()
+        before = self.srv.presence_log.recent()
+        self.assertEqual(len(before), 2)
+
+        self.srv.set_vacation(True, ["light-1"])
+        self.srv.set_vacation_test("start")
+        self.bridge.lights[1]["on"] = {"on": False}
+        self.srv.poll()
+        self.srv.set_vacation_test("stop")
+        self.bridge.lights[1]["on"] = {"on": True}  # Retard de remontée après arrêt.
+        self.srv.poll()
+        self.assertEqual(self.srv.presence_log.recent(), before)
+        self.assertEqual(self.srv.vacation["overrides"], {})
+
+        # Le reste de l'habitation reste journalisable après la démo.
+        self.bridge.lights[2]["on"] = {"on": False}
+        self.srv.poll()
+        self.assertEqual(len(self.srv.presence_log.recent()), 3)
+
+        # Après la marge de sécurité, l'historique redevient normal.
+        self.srv.vacation_test["log_block_until"] = time.monotonic() - 1
+        self.bridge.lights[1]["on"] = {"on": False}
+        self.srv.poll()
+        self.assertEqual(len(self.srv.presence_log.recent()), 4)
+
+    def test_demo_timeout_protects_late_bridge_events(self):
+        self.srv.set_vacation(True, ["light-1"])
+        self.srv.set_vacation_test("start")
+        self.srv.vacation_test["started_monotonic"] -= 61
+        self.srv.vacation_test["log_block_until"] = time.monotonic() - 5
+        self.srv.automate()
+        self.assertFalse(self.srv.vacation_test["running"])
+        self.assertTrue(self.srv._vacation_test_blocks_history("light-1"))
+        self.bridge.lights[1]["on"] = {
+            "on": not self.bridge.lights[1]["on"]["on"]}
+        self.srv.poll()
+        self.assertFalse((self.root / "logs" / "presence_events.csv").exists())
+        self.assertEqual(self.srv.vacation["overrides"], {})
+
     def test_http_routes(self):
         with patch.object(hue_web,"controller",self.srv):
             with TestClient(hue_web.app) as client:
