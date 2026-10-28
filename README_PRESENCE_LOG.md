@@ -45,3 +45,24 @@ Tests logiciels à lancer sur un PC ou sur le Raspberry :
 Aucun test matériel ni exécution de la suite complète n'est revendiqué
 pour ce changement. Cet historique pourra servir à concevoir ultérieurement
 un simulateur de présence, sans activer un tel simulateur aujourd'hui.
+
+## Écran Historique (28 octobre 2026)
+
+Un onglet **Historique** dans Hue Lab affiche un tableau compact, accessible sur
+téléphone : **Date et heure**, **Lampe**, **Événement**. Les 40 derniers
+événements sont affichés du plus récent au plus ancien : allumage, extinction,
+connexion ou déconnexion Zigbee. La lecture s'effectue via
+`GET /api/presence/events?limit=40`, uniquement à partir du fichier CSV
+local. Si aucun événement n'a encore été détecté, l'écran indique simplement
+qu'il n'existe pas de données. Aucun réglage ni aucune commande aux lampes
+n'est effectué depuis cet écran.
+
+Le tableau s'actualise à l'ouverture, avec le bouton **Actualiser**, puis
+toutes les 15 secondes lorsque l'onglet est visible. Les heures sont affichées
+en heure suisse (Europe/Zurich). Les valeurs venant des noms de lampes sont
+insérées comme texte, sans interprétation HTML.
+
+Vérifications statiques réalisées : compilation syntaxique JavaScript des deux
+scripts et contrôle des liens entre HTML, JavaScript et route API. Tests Python
+ajoutés pour la lecture des événements et la route HTTP, mais **leur exécution
+dans le dépôt et la vérification sur Raspberry restent à faire**.
