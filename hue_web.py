@@ -230,6 +230,7 @@ class HueServer:
         self.last_sent = {}  # id -> {at, target}
         self.vacation_last_commands = {}  # id -> dernière commande ON/OFF du moteur
         self.vacation_test = None  # simulation accélérée 60 s, jamais persistée
+        self._history_resume_after = 0.0  # latence de remontée après simulation horaire
         self.last_user_action = {}  # pour le diagnostic, pas pour masquer la détection physique
         self.power_tests = {}  # mesures relatives aux observations Zigbee
         self._stop = threading.Event()
@@ -328,12 +329,14 @@ class HueServer:
             self._events.interrupt()
             self._event_wakeup.set()
 
-    def _vacation_test_blocks_history(self, uid):
-        """Ne pas enseigner au simulateur des événements générés par le test.
+    def _presence_history_suppressed(self, uid):
+        """Exclut les tests de l'historique des habitudes (appel sous self.lock).
 
-        Sous self.lock : blocage global durant le test, puis protection ciblée
-        sur ses lampes pendant le délai de propagation des états du pont.
+        La simulation horaire et le test Vacances ne doivent jamais alimenter
+        le modèle. Les états retardés du pont restent filtrés après leur arrêt.
         """
+        if self.clock_mode == "accelere" or time.monotonic() < self._history_resume_after:
+            return True
         test = self.vacation_test
         return bool(test and (
             test["running"] or (
@@ -370,7 +373,7 @@ class HueServer:
                         self.reconnect_pending.add(uid)
                         self.reconnect_at[uid] = time.monotonic()
                         self.log.info("RECONNEXION | %s | connexion Zigbee restaurée", l.get("metadata", {}).get("name", uid))
-                        if not self._vacation_test_blocks_history(uid):
+                        if not self._presence_history_suppressed(uid):
                             self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "zigbee_connected")
                         if trial and trial.get("offline_at") is not None and trial["status"] == "hors ligne observé":
                             trial["observed_offline_seconds"] = round(time.monotonic() - trial["offline_at"], 2)
@@ -381,7 +384,7 @@ class HueServer:
                                           POLL_INTERVAL_SECONDS)
                     elif old_online is True and online is False:
                         self.log.warning("DÉCONNEXION | %s | connexion Zigbee perdue", l.get("metadata", {}).get("name", uid))
-                        if not self._vacation_test_blocks_history(uid):
+                        if not self._presence_history_suppressed(uid):
                             self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "zigbee_disconnected")
                         if trial and trial["status"] == "armé":
                             trial["offline_at"] = time.monotonic()
@@ -411,7 +414,7 @@ class HueServer:
                         and time.time() - command["at"] < 12
                     )
                     if (self.vacation["enabled"] and uid in self.vacation["light_ids"]
-                            and not self._vacation_test_blocks_history(uid)
+                            and not self._presence_history_suppressed(uid)
                             and isinstance(old_on, bool) and isinstance(is_on, bool)
                             and old_on is not is_on and online is True
                             and old_online is not False and not own_change):
@@ -422,11 +425,11 @@ class HueServer:
                                       "ON" if is_on else "OFF", l.get("metadata", {}).get("name", uid))
                     if old_on is False and is_on is True:
                         self.log.info("ÉTAT | %s | ON observé", l.get("metadata", {}).get("name", uid))
-                        if not own_change and not self._vacation_test_blocks_history(uid):
+                        if not own_change and not self._presence_history_suppressed(uid):
                             self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_on")
                     elif old_on is True and is_on is False:
                         self.log.info("ÉTAT | %s | OFF observé", l.get("metadata", {}).get("name", uid))
-                        if not own_change and not self._vacation_test_blocks_history(uid):
+                        if not own_change and not self._presence_history_suppressed(uid):
                             self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_off")
                     self.previous_on[uid] = is_on
                 self.previous_online.update(current_online)
@@ -466,6 +469,8 @@ class HueServer:
                 if self.vacation["enabled"] and mode == "accelere":
                     raise ValueError("Désactiver Vacances avant la simulation horaire générale.")
                 self.clock_mode = mode
+                if previous == "accelere" and mode == "reel":
+                    self._history_resume_after = time.monotonic() + 45
                 if mode == "accelere":
                     self.sim["minute"] = wall_clock_minutes()
                 self.sim["enabled"] = mode == "accelere"
