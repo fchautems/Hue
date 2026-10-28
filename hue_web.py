@@ -329,14 +329,8 @@ class HueServer:
             self._events.interrupt()
             self._event_wakeup.set()
 
-    def _presence_history_suppressed(self, uid):
-        """Exclut les tests de l'historique des habitudes (appel sous self.lock).
-
-        La simulation horaire et le test Vacances ne doivent jamais alimenter
-        le modèle. Les états retardés du pont restent filtrés après leur arrêt.
-        """
-        if self.clock_mode == "accelere" or time.monotonic() < self._history_resume_after:
-            return True
+    def _vacation_test_blocks_override(self, uid):
+        """Un retour du test ne doit pas activer les 10 minutes de priorité manuelle."""
         test = self.vacation_test
         return bool(test and (
             test["running"] or (
@@ -344,6 +338,19 @@ class HueServer:
                 and time.monotonic() < test.get("log_block_until", 0)
             )
         ))
+
+    def _presence_history_suppressed(self, uid):
+        """Aucun apprentissage en Vacances, test rapide ou horloge accélérée.
+
+        Distinct de la détection d'une commande manuelle : le bouton Hue doit
+        continuer à bénéficier de sa priorité de dix minutes en mode Vacances.
+        Appel sous self.lock pendant poll().
+        """
+        if self.vacation["enabled"]:
+            return True
+        if self.clock_mode == "accelere" or time.monotonic() < self._history_resume_after:
+            return True
+        return self._vacation_test_blocks_override(uid)
 
     def poll(self):
         with self.lock:
@@ -414,7 +421,7 @@ class HueServer:
                         and time.time() - command["at"] < 12
                     )
                     if (self.vacation["enabled"] and uid in self.vacation["light_ids"]
-                            and not self._presence_history_suppressed(uid)
+                            and not self._vacation_test_blocks_override(uid)
                             and isinstance(old_on, bool) and isinstance(is_on, bool)
                             and old_on is not is_on and online is True
                             and old_online is not False and not own_change):
@@ -711,6 +718,11 @@ class HueServer:
                     self.auto_transition_pending.difference_update(chosen)
                     self._ensure_vacation_plan(datetime.now(LOCAL_TZ))
                 else:
+                    if self.vacation["enabled"]:
+                        # Les commandes Vacances peuvent encore parvenir du pont après
+                        # l'arrêt : exclure 45 s pour ne pas fausser les habitudes.
+                        self._history_resume_after = max(
+                            self._history_resume_after, time.monotonic() + 45)
                     self.vacation["enabled"] = False
                     self.vacation["overrides"] = {}
                     if self.vacation_test and self.vacation_test["running"]:
