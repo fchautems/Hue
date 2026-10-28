@@ -12,6 +12,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import threading
 import time
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, Body
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -22,6 +23,7 @@ import urllib3
 
 import hue_update_api
 from hue_presence_log import PresenceLog
+from hue_vacation import build_schedule, desired_states, validate_selection, GRACE_SECONDS, LOCAL_TZ
 from hue_v03_runtime import HueEventStream, reconnect_transition_ms
 from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
 from hue_simple_profile import DEFAULT_SIMPLE_PROFILE, simple_brightness_at, validate_simple_profile
@@ -120,10 +122,30 @@ class HueServer:
                          "simple_profiles": {}, "profile_types": {},
                          "rgb_profiles": {}, "rgb_manual": {}, "rgb_auto_enabled": {}}
         self._legacy_default_auto = False
+        self.vacation = {"enabled": False, "light_ids": [], "seed": "",
+                         "plan_date": "", "schedule": [], "overrides": {}}
         if self.settings_path.exists():
             try:
                 loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
+                    saved_vacation = loaded.get("vacation")
+                    if isinstance(saved_vacation, dict):
+                        ids = saved_vacation.get("light_ids")
+                        if isinstance(ids, list) and all(isinstance(uid, str) for uid in ids):
+                            self.vacation["light_ids"] = ids[:30]
+                            self.vacation["enabled"] = saved_vacation.get("enabled") is True and bool(ids)
+                        if isinstance(saved_vacation.get("seed"), str):
+                            self.vacation["seed"] = saved_vacation["seed"][:100]
+                        if isinstance(saved_vacation.get("plan_date"), str):
+                            self.vacation["plan_date"] = saved_vacation["plan_date"]
+                        if isinstance(saved_vacation.get("schedule"), list):
+                            self.vacation["schedule"] = saved_vacation["schedule"][:3000]
+                        if isinstance(saved_vacation.get("overrides"), dict):
+                            self.vacation["overrides"] = {
+                                k: v for k, v in saved_vacation["overrides"].items()
+                                if isinstance(k, str) and isinstance(v, dict)
+                                and type(v.get("on")) is bool and isinstance(v.get("until"), (int, float))
+                            }
                     self.settings["profiles"] = {k: validate_points(v) for k, v in loaded.get("profiles", {}).items()}
                     simple = loaded.get("simple_profiles", {})
                     if isinstance(simple, dict):
@@ -191,6 +213,8 @@ class HueServer:
         # Restaurer une seule fois l'état manuel au démarrage du service, pas après
         # chaque coupure Zigbee. Un interrupteur mural doit garder son effet.
         self.manual_restore_pending = set(self.settings["manual_states"])
+        if self.vacation["enabled"]:
+            self.manual_restore_pending.difference_update(self.vacation["light_ids"])
         self.auto_transition_pending = set()
         self.sim = {"enabled": False, "running": False, "apply": False,
                     "seconds_per_day": 120, "minute": 8 * 60, "started_at": time.monotonic()}
@@ -204,6 +228,7 @@ class HueServer:
         self.previous_on = {}
         self.reconnect_pending = set()
         self.last_sent = {}  # id -> {at, target}
+        self.vacation_last_commands = {}  # id -> dernière commande ON/OFF du moteur
         self.last_user_action = {}  # pour le diagnostic, pas pour masquer la détection physique
         self.power_tests = {}  # mesures relatives aux observations Zigbee
         self._stop = threading.Event()
@@ -246,6 +271,7 @@ class HueServer:
             "rgb_profiles": self.settings["rgb_profiles"],
             "rgb_manual": self.settings["rgb_manual"],
             "rgb_auto_enabled": self.settings["rgb_auto_enabled"],
+            "vacation": self.vacation,
         }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -276,6 +302,9 @@ class HueServer:
             self.reconnect_pending.clear()
             self.last_sent.clear()
             self.power_tests.clear()
+            self.vacation_last_commands.clear()
+            self.vacation.update({"enabled": False, "light_ids": [], "schedule": [],
+                                  "overrides": {}, "plan_date": ""})
             # Les anciens identifiants restent stockés pour retrouver les préférences
             # si une ampoule est temporairement absente du pont.
             self.manual_restore_pending.clear()
@@ -356,12 +385,30 @@ class HueServer:
                             self.save()
                     is_on = l.get("on", {}).get("on")
                     old_on = self.previous_on.get(uid)
+                    # Commande externe (télécommande Hue, app Hue, bouton logiciel) :
+                    # priorité 10 minutes sur cette lampe, sans apprendre nos propres commandes.
+                    command = self.vacation_last_commands.get(uid)
+                    own_change = (
+                        command is not None and command["on"] is is_on
+                        and time.time() - command["at"] < 12
+                    )
+                    if (self.vacation["enabled"] and uid in self.vacation["light_ids"]
+                            and isinstance(old_on, bool) and isinstance(is_on, bool)
+                            and old_on is not is_on and online is True
+                            and old_online is not False and not own_change):
+                        self.vacation["overrides"][uid] = {
+                            "on": is_on, "until": time.time() + GRACE_SECONDS}
+                        self.save()
+                        self.log.info("VACANCES | priorité manuelle %s pendant 10 min | %s",
+                                      "ON" if is_on else "OFF", l.get("metadata", {}).get("name", uid))
                     if old_on is False and is_on is True:
                         self.log.info("ÉTAT | %s | ON observé", l.get("metadata", {}).get("name", uid))
-                        self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_on")
+                        if not own_change:
+                            self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_on")
                     elif old_on is True and is_on is False:
                         self.log.info("ÉTAT | %s | OFF observé", l.get("metadata", {}).get("name", uid))
-                        self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_off")
+                        if not own_change:
+                            self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_off")
                     self.previous_on[uid] = is_on
                 self.previous_online.update(current_online)
                 self.lights = lights
@@ -471,6 +518,7 @@ class HueServer:
             return
         try:
             self._automate_locked()
+            self._vacation_apply_locked()
         finally:
             self._automation_lock.release()
 
@@ -492,6 +540,8 @@ class HueServer:
             transitioning = set(self.auto_transition_pending)
         for light in lights:
             uid = light["id"]
+            if self.vacation["enabled"] and uid in self.vacation["light_ids"]:
+                continue  # Le mode Vacances a priorité sur les courbes et restaurations.
             online = status.get(light.get("owner", {}).get("rid"))
             if modes.get(uid) != "auto":
                 if uid in restoring:
@@ -590,6 +640,109 @@ class HueServer:
                 self.log.info("AUTO | %s | cible %.1f%% | horloge=%s", uid, target, clock_mode)
             except HueError as exc:
                 self.log.error("AUTO refusé | %s | %s", uid, exc)
+
+
+    def _ensure_vacation_plan(self, when):
+        """Appelé sous self.lock ; une nouvelle journée recalcule 7 jours à l'avance."""
+        day = when.astimezone(LOCAL_TZ).date().isoformat()
+        if self.vacation["plan_date"] != day or not self.vacation["schedule"]:
+            self.vacation["seed"] = self.vacation["seed"] or uuid4().hex
+            self.vacation["schedule"] = build_schedule(
+                self.vacation["light_ids"], self.presence_log.path,
+                self.vacation["seed"], when)
+            self.vacation["plan_date"] = day
+            self.save()
+
+    def set_vacation(self, enabled, light_ids=None):
+        if type(enabled) is not bool:
+            raise ValueError("enabled doit être true ou false.")
+        with self._automation_lock:
+            with self.lock:
+                if enabled:
+                    if self.client is None or self.last_poll is None or self.last_error:
+                        raise ValueError("Pont Hue non connecté.")
+                    if self.clock_mode != "reel":
+                        raise ValueError("Repasser l'horloge en heure réelle avant Vacances.")
+                    known = {light["id"] for light in self.lights}
+                    chosen = validate_selection(light_ids, known)
+                    # L'activation explicite (ou la modification de sélection) renouvelle le scénario.
+                    self.vacation = {"enabled": True, "light_ids": chosen, "seed": uuid4().hex,
+                                     "plan_date": "", "schedule": [], "overrides": {}}
+                    self.manual_restore_pending.difference_update(chosen)
+                    self.auto_transition_pending.difference_update(chosen)
+                    self._ensure_vacation_plan(datetime.now(LOCAL_TZ))
+                else:
+                    self.vacation["enabled"] = False
+                    self.vacation["overrides"] = {}
+                self.vacation_last_commands.clear()
+                self.save()
+        self.log.info("VACANCES | %s", "activé" if enabled else "désactivé")
+        self._event_wakeup.set()
+        return self.vacation_state()
+
+    def vacation_state(self):
+        with self.lock:
+            now = datetime.now(LOCAL_TZ)
+            if self.vacation["enabled"]:
+                self._ensure_vacation_plan(now)
+            upcoming = [item for item in self.vacation["schedule"]
+                        if item["at"] >= now.isoformat(timespec="seconds")][:16]
+            return {
+                "enabled": self.vacation["enabled"],
+                "light_ids": list(self.vacation["light_ids"]),
+                "next_actions": upcoming,
+                "overrides": {uid: val["until"] for uid, val in
+                              self.vacation["overrides"].items()
+                              if val["until"] > time.time()},
+            }
+
+    def _vacation_apply_locked(self):
+        """Appelé uniquement sous _automation_lock, jamais en parallèle des autres commandes."""
+        with self.lock:
+            if not self.vacation["enabled"]:
+                return
+            now = datetime.now(LOCAL_TZ)
+            self._ensure_vacation_plan(now)
+            selected = list(self.vacation["light_ids"])
+            desired = desired_states(self.vacation["schedule"], now, selected)
+            current_time = time.time()
+            overrides = self.vacation["overrides"]
+            expired = [uid for uid, val in overrides.items() if val["until"] <= current_time]
+            if expired:
+                for uid in expired:
+                    del overrides[uid]
+                self.save()
+            for uid, val in overrides.items():
+                if uid in desired:
+                    desired[uid] = val["on"]
+            lights = {light["id"]: light for light in self.lights}
+            connected = {c.get("owner", {}).get("rid"): c.get("status")
+                         for c in self.connectivity}
+
+        for uid, should_on in desired.items():
+            light = lights.get(uid)
+            if not light or connected.get(light.get("owner", {}).get("rid")) != "connected":
+                continue  # Courant coupé ou état inconnu : aucune commande dangereuse.
+            currently_on = light.get("on", {}).get("on")
+            if not isinstance(currently_on, bool) or currently_on == should_on:
+                continue
+            previous = self.vacation_last_commands.get(uid)
+            if previous and previous["on"] == should_on and current_time - previous["at"] < 5:
+                continue
+            payload = {"on": {"on": should_on}}
+            if should_on and "dimming" in light:
+                brightness = light.get("dimming", {}).get("brightness", 55)
+                payload["dimming"] = {"brightness": min(75, max(25, brightness or 55))}
+                if "dynamics" in light:
+                    payload["dynamics"] = {"duration": 1200}
+            try:
+                self.client.resource(f"light/{uid}", "PUT", payload)
+                with self.lock:
+                    self.vacation_last_commands[uid] = {"on": should_on, "at": time.time()}
+                self.log.info("VACANCES | %s | %s", light.get("metadata", {}).get("name", uid),
+                              "ON" if should_on else "OFF")
+            except HueError as exc:
+                self.log.warning("VACANCES | lampe %s non commandée : %s", uid, exc)
 
     def get_lights(self):
         with self.lock:
@@ -1232,6 +1385,16 @@ def power_test_arm(uid: str):
 @app.get("/api/diagnostics")
 def diagnostics():
     return controller.diagnostics()
+
+
+@app.get("/api/vacation")
+def get_vacation():
+    return ok(controller.vacation_state())
+
+
+@app.post("/api/vacation")
+def post_vacation(data: dict = Body(...)):
+    return ok(controller.set_vacation(data.get("enabled"), data.get("light_ids")))
 
 
 @app.get("/api/presence/events")
