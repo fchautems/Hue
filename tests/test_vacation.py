@@ -136,6 +136,78 @@ class VacationTests(unittest.TestCase):
             self.srv.set_vacation(True, ["light-1"])
         self.assertFalse(self.srv.vacation["enabled"])
 
+
+    def test_quick_test_runs_hardware_actions_then_resumes_live_plan(self):
+        self.srv.set_vacation(True, ["light-1"])
+        original = list(self.srv.vacation["schedule"])
+        started = self.srv.set_vacation_test("start")
+        self.assertTrue(started["running"])
+        self.assertEqual(started["duration_seconds"], 60)
+        self.assertGreater(started["total"], 0)
+        self.assertEqual(original, self.srv.vacation["schedule"])
+        self.bridge.calls.clear()
+        self.srv.automate()
+        self.assertTrue(any(path == "light/light-1" and payload["on"]["on"] is False
+                            for path, payload in self.bridge.calls))
+        self.srv.poll()
+        self.assertEqual(self.srv.vacation["overrides"], {})
+        # Tout début de journée testé, puis première lumière dans 3 à 4 s.
+        self.srv.vacation_test["started_monotonic"] -= 5
+        self.srv.automate()
+        self.assertTrue(any(path == "light/light-1" and payload["on"]["on"] is True
+                            for path, payload in self.bridge.calls))
+        self.srv.poll()
+        self.assertEqual(self.srv.vacation["overrides"], {})
+        # Contrôle : à l'échéance aucune rafale de commandes accumulées.
+        before = len(self.bridge.calls)
+        self.srv.vacation_test["started_monotonic"] -= 57
+        self.srv.automate()
+        self.assertFalse(self.srv.vacation_test["running"])
+        self.assertEqual(self.srv.vacation_test["status"], "terminé")
+        self.assertLessEqual(len(self.bridge.calls) - before, 1)
+        self.assertTrue(self.srv.vacation["enabled"])
+        self.assertEqual(original, self.srv.vacation["schedule"])
+
+    def test_quick_test_stop_and_restart_do_not_persist_acceleration(self):
+        self.srv.set_vacation(True, ["light-0"])
+        self.srv.set_vacation_test("start")
+        self.assertTrue(self.srv.set_vacation_test("stop")["running"] is False)
+        self.assertEqual(self.srv.vacation_test["status"], "interrompu")
+        self.srv.set_vacation_test("start")
+        restored = HueServer(self.bridge, self.root/"settings.json",
+                              logging.getLogger("test_demo_reboot"))
+        restored.poll()
+        self.assertTrue(restored.vacation["enabled"])
+        self.assertIsNone(restored.vacation_test)
+
+    def test_quick_test_requires_vacation_and_ignores_conflicting_clock(self):
+        with self.assertRaisesRegex(ValueError, "Activer"):
+            self.srv.set_vacation_test("start")
+        self.srv.set_vacation(True, ["light-0"])
+        with self.assertRaises(ValueError):
+            self.srv.set_clock_mode("accelere")
+        self.srv.set_vacation_test("start")
+        with self.assertRaises(ValueError):
+            self.srv.set_vacation_test("start")
+        self.srv.set_vacation(False)
+        self.assertFalse(self.srv.vacation_test["running"])
+        self.assertFalse(self.srv.vacation["enabled"])
+
+    def test_quick_test_api(self):
+        with patch.object(hue_web,"controller",self.srv):
+            with TestClient(hue_web.app) as client:
+                self.assertEqual(client.post("/api/vacation/test", json={"action":"start"}).status_code,400)
+                self.assertEqual(client.post("/api/vacation",json={
+                    "enabled":True,"light_ids":["light-2"]}).status_code,200)
+                response = client.post("/api/vacation/test",json={"action":"start"})
+                self.assertEqual(response.status_code,200)
+                self.assertTrue(response.json()["data"]["running"])
+                self.assertTrue(client.get("/api/vacation").json()["data"]["test"]["running"])
+                self.assertEqual(client.post("/api/vacation/test",json={"action":"bad"}).status_code,400)
+                stopped = client.post("/api/vacation/test",json={"action":"stop"})
+                self.assertEqual(stopped.status_code,200)
+                self.assertFalse(stopped.json()["data"]["running"])
+
     def test_http_routes(self):
         with patch.object(hue_web,"controller",self.srv):
             with TestClient(hue_web.app) as client:
