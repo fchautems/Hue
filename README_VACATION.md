@@ -71,3 +71,38 @@ puis `python -m unittest discover -s tests -v`.
 **Non vérifié** : tests d'intégration complets sur Raspberry et télécommande
 Hue physique. Avant de partir, vérifier une commande avec la télécommande
 et observer le maintien ON pendant 10 minutes.
+
+## Test rapide de 60 secondes (2026-10-28)
+
+Une fois **Vacances activé**, appuyer sur **▶ Tester 60 s** dans la carte
+Mode Vacances du Tableau de bord. Le test utilise les **vraies ampoules**
+sélectionnées et fait défiler un intervalle de **24 heures simulées** en
+**environ 60 secondes** ; l'éclairage doit donc se voir réellement.
+
+- Le test choisit un scénario du lendemain (pas l'heure du lancement),
+  et démarre 72 minutes simulées avant le premier événement :
+  la première commande d'allumage arrive généralement autour de **3 s**.
+- Au démarrage, les ampoules sélectionnées sont éteintes pour partir
+  d'un logement « vide » ; les autres ampoules ne sont pas affectées.
+- Un minimum de deux secondes est laissé aux plages d'allumage courtes
+  pour rester visibles dans le test. Le débit des commandes et les temps
+  de réponse du pont peuvent allonger légèrement certains enchaînements.
+- La progression indique le temps restant, l'heure simulée et le nombre
+  d'événements parcourus. Le bouton devient **■ Arrêter le test**.
+- Après les 60 secondes, ou sur arrêt manuel, la journée accélérée
+  s'interrompt et **le planning Vacances à l'heure réelle reprend**.
+  Si le programme réel prévoit une ampoule éteinte, elle pourra
+  donc s'éteindre immédiatement à la fin du test.
+- Le **mode Vacances doit déjà être actif** ; le test ne l'active ni ne le
+  désactive lui-même. Le planning réel, les paramètres et les historiques
+  sont conservés ; la simulation accélérée elle-même n'est pas sauvegardée.
+  Si le Raspberry redémarre pendant le test, il retrouve normalement
+  son programme Vacances réel.
+- La détection des priorités du voisin est suspendue durant le test,
+  pour éviter qu'une commande artificielle soit prise pour une visite
+  réelle. **Le test de la télécommande Hue et des dix minutes de priorité
+  reste à faire séparément, en temps réel.**
+
+Les ampoules doivent rester **sous tension électrique** pendant tout le test.
+Les tests logiciels avec un faux pont et la validation physique sur le
+Raspberry restent à réaliser avant de considérer ce mode comme fiabilisé.
