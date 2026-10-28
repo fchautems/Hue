@@ -13,14 +13,14 @@
   <link rel="stylesheet" href="/static/v06.css">
   <link rel="stylesheet" href="/static/v061.css">
   <link rel="stylesheet" href="/static/presence.css">
-  <link rel="stylesheet" href="/static/vacation.css">
+  <link rel="stylesheet" href="/static/vacation.css?v=02">
   <script src="/static/app.js?v=062" defer></script>
   <script src="/static/v051.js?v=051" defer></script>
   <script src="/static/v052.js?v=052" defer></script>
   <script src="/static/v06.js?v=060" defer></script>
   <script src="/static/v061.js?v=061" defer></script>
   <script src="/static/presence.js?v=01" defer></script>
-  <script src="/static/vacation.js?v=01" defer></script>
+  <script src="/static/vacation.js?v=02" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -77,6 +77,19 @@
         <div id="vacation-lights" class="vacation-lights" aria-label="Lampes à inclure dans le mode Vacances"></div>
         <div class="vacation-actions"><button id="vacation-toggle" class="btn primary" type="button" disabled>Activer Vacances</button>
           <span id="vacation-feedback" role="status" aria-live="polite">Laisse les interrupteurs muraux sous tension.</span></div>
+        <div class="vacation-test">
+          <div class="vacation-test-header">
+            <div><strong>Test rapide · 60 secondes</strong>
+              <small>Une journée accélérée sur tes vraies lampes, puis reprise automatique.</small></div>
+            <button id="vacation-test-toggle" class="btn muted" type="button" disabled>▶ Tester 60 s</button>
+          </div>
+          <div id="vacation-test-progress" class="vacation-test-progress hidden" aria-live="polite">
+            <div class="vacation-test-track" role="progressbar" aria-label="Progression du test" aria-valuemin="0" aria-valuemax="60" aria-valuenow="0" id="vacation-test-meter">
+              <div class="vacation-test-fill" id="vacation-test-fill"></div>
+            </div>
+            <p id="vacation-test-label">Préparation…</p>
+          </div>
+        </div>
         <div class="vacation-next"><h3>Prochains événements</h3><div id="vacation-preview">Le programme apparaîtra après activation.</div></div>
         <p class="vacation-note">Pendant Vacances, un allumage manuel avec la télécommande Hue a priorité pendant 10 minutes sur la lampe concernée, puis le programme reprend. Les événements de connexion Zigbee ne sont pas des pressions sur la télécommande.</p>
       </section>
