@@ -685,8 +685,19 @@ class HueServer:
             now = datetime.now(LOCAL_TZ)
             if self.vacation["enabled"]:
                 self._ensure_vacation_plan(now)
-            upcoming = [item for item in self.vacation["schedule"]
-                        if item["at"] >= now.isoformat(timespec="seconds")][:16]
+            upcoming = []
+            if self.vacation["enabled"]:
+                for item in self.vacation["schedule"]:
+                    if not isinstance(item, dict):
+                        continue
+                    try:
+                        scheduled_time = datetime.fromisoformat(item["at"])
+                    except (KeyError, TypeError, ValueError):
+                        continue
+                    if scheduled_time.timestamp() >= now.timestamp():
+                        upcoming.append(item)
+                        if len(upcoming) >= 16:
+                            break
             return {
                 "enabled": self.vacation["enabled"],
                 "light_ids": list(self.vacation["light_ids"]),
