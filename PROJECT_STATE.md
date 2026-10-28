@@ -124,3 +124,8 @@ Mise à jour : 2026-10-23
 - **Vérifié** : exécution locale isolée des algorithmes planification, déterminisme, sessions historiques, calcul d'état, validation de sélection ; compilation JavaScript de `static/vacation.js` et contrôle statique du contrat UI ↔ API / moteur.
 - **Non vérifié** : exécution de la suite complète de tests sur le dépôt et comportement avec le pont Hue / télécommande réels. Tests de non-régression ajoutés à `tests/test_vacation.py` mais pas exécutés dans un clone complet.
 - **Prochaine action** : exécuter les tests sur un clone de Hue Lab, puis déployer depuis l'onglet Mises à jour. Tester ON du bouton Hue pendant une plage prévue OFF : vérifier maintien 10 min et reprise sans coupure secteur. Avant vendredi 30 octobre, confirmer que les ampoules restent alimentées et que le service Raspberry est actif.
+
+### Contrôles supplémentaires (2026-10-28)
+- Workflow CI ajouté : `.github/workflows/tests.yml`, compilation Python et `unittest discover` sur commits Python de `main`. Aucune exécution GitHub Actions confirmée depuis le connecteur (le suivi des runs de push n'est pas accessible). Ce n'est pas une validation positive de la suite.
+- `vacation_state` corrigé : n'affiche aucun prochain événement lorsque Vacances est arrêté et compare les timestamps plutôt que les chaînes (changement d'heure).
+- Check local isolé du moteur exécuté : construction d'horaires, déterminisme, interprétation de deux sessions historiques, état logique à une heure donnée et validation des IDs réussis. Test complet FastAPI/Hue simulé et essai physique encore à faire.
