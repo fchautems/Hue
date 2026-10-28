@@ -21,6 +21,7 @@ import requests
 import urllib3
 
 import hue_update_api
+from hue_presence_log import PresenceLog
 from hue_v03_runtime import HueEventStream, reconnect_transition_ms
 from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
 from hue_simple_profile import DEFAULT_SIMPLE_PROFILE, simple_brightness_at, validate_simple_profile
@@ -111,6 +112,7 @@ class HueServer:
         self.client = client
         self.settings_path = Path(settings_path)
         self.log = logger_
+        self.presence_log = PresenceLog(self.settings_path.parent / "logs" / "presence_events.csv", self.log)
         # Migration v0.4 -> v0.5 : le mode global historique reste lisible,
         # mais chaque ampoule dispose désormais de son propre contrôle.
         self.settings = {"auto": False, "mode": "manuel", "profiles": {},
@@ -323,6 +325,7 @@ class HueServer:
                         self.reconnect_pending.add(uid)
                         self.reconnect_at[uid] = time.monotonic()
                         self.log.info("RECONNEXION | %s | connexion Zigbee restaurée", l.get("metadata", {}).get("name", uid))
+                        self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "zigbee_connected")
                         if trial and trial.get("offline_at") is not None and trial["status"] == "hors ligne observé":
                             trial["observed_offline_seconds"] = round(time.monotonic() - trial["offline_at"], 2)
                             trial["status"] = "reconnecté"
@@ -332,6 +335,7 @@ class HueServer:
                                           POLL_INTERVAL_SECONDS)
                     elif old_online is True and online is False:
                         self.log.warning("DÉCONNEXION | %s | connexion Zigbee perdue", l.get("metadata", {}).get("name", uid))
+                        self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "zigbee_disconnected")
                         if trial and trial["status"] == "armé":
                             trial["offline_at"] = time.monotonic()
                             trial["status"] = "hors ligne observé"
@@ -354,8 +358,10 @@ class HueServer:
                     old_on = self.previous_on.get(uid)
                     if old_on is False and is_on is True:
                         self.log.info("ÉTAT | %s | ON observé", l.get("metadata", {}).get("name", uid))
+                        self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_on")
                     elif old_on is True and is_on is False:
                         self.log.info("ÉTAT | %s | OFF observé", l.get("metadata", {}).get("name", uid))
+                        self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_off")
                     self.previous_on[uid] = is_on
                 self.previous_online.update(current_online)
                 self.lights = lights
