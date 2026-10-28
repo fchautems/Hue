@@ -253,16 +253,56 @@ class VacationTests(unittest.TestCase):
         self.assertEqual(self.srv.presence_log.recent(), before)
         self.assertEqual(self.srv.vacation["overrides"], {})
 
-        # Le reste de l'habitation reste journalisable après la démo.
+        # Tant que Vacances est actif, aucune lampe ne doit être apprise :
+        # ni celle du test, ni une lampe hors sélection.
+        self.bridge.lights[2]["on"] = {"on": False}
+        self.srv.poll()
+        self.assertEqual(self.srv.presence_log.recent(), before)
+
+        # La fin du test ne suffit pas : il faut désactiver Vacances.
+        self.srv.vacation_test["log_block_until"] = time.monotonic() - 1
+        self.bridge.lights[1]["on"] = {"on": False}
+        self.srv.poll()
+        self.assertEqual(self.srv.presence_log.recent(), before)
+
+        # Au retour, ignorer les échos retardés pendant 45 secondes.
+        self.srv.set_vacation(False)
+        self.bridge.lights[2]["on"] = {"on": True}
+        self.srv.poll()
+        self.assertEqual(self.srv.presence_log.recent(), before)
+
+        self.srv._history_resume_after = time.monotonic() - 1
         self.bridge.lights[2]["on"] = {"on": False}
         self.srv.poll()
         self.assertEqual(len(self.srv.presence_log.recent()), 3)
 
-        # Après la marge de sécurité, l'historique redevient normal.
-        self.srv.vacation_test["log_block_until"] = time.monotonic() - 1
+    def test_vacation_stops_learning_but_not_neighbor_override(self):
+        """Vacances n'apprend jamais ses sorties, mais respecte la télécommande."""
+        history = self.root / "logs" / "presence_events.csv"
+        self.srv.set_vacation(True, ["light-1"])
+        # Un visiteur allume la lampe en dehors du test rapide.
         self.bridge.lights[1]["on"] = {"on": False}
         self.srv.poll()
-        self.assertEqual(len(self.srv.presence_log.recent()), 4)
+        self.bridge.lights[1]["on"] = {"on": True}
+        self.srv.poll()
+        self.assertIn("light-1", self.srv.vacation["overrides"])
+        self.assertTrue(self.srv.vacation["overrides"]["light-1"]["on"])
+        self.assertFalse(history.exists())
+
+        # Une autre lampe change, puis une lampe devient Zigbee hors ligne.
+        self.bridge.lights[2]["on"] = {"on": False}
+        self.bridge.connectivity[1]["status"] = "disconnected"
+        self.srv.poll()
+        self.assertFalse(history.exists())
+
+        # L'interruption reste bloquée après un redémarrage en mode Vacances.
+        restored = HueServer(self.bridge, self.root/"settings.json",
+                             logging.getLogger("test_vacation_no_learning_restart"))
+        restored.poll()
+        self.assertTrue(restored.vacation["enabled"])
+        self.bridge.lights[0]["on"] = {"on": False}
+        restored.poll()
+        self.assertFalse(history.exists())
 
     def test_demo_timeout_protects_late_bridge_events(self):
         self.srv.set_vacation(True, ["light-1"])
