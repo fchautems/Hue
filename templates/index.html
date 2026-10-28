@@ -12,11 +12,13 @@
   <link rel="stylesheet" href="/static/v052.css">
   <link rel="stylesheet" href="/static/v06.css">
   <link rel="stylesheet" href="/static/v061.css">
+  <link rel="stylesheet" href="/static/presence.css">
   <script src="/static/app.js?v=05" defer></script>
   <script src="/static/v051.js?v=051" defer></script>
   <script src="/static/v052.js?v=052" defer></script>
   <script src="/static/v06.js?v=060" defer></script>
   <script src="/static/v061.js?v=061" defer></script>
+  <script src="/static/presence.js?v=01" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -25,6 +27,7 @@
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>◷</span> Horloge & lumières</button>
+      <button class="nav-item" data-tab="presence"><span>◴</span> Historique</button>
       <button class="nav-item" data-tab="diagnostics"><span>☷</span> Diagnostics & logs</button>
       <button class="nav-item" data-tab="setup"><span>⌁</span> Connexion au pont</button>
       <button class="nav-item" data-tab="updates"><span>↻</span> Mises à jour</button>
@@ -229,6 +232,23 @@
     </section>
 
 
+
+    <section id="tab-presence" class="tab hidden">
+      <div class="card presence-card">
+        <div class="presence-head">
+          <div><h2>Historique des lumières</h2><p>Derniers changements observés sur le pont Hue</p></div>
+          <button type="button" class="btn muted" id="presence-refresh">↻ Actualiser</button>
+        </div>
+        <div id="presence-status" class="presence-status" role="status" aria-live="polite">Chargement…</div>
+        <div class="presence-table-scroll">
+          <table class="presence-table" aria-label="Historique des allumages, extinctions et connexions">
+            <thead><tr><th scope="col">Date et heure</th><th scope="col">Lampe</th><th scope="col">Événement</th></tr></thead>
+            <tbody id="presence-rows"><tr><td colspan="3">Chargement des événements…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="presence-note">Les connexions et déconnexions Zigbee sont des observations du pont : elles ne prouvent pas une action sur l’interrupteur mural.</p>
+    </section>
 
     <section id="tab-diagnostics" class="tab hidden">
       <div class="section-title"><h2>État du pont et capacités</h2><button id="refresh-diagnostics" class="btn muted">↻ Actualiser</button></div>
