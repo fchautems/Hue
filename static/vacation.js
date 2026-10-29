@@ -4,6 +4,10 @@
   const prettyDate = new Intl.DateTimeFormat("fr-CH", {timeZone:"Europe/Zurich",
     weekday:"short", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false});
   let busy = false, selectionInitialized = false, known = [], selected = [];
+  let scheduleCache = null, scheduleKey = "", dayIndex = 0;
+  const dateText = new Intl.DateTimeFormat("fr-CH", {
+    timeZone: "UTC", weekday: "short", day: "2-digit", month: "short"
+  });
 
   function renderSelection(lights, current) {
     const options = $("#vacation-lights");
@@ -23,26 +27,104 @@
     }
   }
 
-  function renderPreview(events, lights) {
-    const where = $("#vacation-preview");
+  // L'API transmet le vrai programme stocké sur le Raspberry, sans approximation.
+  // Une seule requête par génération de programme (pas à chaque actualisation).
+  function renderTimeline() {
+    const where = $("#vacation-timeline-body");
+    const prev = $("#vacation-day-prev");
+    const next = $("#vacation-day-next");
     where.replaceChildren();
-    if(!events.length) {
-      where.textContent = "Aucun événement à venir.";
+    const valid = scheduleCache && scheduleCache.plan_date;
+    prev.disabled = !valid || dayIndex === 0;
+    next.disabled = !valid || dayIndex === 6;
+    if (!valid) {
+      $("#vacation-day-label").textContent = "—";
+      where.textContent = "Active Vacances pour voir les horaires.";
       return;
     }
-    const lookup = Object.fromEntries(lights.map(x => [x.id, x.name]));
-    const ul = document.createElement("ul");
-    ul.className = "vacation-plan";
-    for(const event of events.slice(0, 8)) {
-      const li = document.createElement("li");
-      const date = document.createElement("time");
-      date.textContent = prettyDate.format(new Date(event.at));
-      li.append(date, document.createTextNode(" · " +
-        (lookup[event.light_id] || "Lampe") + " · " +
-        (event.on ? "Allumage" : "Extinction")));
-      ul.appendChild(li);
+    const day = new Date(scheduleCache.plan_date + "T12:00:00Z");
+    day.setUTCDate(day.getUTCDate() + dayIndex);
+    const dateKey = day.toISOString().slice(0, 10);
+    $("#vacation-day-label").textContent = dateText.format(day);
+    const dayEvents = (scheduleCache.events || [])
+      .filter(event => event.at?.slice(0, 10) === dateKey);
+    const selectedLights = (scheduleCache.light_ids || []).map(id => ({
+      id, name: known.find(light => light.id === id)?.name || "Lampe"
+    }));
+    for (const light of selectedLights) {
+      const changes = dayEvents.filter(e => e.light_id === light.id)
+        .map(e => ({on: e.on === true,
+                    minute: Number(e.at.slice(11, 13)) * 60 + Number(e.at.slice(14, 16))}))
+        .filter(e => Number.isFinite(e.minute) && e.minute >= 0 && e.minute <= 1440)
+        .sort((x, y) => x.minute - y.minute);
+      const periods = [];
+      let start = null;
+      for (const item of changes) {
+        if (item.on && start === null) start = item.minute;
+        else if (!item.on && start !== null) {
+          if (item.minute > start) periods.push([start, item.minute]);
+          start = null;
+        }
+      }
+      if (start !== null) periods.push([start, 1440]);
+
+      const row = document.createElement("div");
+      row.className = "vacation-lamp-timeline";
+      const caption = document.createElement("div");
+      caption.className = "vacation-lamp-caption";
+      const name = document.createElement("strong");
+      name.textContent = light.name;
+      const times = document.createElement("span");
+      const hhmm = minute => String(Math.floor(minute / 60)).padStart(2,"0")
+        + ":" + String(minute % 60).padStart(2,"0");
+      times.textContent = periods.length
+        ? periods.map(([from, to]) => hhmm(from) + "–" + hhmm(to)).join(" · ")
+        : "Aucun allumage prévu";
+      caption.append(name, times);
+      const track = document.createElement("div");
+      track.className = "vacation-lamp-track";
+      track.setAttribute("role", "img");
+      track.setAttribute("aria-label", light.name + " : " + times.textContent);
+      for (const [from, to] of periods) {
+        const segment = document.createElement("span");
+        segment.className = "vacation-lamp-on";
+        segment.style.left = (from / 1440 * 100) + "%";
+        segment.style.width = ((to - from) / 1440 * 100) + "%";
+        track.appendChild(segment);
+      }
+      row.append(caption, track);
+      where.appendChild(row);
     }
-    where.appendChild(ul);
+    if (!selectedLights.length) where.textContent = "Aucune lampe sélectionnée.";
+  }
+
+  async function syncTimeline(vacation) {
+    if (!vacation.enabled) {
+      scheduleCache = null;
+      scheduleKey = "";
+      dayIndex = 0;
+      renderTimeline();
+      return;
+    }
+    const key = vacation.plan_date + ":" + vacation.light_ids.join(",");
+    if (key !== scheduleKey) {
+      try {
+        const response = await fetch("/api/vacation/schedule", {cache: "no-store"});
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const result = await response.json();
+        if (!result.data || !Array.isArray(result.data.events) ||
+            result.data.plan_date !== vacation.plan_date) {
+          throw new Error("Programme indisponible");
+        }
+        scheduleCache = result.data;
+        scheduleKey = key;
+        dayIndex = 0;
+      } catch (_error) {
+        $("#vacation-timeline-body").textContent = "Planning indisponible. Réessaie dans un instant.";
+        return;
+      }
+    }
+    renderTimeline();
   }
 
   function renderTest(test = {}, lights = []) {
@@ -110,11 +192,18 @@
       $("#vacation-feedback").textContent = active
         ? (overrides ? overrides+" priorité(s) manuelle(s) de 10 min en cours." : "Simulation active sur le Raspberry.")
         : "Laisse les interrupteurs muraux sous tension.";
-      renderPreview(vacation.next_actions || [], known);
+      await syncTimeline(vacation);
     } catch(e) {
       $("#vacation-feedback").textContent = "Impossible de lire Vacances : " + e.message;
     } finally {busy=false;}
   }
+
+  $("#vacation-day-prev").addEventListener("click", () => {
+    if (dayIndex > 0) { dayIndex -= 1; renderTimeline(); }
+  });
+  $("#vacation-day-next").addEventListener("click", () => {
+    if (dayIndex < 6) { dayIndex += 1; renderTimeline(); }
+  });
 
   $("#vacation-toggle").addEventListener("click", async () => {
     const active = $("#vacation-status").textContent === "ACTIF";
