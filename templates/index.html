@@ -13,14 +13,14 @@
   <link rel="stylesheet" href="/static/v06.css">
   <link rel="stylesheet" href="/static/v061.css">
   <link rel="stylesheet" href="/static/presence.css">
-  <link rel="stylesheet" href="/static/vacation.css?v=02">
+  <link rel="stylesheet" href="/static/vacation.css?v=03">
   <script src="/static/app.js?v=062" defer></script>
   <script src="/static/v051.js?v=051" defer></script>
   <script src="/static/v052.js?v=052" defer></script>
   <script src="/static/v06.js?v=060" defer></script>
   <script src="/static/v061.js?v=061" defer></script>
   <script src="/static/presence.js?v=01" defer></script>
-  <script src="/static/vacation.js?v=02" defer></script>
+  <script src="/static/vacation.js?v=03" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -90,7 +90,18 @@
             <p id="vacation-test-label">Préparation…</p>
           </div>
         </div>
-        <div class="vacation-next"><h3>Prochains événements</h3><div id="vacation-preview">Le programme apparaîtra après activation.</div></div>
+        <div class="vacation-timeline" aria-label="Planning des lampes pour la journée">
+          <div class="vacation-timeline-top">
+            <h3>Programme prévu</h3>
+            <div class="vacation-day-switch" role="group" aria-label="Choisir le jour">
+              <button type="button" id="vacation-day-prev" class="vacation-day-arrow" aria-label="Jour précédent" disabled>‹</button>
+              <span id="vacation-day-label" aria-live="polite">Aujourd’hui</span>
+              <button type="button" id="vacation-day-next" class="vacation-day-arrow" aria-label="Jour suivant" disabled>›</button>
+            </div>
+          </div>
+          <div id="vacation-timeline-body" class="vacation-timeline-body" role="status">Active Vacances pour voir les horaires.</div>
+          <div class="vacation-time-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+        </div>
         <p class="vacation-note">Pendant Vacances, un allumage manuel avec la télécommande Hue a priorité pendant 10 minutes sur la lampe concernée, puis le programme reprend. Les événements de connexion Zigbee ne sont pas des pressions sur la télécommande.</p>
       </section>
       <div class="section-title space-top"><h2>Comportement après coupure secteur</h2><span>À paramétrer par ampoule dans Diagnostics</span></div>
