@@ -141,3 +141,27 @@ Tests de non-régression ajoutés pour l'arrêt global de l'apprentissage, les
 événements de télécommande, le redémarrage du service, la reprise différée
 de l'historique, les tests rapides et l'horloge accélérée. Leur exécution
 sur le Raspberry reste à confirmer.
+
+## Planning graphique par lampe (2026-10-29)
+
+La carte **Mode Vacances** affiche un mini-planning des lumières, en lecture
+seule : une barre de **24 heures par lampe**, segments dorés pour les plages
+ON et horaires précis au-dessus. Deux flèches permettent de regarder
+**aujourd'hui et les six jours suivants**. En l'absence de programmation,
+le texte indique simplement d'activer Vacances.
+
+Le serveur fournit le programme existant par
+`GET /api/vacation/schedule` (date initiale, liste de lampes et transitions
+horodatées pour sept jours). Le navigateur charge ces données une seule fois
+par génération du planning, puis change de journée localement, sans envoyer
+de commande à Hue. À la régénération quotidienne du plan, le navigateur
+charge le nouveau programme et revient sur le jour courant.
+
+Aucune nouvelle donnée persistante, aucun nouveau calcul de simulation,
+aucune bibliothèque JavaScript et aucune modification des automatismes.
+Les changements temporaires dus à la télécommande (priorité dix minutes)
+ne changent pas la **prévision affichée**, qui reste le programme de base.
+
+Tests : contrôle de la route en lecture seule et de la couverture des sept
+jours ajouté dans `tests/test_vacation.py`. Syntaxe JavaScript et contrats
+HTML/JS/API à contrôler avant déploiement ; test visuel sur Raspberry à faire.
