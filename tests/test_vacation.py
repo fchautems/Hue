@@ -340,6 +340,29 @@ class VacationTests(unittest.TestCase):
         self.srv.poll()
         self.assertEqual(self.srv.presence_log.recent()[0]["event"], "light_off")
 
+    def test_schedule_screen_is_read_only_and_shows_all_seven_days(self):
+        with patch.object(hue_web, "controller", self.srv):
+            with TestClient(hue_web.app) as client:
+                empty = client.get("/api/vacation/schedule")
+                self.assertEqual(empty.status_code, 200)
+                self.assertEqual(empty.json()["data"],
+                                 {"plan_date": None, "light_ids": [], "events": []})
+                self.srv.set_vacation(True, ["light-1", "light-2"])
+                before_calls = list(self.bridge.calls)
+                response = client.get("/api/vacation/schedule")
+                self.assertEqual(response.status_code, 200)
+                result = response.json()["data"]
+                self.assertEqual(result["plan_date"], self.srv.vacation["plan_date"])
+                self.assertEqual(result["light_ids"], ["light-1", "light-2"])
+                self.assertEqual(result["events"], self.srv.vacation["schedule"])
+                self.assertEqual(len({item["at"][:10] for item in result["events"]}), 7)
+                self.assertTrue(all(type(e["on"]) is bool for e in result["events"]))
+                self.assertNotIn("key", response.text)
+                self.assertEqual(self.bridge.calls, before_calls)
+                self.srv.set_vacation(False)
+                self.assertEqual(client.get("/api/vacation/schedule").json()["data"],
+                                 {"plan_date": None, "light_ids": [], "events": []})
+
     def test_http_routes(self):
         with patch.object(hue_web,"controller",self.srv):
             with TestClient(hue_web.app) as client:
