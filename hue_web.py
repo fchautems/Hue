@@ -757,11 +757,31 @@ class HueServer:
                 "enabled": self.vacation["enabled"],
                 "light_ids": list(self.vacation["light_ids"]),
                 "test": self._vacation_test_status_locked(),
+                "plan_date": self.vacation["plan_date"] if self.vacation["enabled"] else None,
                 "next_actions": upcoming,
                 "overrides": {uid: val["until"] for uid, val in
                               self.vacation["overrides"].items()
                               if val["until"] > time.time()},
             }
+
+
+    def vacation_schedule(self):
+        """Planning complet sur sept jours, lecture seule, pour la frise compacte."""
+        with self.lock:
+            if not self.vacation["enabled"]:
+                return {"plan_date": None, "light_ids": [], "events": []}
+            self._ensure_vacation_plan(datetime.now(LOCAL_TZ))
+            selected = set(self.vacation["light_ids"])
+            events = [
+                {"at": event["at"], "light_id": event["light_id"],
+                 "on": event["on"]}
+                for event in self.vacation["schedule"]
+                if isinstance(event, dict) and event.get("light_id") in selected
+                and isinstance(event.get("at"), str)
+                and type(event.get("on")) is bool
+            ]
+            return {"plan_date": self.vacation["plan_date"],
+                    "light_ids": list(self.vacation["light_ids"]), "events": events}
 
 
     def set_vacation_test(self, action):
@@ -1615,6 +1635,11 @@ def diagnostics():
 @app.post("/api/vacation/test")
 def vacation_test(data: dict = Body(...)):
     return ok(controller.set_vacation_test(data.get("action")))
+
+
+@app.get("/api/vacation/schedule")
+def vacation_schedule():
+    return ok(controller.vacation_schedule())
 
 
 @app.get("/api/vacation")
