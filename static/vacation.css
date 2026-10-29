@@ -9,11 +9,22 @@
 .vacation-choice input{accent-color:var(--gold)}
 .vacation-actions{display:flex;align-items:center;flex-wrap:wrap;gap:16px}
 .vacation-actions>span{color:var(--muted);font-size:12px}
-.vacation-next{border-top:1px solid var(--border);margin-top:20px;padding-top:16px}
-.vacation-next h3{font-size:14px;font-weight:600;margin:0 0 9px}
-.vacation-plan{padding:0;margin:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 14px;font-size:12px}
-.vacation-plan li{padding:8px 0;color:var(--text);border-bottom:1px solid var(--border)}
-.vacation-plan time{font-variant-numeric:tabular-nums;color:var(--gold);white-space:nowrap}
+/* Une seule frise de 24 h par lampe, sans bibliothèque graphique. */
+.vacation-timeline{margin-top:18px;padding-top:15px;border-top:1px solid var(--border)}
+.vacation-timeline-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.vacation-timeline-top h3{font-size:14px;font-weight:600;margin:0}
+.vacation-day-switch{display:flex;align-items:center;gap:8px;font-size:12px}
+.vacation-day-switch span{min-width:103px;text-align:center;font-variant-numeric:tabular-nums}
+.vacation-day-arrow{width:29px;height:29px;border-radius:8px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:20px;line-height:1}
+.vacation-day-arrow:disabled{opacity:.3;cursor:default}
+.vacation-timeline-body{display:grid;gap:15px;color:var(--muted);font-size:12px}
+.vacation-lamp-timeline{min-width:0}
+.vacation-lamp-caption{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:7px}
+.vacation-lamp-caption strong{color:var(--text);font-size:12px;font-weight:600}
+.vacation-lamp-caption span{text-align:right;font-size:11px;font-variant-numeric:tabular-nums}
+.vacation-lamp-track{position:relative;width:100%;height:10px;background:#27384b;border-radius:6px;overflow:hidden}
+.vacation-lamp-on{position:absolute;top:0;bottom:0;background:var(--gold);border-radius:4px}
+.vacation-time-scale{display:flex;justify-content:space-between;margin-top:9px;color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
 .vacation-note{color:var(--muted);font-size:11px;margin-top:14px!important}
 @media(max-width:700px){.vacation-card{padding:16px 14px}.vacation-plan{grid-template-columns:1fr}.vacation-heading h2{font-size:18px}}
 
