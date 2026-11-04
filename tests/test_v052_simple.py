@@ -92,6 +92,28 @@ class SimpleCurveTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.server.set_simple_profile('absent',DEFAULT_SIMPLE_PROFILE)
         self.assertEqual(self.path.read_bytes(),before)
 
+    def test_copy_profile_keeps_target_manual_and_does_not_command_bridge(self):
+        self.server.set_simple_profile('light-1', DEFAULT_SIMPLE_PROFILE)
+        self.server.set_light_mode('light-1', 'auto')
+        original_target_mode = self.server.state()['lights'][0]['control_mode']
+        calls = len(self.bridge.calls)
+        result = self.server.copy_profile('light-1', 'light-0')
+        self.assertEqual(result['type'], 'simple')
+        self.assertEqual(self.server.simple_profile('light-0')['type'], 'simple')
+        self.assertEqual(self.server.simple_profile('light-0')['params'], DEFAULT_SIMPLE_PROFILE)
+        self.assertEqual(self.server.state()['lights'][0]['control_mode'], original_target_mode)
+        self.assertEqual(len(self.bridge.calls), calls)
+        self.assertEqual(self.server.settings['profiles']['light-0'],
+                         self.server.settings['profiles']['light-1'])
+
+    def test_copy_profile_invalid_or_same_lamp_is_noop(self):
+        before = self.path.read_bytes()
+        for source, target in [('missing', 'light-0'), ('light-0', 'missing'),
+                               ('light-0', 'light-0')]:
+            with self.assertRaises(ValueError):
+                self.server.copy_profile(source, target)
+        self.assertEqual(self.path.read_bytes(), before)
+
 
 class SimpleCurveHTTPTests(unittest.TestCase):
     def setUp(self):
