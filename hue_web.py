@@ -1069,6 +1069,41 @@ class HueServer:
         self.last_sent.pop(uid, None)
         self.auto_transition_pending.add(uid)
 
+    def copy_profile(self, source_uid, target_uid):
+        """Copie uniquement les courbes et couleurs automatiques, sans activer Auto.
+
+        Le mode de pilotage, l'état ON/OFF et la luminosité manuelle de
+        la destination sont conservés. Aucune commande n'est envoyée au pont.
+        """
+        with self.lock:
+            self.require_light(source_uid)
+            self.require_light(target_uid)
+            if source_uid == target_uid:
+                raise ValueError("Choisis deux ampoules différentes.")
+            kind = self.settings["profile_types"].get(source_uid, "custom")
+            if kind not in ("simple", "custom"):
+                raise ValueError("Type de courbe source invalide.")
+            custom = validate_points(copy.deepcopy(
+                self.settings["profiles"].get(source_uid, DEFAULT_POINTS)))
+            simple = validate_simple_profile(copy.deepcopy(
+                self.settings["simple_profiles"].get(source_uid, DEFAULT_SIMPLE_PROFILE)))
+            # Ne jamais activer les couleurs si la cible n'est pas RGB.
+            source_rgb = bool(self.settings["rgb_auto_enabled"].get(source_uid))
+            target = self.require_light(target_uid)
+            can_rgb = "color" in target and "dimming" in target
+            colors = validate_rgb_phases(copy.deepcopy(
+                self.settings["rgb_profiles"].get(source_uid, DEFAULT_RGB_PHASES)))
+            self.settings["profiles"][target_uid] = custom
+            self.settings["simple_profiles"][target_uid] = simple
+            self.settings["profile_types"][target_uid] = kind
+            self.settings["rgb_profiles"][target_uid] = colors
+            self.settings["rgb_auto_enabled"][target_uid] = source_rgb and can_rgb
+            self._profile_changed(target_uid)
+            self.save()
+        self.log.info("PROFIL COPIÉ | %s -> %s", source_uid, target_uid)
+        return {"source": source_uid, "target": target_uid, "type": kind,
+                "rgb_auto": source_rgb and can_rgb}
+
     def set_simple_profile(self, uid, params):
         cleaned = validate_simple_profile(params)
         with self.lock:
@@ -1576,6 +1611,11 @@ def profile(uid: str):
 @app.put("/api/profile/{uid}")
 def set_profile(uid: str, data: dict = Body(...)):
     return ok(controller.set_profile(uid, data.get("points")))
+
+
+@app.post("/api/profile/copy/{target_uid}")
+def copy_profile(target_uid: str, data: dict = Body(...)):
+    return ok(controller.copy_profile(data.get("source_uid"), target_uid))
 
 
 @app.get("/api/profile/simple/{uid}")
