@@ -34,9 +34,14 @@ class PresenceLog:
         except OSError as exc:
             self.logger.warning("Journal de présence indisponible (%s)", type(exc).__name__)
 
-    def recent(self, limit: int = 40) -> list[dict[str, str]]:
-        """Dernières observations en premier, sans charger tout le CSV en mémoire."""
+    def recent(self, limit: int = 40, offset: int = 0) -> list[dict[str, str]]:
+        """Page chronologique inverse ; tampon mémoire plafonné à 10 100 lignes.
+
+        L'offset compte les événements valides, et non les lignes CSV :
+        les observations avec horodatage identique ne sont pas perdues.
+        """
         limit = max(1, min(int(limit), 100))
+        offset = max(0, min(int(offset), 10000))
         try:
             with self.lock:
                 if not self.path.is_file():
@@ -48,8 +53,8 @@ class PresenceLog:
                         for row in reader
                         if row.get("event") in (
                             "light_on", "light_off", "zigbee_connected", "zigbee_disconnected")
-                    ), maxlen=limit)
-            return list(reversed(rows))
+                    ), maxlen=limit + offset)
+            return list(reversed(rows))[offset:offset + limit]
         except (OSError, UnicodeError, csv.Error) as exc:
             self.logger.warning("Lecture du journal de présence impossible (%s)", type(exc).__name__)
             return []

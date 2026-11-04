@@ -203,3 +203,10 @@ Mise à jour : 2026-10-23
 - **Contrôles / sécurité :** modes Manuel/Auto et état ON/OFF de destination préservés ; confirmation utilisateur avant copie, avertissement explicite de possible changement de lumière si cible en Auto. Pas de déploiement Raspberry effectué.
 - **Blocage :** vérifier sur le Raspberry l'installation et la compatibilité réelle de la copie de couleur selon les ampoules, notamment ampoules non RGB.
 - **Prochaine action :** installer v0.6.3 via Mises à jour ; sélectionner une destination en Manuel, copier un profil complet d'une source RGB, vérifier courbes/couleurs et conservation du mode ; essai en Auto seulement ensuite.
+
+## v0.6.4 — Historique navigable (4 novembre 2026, 21 h Europe/Zurich)
+- **État initial vérifié :** v0.6.3 publiée et testée par CI ; historique limité aux 40 dernières observations.
+- **Changements :** pagination en lecture seule via `offset` optionnel de `GET /api/presence/events`, sans rupture pour les clients existants ; tampon mémoire borné à 10 100 lignes ; pages de 40, boutons « Plus anciens » et « Plus récents », rafraîchissement automatique seulement sur la première page, bouton Actualiser revenant aux plus récentes.
+- **Contrôles préparés :** tests Python (pagination, égalité d'horodatage, contrat HTTP et absence de commande Hue), tests Node de navigation, syntaxe JavaScript ; CI déclenchée aussi par JS/HTML/tests.
+- **Blocages :** résultat CI de cette modification à confirmer avant fusion ; aucune vérification sur Raspberry ni sur lampes physiques à ce stade.
+- **Prochaine action :** valider GitHub Actions puis publier si tous les tests réussissent ; sur Raspberry, vérifier navigation et actualisation sans impact sur les lampes.

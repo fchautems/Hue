@@ -13,6 +13,10 @@
 .presence-table .presence-event{font-weight:600;white-space:nowrap}
 .presence-table .presence-empty{color:var(--muted);text-align:center;padding:25px 12px}
 .presence-note{max-width:880px;color:var(--muted);font-size:12px;line-height:1.6;margin:14px 0}
+.presence-pages{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:15px;flex-wrap:wrap}
+.presence-pages .btn{min-height:44px}
+.presence-pages span{font-size:12px;color:var(--muted);min-width:58px;text-align:center}
+.presence-pages button:disabled{opacity:.45;cursor:default}
 @media(max-width:700px){
  .presence-card{padding:15px 11px}
  .presence-head{align-items:flex-start}

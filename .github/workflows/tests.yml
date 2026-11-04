@@ -4,12 +4,18 @@ on:
     branches: [main]
     paths:
       - "**/*.py"
+      - "static/**/*.js"
+      - "tests/**/*.cjs"
+      - "templates/**/*.html"
       - "requirements.txt"
       - ".github/workflows/tests.yml"
   pull_request:
     branches: [main]
     paths:
       - "**/*.py"
+      - "static/**/*.js"
+      - "tests/**/*.cjs"
+      - "templates/**/*.html"
       - "requirements.txt"
       - ".github/workflows/tests.yml"
   workflow_dispatch:
@@ -37,3 +43,5 @@ jobs:
           node --check static/v063.js
           node tests/test_v062_ui.cjs
           node tests/test_v063_ui.cjs
+          node --check static/presence.js
+          node tests/test_v064_presence.cjs

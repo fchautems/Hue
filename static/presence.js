@@ -1,18 +1,33 @@
 "use strict";
-// Présentation uniquement : aucune commande n'est envoyée aux lampes.
+// Hue Lab v0.6.4 : historique paginé, uniquement en lecture.
 (() => {
   const names = Object.freeze({
     light_on: "Allumage",
     light_off: "Extinction",
     zigbee_connected: "Connexion Zigbee",
-    zigbee_disconnected: "Déconnexion Zigbee",
+    zigbee_disconnected: "Déconnexion Zigbee"
   });
   const dateFormat = new Intl.DateTimeFormat("fr-CH", {
     timeZone: "Europe/Zurich", day: "2-digit", month: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false,
+    hour: "2-digit", minute: "2-digit", hour12: false
   });
+  const PAGE_SIZE = 40;
+  const MAX_PAGE = 250;  // Offset plafonné côté serveur à 10 000 observations.
   let busy = false;
-  const $ = (selector) => document.querySelector(selector);
+  let page = 0;
+  let hasOlder = false;
+  const $ = selector => document.querySelector(selector);
+  const refreshButton = $("#presence-refresh");
+  const newerButton = $("#presence-newer");
+  const olderButton = $("#presence-older");
+  const pageLabel = $("#presence-page-status");
+
+  function controls() {
+    refreshButton.disabled = busy;
+    newerButton.disabled = busy || page === 0;
+    olderButton.disabled = busy || !hasOlder || page >= MAX_PAGE;
+    pageLabel.textContent = "Page " + (page + 1);
+  }
 
   function formatDate(value) {
     const parsed = new Date(value);
@@ -26,18 +41,20 @@
     return td;
   }
 
-  function render(rows) {
+  function render(items) {
     const body = $("#presence-rows");
     body.replaceChildren();
-    if (!rows.length) {
+    if (!items.length) {
       const tr = document.createElement("tr");
-      const td = cell(tr, "Aucun événement enregistré pour l’instant.");
+      const td = cell(tr, page === 0
+        ? "Aucun événement enregistré pour l’instant."
+        : "Aucun événement plus ancien.");
       td.colSpan = 3;
       td.className = "presence-empty";
       body.appendChild(tr);
       return;
     }
-    for (const item of rows) {
+    for (const item of items) {
       const tr = document.createElement("tr");
       const time = cell(tr, formatDate(item.detected_at));
       time.className = "presence-time";
@@ -48,33 +65,41 @@
     }
   }
 
-  async function refresh() {
-    if (busy) return;
+  async function load(targetPage = page) {
+    if (busy || targetPage < 0 || targetPage > MAX_PAGE) return;
     busy = true;
-    const button = $("#presence-refresh");
-    button.disabled = true;
+    controls();
     try {
-      const response = await fetch("/api/presence/events?limit=40", {cache: "no-store"});
+      const query = "?limit=" + (PAGE_SIZE + 1) + "&offset=" + (targetPage * PAGE_SIZE);
+      const response = await fetch("/api/presence/events" + query, {cache: "no-store"});
       if (!response.ok) throw new Error("HTTP " + response.status);
       const result = await response.json();
       if (result.ok === false || !Array.isArray(result.data)) {
         throw new Error(result.error || "Réponse invalide");
       }
-      render(result.data);
+      page = targetPage;
+      hasOlder = result.data.length > PAGE_SIZE && page < MAX_PAGE;
+      render(result.data.slice(0, PAGE_SIZE));
       $("#presence-status").textContent =
-        result.data.length + " événement(s) récent(s) · Mis à jour à " +
-        dateFormat.format(new Date()).split(" ").slice(-1)[0];
+        "Événements " + (result.data.length ? (page * PAGE_SIZE + 1) : 0)
+        + " à " + (page * PAGE_SIZE + Math.min(PAGE_SIZE, result.data.length))
+        + " · " + (page === 0 ? "Actualisé" : "Archives consultées")
+        + " à " + dateFormat.format(new Date()).split(" ").slice(-1)[0];
     } catch (error) {
       $("#presence-status").textContent = "Historique indisponible : " + error.message;
     } finally {
       busy = false;
-      button.disabled = false;
+      controls();
     }
   }
 
-  $("#presence-refresh").addEventListener("click", refresh);
-  window.HuePresence = {refresh};
+  refreshButton.addEventListener("click", () => load(0));
+  newerButton.addEventListener("click", () => load(page - 1));
+  olderButton.addEventListener("click", () => load(page + 1));
+  window.HuePresence = {refresh: () => load(page)};
+  controls();
   setInterval(() => {
-    if (!$("#tab-presence").classList.contains("hidden")) refresh();
+    // Ne pas déplacer une page d'archives sous les yeux de l'utilisateur.
+    if (page === 0 && !$("#tab-presence").classList.contains("hidden")) load(0);
   }, 15000);
 })();
