@@ -181,3 +181,11 @@ Mise à jour : 2026-10-23
 - **Contrôles :** revue des contrats API et des tests existants ; **suite Python non exécutée**, car le clone du dépôt via réseau est indisponible dans l'environnement de test. Pas de test sur Raspberry ou lampes réelles.
 - **Blocage :** exécuter la suite complète avant fusion ; aucune release principale annoncée. L'interface utilisateur de copie reste à ajouter après validation.
 - **Prochaine action :** exécuter la CI de branche et vérifier le résultat, ajouter un bouton de copie simple puis tester sans écraser les réglages de la destination.
+
+
+## Revue de l'incrément copie — 2026-11-04, 19:55 (Europe/Zurich)
+- **État vérifié :** `main` contient déjà la v0.6.2, avec un sélecteur « Reprendre la courbe de » et une copie explicite de luminosité Simple/Personnalisée par les routes existantes. La PR #1 est distincte : elle ajoute une API de copie de profil complet (y compris couleurs automatiques compatibles), sans interface utilisateur pour cette API. Ne pas présenter cette PR comme une nouvelle interface ni dupliquer la v0.6.2.
+- **Changement effectué :** sur la branche isolée `feature/hue-profile-copy-20261104`, le workflow `.github/workflows/tests.yml` déclenche désormais les tests Python aussi sur les pull requests vers `main`, avec filtres de fichiers inchangés. Aucun changement au pilotage des lampes ou aux réglages du Raspberry.
+- **Contrôles :** revue de la PR #1, de `tests/test_v052_simple.py`, de la configuration CI et de l'état de `main`. Tentatives de clone et d'exécution Python dans le conteneur interrompues par une erreur d'environnement ; aucune suite exécutée localement. Après le commit du workflow, aucun run de branche n'était encore visible lors de la consultation ; statut CI non validé.
+- **Blocages :** vérifier que GitHub Actions lance la PR et que les tests réussissent ; revoir la sémantique de copie des couleurs et l'effet différé possible sur une lampe déjà en Auto. Ne pas fusionner sans ces vérifications.
+- **Prochaine action :** examiner les résultats CI, corriger les défauts éventuels, puis décider si l'API de copie complète apporte une valeur réelle au-delà de la copie de courbe déjà livrée. Pas de release utilisateur sur cette itération.
