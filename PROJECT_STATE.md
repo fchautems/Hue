@@ -196,3 +196,10 @@ Mise à jour : 2026-10-23
 - **Contrôles :** ajout du test Node de sept scénarios, exécution des tests Node et Python ajoutée à GitHub Actions. Tests CI pour l'incrément complet à confirmer avant fusion dans main ; pas de test matériel réel.
 - **Limites :** si une lampe cible est déjà en Auto, le profil peut modifier la lumière au prochain cycle après confirmation ; aucune donnée privée publiée. Aucun changement déployé directement sur Raspberry.
 - **Prochaine action :** confirmer la CI de la PR, fusionner uniquement si succès, mettre à jour Hue Lab sur Raspberry et vérifier la copie de couleurs RGB et courbes en mode Manuel d'abord.
+
+### Validation et publication v0.6.3 — 2026-11-04 (Europe/Zurich)
+- **État vérifié :** PR #1 fusionnée sur `main` avec succès, commit `aa7d10cf39f6def6fc7cffe309eb34748c5ed7e6`. Le fichier `static/v063.js` est présent sur `main`.
+- **Tests :** GitHub Actions run `41901196573` terminé avec succès sur la PR : compilation Python, suite complète de tests unitaires Python, syntaxe JavaScript, scénarios de copie v0.6.2 et v0.6.3. Ce résultat ne vaut pas test physique des lampes ou du Raspberry.
+- **Contrôles / sécurité :** modes Manuel/Auto et état ON/OFF de destination préservés ; confirmation utilisateur avant copie, avertissement explicite de possible changement de lumière si cible en Auto. Pas de déploiement Raspberry effectué.
+- **Blocage :** vérifier sur le Raspberry l'installation et la compatibilité réelle de la copie de couleur selon les ampoules, notamment ampoules non RGB.
+- **Prochaine action :** installer v0.6.3 via Mises à jour ; sélectionner une destination en Manuel, copier un profil complet d'une source RGB, vérifier courbes/couleurs et conservation du mode ; essai en Auto seulement ensuite.
