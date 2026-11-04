@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const src = fs.readFileSync(require('node:path').join(__dirname,'..','static','v062.js'),'utf8');
-async function runCase(type, {unsaved=false, confirmed=true, changeTarget=false}={}) {
+async function runCase(type, {unsaved=false, confirmed=true, changeTarget=false, changeSource=false}={}) {
   const calls = [];
   const status = [];
   const handlers={};
@@ -15,7 +15,7 @@ async function runCase(type, {unsaved=false, confirmed=true, changeTarget=false}
   const ctx={
     window:win,selectedId:'hall',document:{querySelector:s=>s==='#profile-light'?lamp:s==='#tab-profiles .v061-lamp-bar'?bar:null,createElement:tag=>tag==='div'?row:{value:'',textContent:''}},
     MutationObserver:class{observe(){}},
-    api:async(url,method='GET',data)=>{calls.push([method,url,data]);if(changeTarget)ctx.selectedId='autre';if(url==='/api/profile/simple/couloir'&&method==='GET')return {type,params:{wake:350}};if(url==='/api/profile/couloir'&&method==='GET')return [{minute:0,brightness:10},{minute:720,brightness:80}];return {};},
+    api:async(url,method='GET',data)=>{calls.push([method,url,data]);if(changeTarget)ctx.selectedId='autre';if(changeSource)source.value='autre';if(url==='/api/profile/simple/couloir'&&method==='GET')return {type,params:{wake:350}};if(url==='/api/profile/couloir'&&method==='GET')return [{minute:0,brightness:10},{minute:720,brightness:80}];return {};},
     safe:async fn=>{try{await fn()}catch(e){status.push(e.message)}},
     refresh:async()=>{calls.push(['refresh'])},showToast:msg=>status.push(msg),
     encodeURIComponent,
@@ -36,5 +36,7 @@ async function runCase(type, {unsaved=false, confirmed=true, changeTarget=false}
  assert.ok(!cancel.calls.some(a=>a[0]==='PUT'));
  const changed=await runCase('simple',{changeTarget:true});
  assert.ok(!changed.calls.some(a=>a[0]==='PUT'));
- console.log('5 scénarios OK : Simple, Personnalisée, brouillon, annulation, changement de lampe.');
+ const sourceChanged=await runCase('simple',{changeSource:true});
+ assert.ok(!sourceChanged.calls.some(a=>a[0]==='PUT'));
+ console.log('6 scénarios OK : Simple, Personnalisée, brouillon, annulation, changement de lampe et de source.');
 })().catch(e=>{console.error(e);process.exit(1)});
