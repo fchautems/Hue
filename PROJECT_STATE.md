@@ -210,3 +210,9 @@ Mise à jour : 2026-10-23
 - **Contrôles préparés :** tests Python (pagination, égalité d'horodatage, contrat HTTP et absence de commande Hue), tests Node de navigation, syntaxe JavaScript ; CI déclenchée aussi par JS/HTML/tests.
 - **Blocages :** résultat CI de cette modification à confirmer avant fusion ; aucune vérification sur Raspberry ni sur lampes physiques à ce stade.
 - **Prochaine action :** valider GitHub Actions puis publier si tous les tests réussissent ; sur Raspberry, vérifier navigation et actualisation sans impact sur les lampes.
+
+### Publication et validation v0.6.4 — 2026-11-04, Europe/Zurich
+- **État vérifié :** PR #2 fusionnée sur `main` ; commit de version `edeb5ef970d59ae3588c898046e2a7b406ed2cc3`. Nouvelle interface présente dans `templates/index.html`, paramètre `offset` conservant la compatibilité de l'API.
+- **Tests :** CI de PR [41903020474](https://github.com/fchautems/Hue/actions/runs/41903020474) réussie ; CI de `main` [41903124649](https://github.com/fchautems/Hue/actions/runs/41903124649) réussie : compilation Python, suite complète Python, vérification JavaScript et tests Node dont navigation de l'historique. Aucun essai physique.
+- **Blocages :** affichage réel mobile et installation Raspberry non vérifiés ; profondeur d'historique visible limitée à 10 040 observations les plus récentes, sans suppression du CSV.
+- **Prochaine action :** mettre à jour le Raspberry, vérifier le retour aux événements récents, puis poursuivre un profil intelligent ou l'historique du mode Vacances à la prochaine version.
