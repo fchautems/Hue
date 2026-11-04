@@ -173,3 +173,11 @@ Mise à jour : 2026-10-23
 - **Contrôles** : `node --check` sur le nouveau JavaScript ; cinq scénarios Node avec navigateur simulé (Simple, Personnalisée, brouillon, annulation, changement de lampe) réussis localement ; endpoints GET/PUT existants et ordre des scripts vérifiés par revue. La suite Python complète, les essais visuels en navigateur, le Raspberry et les ampoules physiques ne sont pas testés ici.
 - **Prochaine action** : mettre à jour Hue Lab depuis l'onglet Mises à jour, ouvrir « Horloge & lumières », sélectionner la destination puis « Reprendre la courbe de » pour choisir la source. Tester sur deux lampes et vérifier que le mode Manuel/Auto et les couleurs restent inchangés. Itération suivante : profil intelligent simple par défaut, sans casser l'éditeur avancé.
 - **Cadence retenue** : itérations automatisées toutes les 4 heures dès 16:00 Europe/Zurich ; petits correctifs uniquement entre 22:00 et 08:00. Publication seulement après vérification du changement ciblé.
+
+
+## Préparation copie de profil — 2026-11-04, 16 h (Europe/Zurich)
+- **État vérifié :** l'API actuelle conserve les courbes personnalisées, simples et RGB par lampe. La nouvelle ampoule démarre normalement en Manuel. Aucun transfert de profil entre lampes n'était proposé.
+- **Changement préparé :** branche `feature/hue-profile-copy-20261104`, méthode `copy_profile` et route `POST /api/profile/copy/{target_uid}` avec `source_uid`. Copie des deux courbes et des couleurs automatiques compatibles ; préserve mode Manuel/Auto, état ON/OFF et luminosité manuelle de la cible. Pas de commande Hue lors de la copie. Ajout de deux tests de non-régression.
+- **Contrôles :** revue des contrats API et des tests existants ; **suite Python non exécutée**, car le clone du dépôt via réseau est indisponible dans l'environnement de test. Pas de test sur Raspberry ou lampes réelles.
+- **Blocage :** exécuter la suite complète avant fusion ; aucune release principale annoncée. L'interface utilisateur de copie reste à ajouter après validation.
+- **Prochaine action :** exécuter la CI de branche et vérifier le résultat, ajouter un bouton de copie simple puis tester sans écraser les réglages de la destination.
