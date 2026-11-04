@@ -48,7 +48,7 @@
     button.disabled = true;
     try {
       const data = await api(`/api/profile/simple/${encodeURIComponent(fromId)}`);
-      if (selectedId !== toId) throw Error('La lampe sélectionnée a changé. Copie annulée.');
+      if (selectedId !== toId || source.value !== fromId) throw Error('La sélection a changé. Copie annulée.');
       if (data.type === 'simple') {
         await api(`/api/profile/simple/${encodeURIComponent(toId)}`, 'PUT', {params: data.params});
       } else if (data.type === 'custom') {
