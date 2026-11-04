@@ -189,3 +189,10 @@ Mise à jour : 2026-10-23
 - **Contrôles :** revue de la PR #1, de `tests/test_v052_simple.py`, de la configuration CI et de l'état de `main`. Tentatives de clone et d'exécution Python dans le conteneur interrompues par une erreur d'environnement ; aucune suite exécutée localement. Après le commit du workflow, aucun run de branche n'était encore visible lors de la consultation ; statut CI non validé.
 - **Blocages :** vérifier que GitHub Actions lance la PR et que les tests réussissent ; revoir la sémantique de copie des couleurs et l'effet différé possible sur une lampe déjà en Auto. Ne pas fusionner sans ces vérifications.
 - **Prochaine action :** examiner les résultats CI, corriger les défauts éventuels, puis décider si l'API de copie complète apporte une valeur réelle au-delà de la copie de courbe déjà livrée. Pas de release utilisateur sur cette itération.
+
+## v0.6.3 — Copie du profil complet — 2026-11-04 (Europe/Zurich)
+- **État vérifié :** v0.6.2 déjà sur main ; PR #1 ajoutant l'API de copie de profils et tests Python, CI initiale de branche terminée avec succès (run 41892035968). 
+- **Changements :** bouton séparé « Copier le profil complet » dans Horloge & lumières, confirmation explicite avant copie des courbes et couleurs automatiques compatibles ; l'ancien bouton « Copier vers cette lampe » reste limité à la luminosité. API `POST /api/profile/copy/{target_uid}` issue de la PR #1 ; conservation du mode Manuel/Auto, de l'état ON/OFF et des règles Vacances. Version affichée mise à jour.
+- **Contrôles :** ajout du test Node de sept scénarios, exécution des tests Node et Python ajoutée à GitHub Actions. Tests CI pour l'incrément complet à confirmer avant fusion dans main ; pas de test matériel réel.
+- **Limites :** si une lampe cible est déjà en Auto, le profil peut modifier la lumière au prochain cycle après confirmation ; aucune donnée privée publiée. Aucun changement déployé directement sur Raspberry.
+- **Prochaine action :** confirmer la CI de la PR, fusionner uniquement si succès, mettre à jour Hue Lab sur Raspberry et vérifier la copie de couleurs RGB et courbes en mode Manuel d'abord.
