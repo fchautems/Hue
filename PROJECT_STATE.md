@@ -216,3 +216,12 @@ Mise à jour : 2026-10-23
 - **Tests :** CI de PR [41903020474](https://github.com/fchautems/Hue/actions/runs/41903020474) réussie ; CI de `main` [41903124649](https://github.com/fchautems/Hue/actions/runs/41903124649) réussie : compilation Python, suite complète Python, vérification JavaScript et tests Node dont navigation de l'historique. Aucun essai physique.
 - **Blocages :** affichage réel mobile et installation Raspberry non vérifiés ; profondeur d'historique visible limitée à 10 040 observations les plus récentes, sans suppression du CSV.
 - **Prochaine action :** mettre à jour le Raspberry, vérifier le retour aux événements récents, puis poursuivre un profil intelligent ou l'historique du mode Vacances à la prochaine version.
+
+## Décision de feuille de route — 2026-11-04 : soleil, météo, ergonomie
+- **Décision confirmée :** les profils intelligents doivent prendre en compte le **lever et le coucher réels du soleil** suivant la date, la saison et le lieu, **distincts des horaires personnels** de réveil/coucher. La météo (nébulosité / conditions extérieures) est une option d'affinage, non un prérequis ; le service doit fonctionner sans Internet avec comportement de repli explicite.
+- **Expérience utilisateur :** privilégier une interface très ergonomique avec peu de clics, gros contrôles tactiles et réglages simples en premier, prévisualisation lisible et configuration avancée toujours accessible mais secondaire. Les changements de luminosité et de couleur doivent être progressifs et faciles à comprendre.
+- **État vérifié :** cette note exprime une priorité produit, **pas une fonctionnalité déjà implémentée**. V0.6.4 reste la dernière version fonctionnelle vérifiée à ce stade.
+- **Changements :** feuille de route et consigne de développement automatique mises en cohérence ; aucune commande Hue, aucun fichier de configuration utilisateur et aucune fonctionnalité runtime modifiés.
+- **Contrôles :** lecture du dépôt et des consignes automatiques ; aucun test logiciel requis pour cette note de planification.
+- **Blocages :** choix exact de l'algorithme solaire et du fournisseur météo à définir lors du développement, avec prise en charge hors ligne.
+- **Prochaine action :** traiter un petit incrément solaire testable séparément (calcul des événements selon date/lieu, tests de fuseaux et changement d'heure), puis prévoir l'adaptation des courbes et l'interface utilisateur.
