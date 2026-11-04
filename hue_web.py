@@ -1693,9 +1693,9 @@ def post_vacation(data: dict = Body(...)):
 
 
 @app.get("/api/presence/events")
-def presence_events(limit: int = 40):
-    """Lecture seule : observations récentes, jamais les clés du pont."""
-    return ok(controller.presence_log.recent(limit))
+def presence_events(limit: int = 40, offset: int = 0):
+    """Lecture seule paginée : observations, jamais les clés du pont."""
+    return ok(controller.presence_log.recent(limit, offset))
 
 
 @app.get("/api/logs")

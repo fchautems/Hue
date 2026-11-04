@@ -92,5 +92,39 @@ class PresenceLogTests(unittest.TestCase):
         self.assertEqual(self.client.calls, [])
 
 
+    def test_history_pagination_is_stable_with_identical_timestamps(self):
+        # Toutes les lignes peuvent partager le même timestamp : l'ordre CSV est décisif.
+        for number in range(95):
+            self.server.presence_log.record("light-a", "Lampe " + str(number), "light_on")
+        history = self.server.presence_log
+        first = history.recent(41, offset=0)
+        second = history.recent(41, offset=40)
+        last = history.recent(41, offset=80)
+        self.assertEqual(len(first), 41)
+        self.assertEqual(first[0]["light_name"], "Lampe 94")
+        self.assertEqual(first[39]["light_name"], "Lampe 55")
+        self.assertEqual(first[40]["light_name"], "Lampe 54")
+        self.assertEqual(second[0]["light_name"], "Lampe 54")
+        self.assertEqual(second[39]["light_name"], "Lampe 15")
+        self.assertEqual(last[0]["light_name"], "Lampe 14")
+        self.assertEqual(last[-1]["light_name"], "Lampe 0")
+        self.assertEqual(len(last), 15)
+        self.assertEqual(history.recent(offset=95), [])
+        self.assertEqual(history.recent(limit=1)[0]["light_name"], "Lampe 94")
+
+    def test_pagination_http_remains_read_only(self):
+        for number in range(88):
+            self.server.presence_log.record("light-a", "Test " + str(number), "light_off")
+        with patch.object(hue_web, "controller", self.server):
+            with TestClient(hue_web.app) as client:
+                result = client.get("/api/presence/events?limit=41&offset=40")
+                self.assertEqual(result.status_code, 200)
+                self.assertEqual(len(result.json()["data"]), 41)
+                self.assertEqual(result.json()["data"][0]["light_name"], "Test 47")
+                self.assertEqual(client.get("/api/presence/events?offset=not-an-int").status_code, 422)
+                self.assertEqual(client.get("/api/presence/events?limit=2").status_code, 200)
+        self.assertEqual(self.client.calls, [])  # Aucune commande envoyée au pont.
+
+
 if __name__ == "__main__":
     unittest.main()

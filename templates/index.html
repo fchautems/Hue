@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/static/v06.css">
   <link rel="stylesheet" href="/static/v061.css">
   <link rel="stylesheet" href="/static/v062.css?v=062">
-  <link rel="stylesheet" href="/static/presence.css">
+  <link rel="stylesheet" href="/static/presence.css?v=064">
   <link rel="stylesheet" href="/static/vacation.css?v=03">
   <script src="/static/app.js?v=062" defer></script>
   <script src="/static/v051.js?v=051" defer></script>
@@ -22,13 +22,13 @@
   <script src="/static/v061.js?v=061" defer></script>
   <script src="/static/v062.js?v=062" defer></script>
   <script src="/static/v063.js?v=063" defer></script>
-  <script src="/static/presence.js?v=01" defer></script>
+  <script src="/static/presence.js?v=064" defer></script>
   <script src="/static/vacation.js?v=03" defer></script>
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.6.3</span></div></div>
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.6.4</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>◷</span> Horloge & lumières</button>
@@ -287,6 +287,11 @@
             <tbody id="presence-rows"><tr><td colspan="3">Chargement des événements…</td></tr></tbody>
           </table>
         </div>
+        <nav class="presence-pages" aria-label="Parcourir l'historique">
+          <button id="presence-newer" class="btn muted" type="button" disabled>← Plus récents</button>
+          <span id="presence-page-status" aria-live="polite">Page 1</span>
+          <button id="presence-older" class="btn muted" type="button" disabled>Plus anciens →</button>
+        </nav>
       </div>
       <p class="presence-note">Les connexions et déconnexions Zigbee sont des observations du pont : elles ne prouvent pas une action sur l’interrupteur mural.</p>
     </section>
@@ -312,7 +317,7 @@
         <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
     </section>
-    <footer>Hue Lab 0.6.3 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
+    <footer>Hue Lab 0.6.4 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>
 </div>
 <dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="10"></div><p class="warning-text">Le serveur vérifie le réglage mémorisé, mais le démarrage physique doit être testé à l’interrupteur.</p><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>
