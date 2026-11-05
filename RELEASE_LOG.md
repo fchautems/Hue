@@ -4,6 +4,16 @@ Ce fichier est le **point de consultation permanent des comptes rendus**. Il doi
 
 **Attention :** une version indiquée « publiée » signifie **fusionnée dans la branche `main` sur GitHub**, pas installée ni vérifiée sur le Raspberry. Les notifications mobiles dépendent des réglages ChatGPT ; ce fichier permet de retrouver les résultats indépendamment de leur livraison.
 
+## 5 novembre 2026 — cycle de 08 h (Europe/Zurich ; démarré à 07 h 55)
+
+**v0.6.7 — NON PUBLIÉE ; AUCUNE VERSION PUBLIÉE pendant ce cycle à ce stade.**
+
+- **Code concret :** nouveau module indépendant `hue_solar.py` calculant approximativement lever/coucher astronomiques hors ligne ; `tests/test_solar.py` vérifie saisons, passage à l'heure d'été et cas polaires. Aucun branchement sur le moteur Hue, les profils, les données locales ou les lampes.
+- **Tests :** 3 tests unitaires exécutés localement avec succès après correction d'un problème de passage de date UTC. CI GitHub Actions de la PR #5 : résultat final non encore disponible, donc aucune fusion.
+- **PR :** [#5](https://github.com/fchautems/Hue/pull/5) ; [branche de travail](https://github.com/fchautems/Hue/tree/feature/v067-solar-calculation). Dernière CI vérifiée sur main : [41969707759](https://github.com/fchautems/Hue/actions/runs/41969707759), réussite pour v0.6.6.
+- **Blocage :** attente d'une validation CI complète de la nouvelle PR et revue de la précision astronomique avant intégration. Aucune nouvelle GitHub Release dédiée.
+- **Plan précis à 12 h :** commencer par `hue_solar.py` et `tests/test_solar.py` : renforcer les tests de dates locales, passage à l'heure d'hiver, précision face à une référence connue et limites polaires. Vérifier/fusionner PR #5 uniquement si CI réussie et calcul suffisamment fiable ; préserver strictement les réglages et le pilotage actuel.
+
 ## 5 novembre 2026 — correction après le cycle de 04 h (intervention demandée par l'utilisateur)
 
 **Version : v0.6.6 — PUBLIÉE sur `main` par intervention immédiate après le cycle.**
