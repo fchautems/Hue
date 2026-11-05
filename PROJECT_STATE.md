@@ -225,3 +225,9 @@ Mise à jour : 2026-10-23
 - **Contrôles :** lecture du dépôt et des consignes automatiques ; aucun test logiciel requis pour cette note de planification.
 - **Blocages :** choix exact de l'algorithme solaire et du fournisseur météo à définir lors du développement, avec prise en charge hors ligne.
 - **Prochaine action :** traiter un petit incrément solaire testable séparément (calcul des événements selon date/lieu, tests de fuseaux et changement d'heure), puis prévoir l'adaptation des courbes et l'interface utilisateur.
+
+## Correctif nocturne v0.6.5 — 2026-11-05, 00:00 Europe/Zurich
+- **État vérifié :** `main` au commit `59fb4607f9c6e8b52ffebe702aa252af015deee4` ; dernière version affichée v0.6.4, dernière CI main réussie 41903124649 ; aucune GitHub Release publiée. La copie de courbe v0.6.2 vérifiait la destination après lecture asynchrone, mais pas la source.
+- **Changement isolé :** `static/v062.js` refuse maintenant d'écrire la courbe si la lampe source change pendant le chargement ; `tests/test_v062_ui.cjs` ajoute un scénario de non-écriture après changement de source. Aucun réglage, moteur Hue ou mode de lampe modifié.
+- **Contrôles :** test de régression ajouté ; résultat CI de PR à vérifier avant toute fusion ; pas de test matériel. **AUCUNE VERSION PUBLIÉE** tant que CI non confirmée.
+- **Prochaine itération (04:00 Europe/Zurich) :** confirmer la CI et fusionner ce correctif si tous les tests réussissent ; sinon corriger le test. Puis cibler une amélioration ergonomique purement visuelle du sélecteur de profils, en commençant par `static/v062.css`, avec test de taille tactile mobile >=44 px ; sans changement de commandes Hue ni de configuration locale. La priorité solaire reste prévue pour une session de jour : calcul local lever/coucher distinct du réveil/coucher personnel, tests de date et DST.
