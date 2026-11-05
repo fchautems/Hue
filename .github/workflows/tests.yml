@@ -5,6 +5,7 @@ on:
     paths:
       - "**/*.py"
       - "static/**/*.js"
+      - "static/**/*.css"
       - "tests/**/*.cjs"
       - "templates/**/*.html"
       - "requirements.txt"
@@ -42,6 +43,7 @@ jobs:
           node --check static/v062.js
           node --check static/v063.js
           node tests/test_v062_ui.cjs
+          node tests/test_v062_accessibility.cjs
           node tests/test_v063_ui.cjs
           node --check static/presence.js
           node tests/test_v064_presence.cjs
