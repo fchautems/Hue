@@ -4,6 +4,17 @@ Ce fichier est le **point de consultation permanent des comptes rendus**. Il doi
 
 **Attention :** une version indiquée « publiée » signifie **fusionnée dans la branche `main` sur GitHub**, pas installée ni vérifiée sur le Raspberry. Les notifications mobiles dépendent des réglages ChatGPT ; ce fichier permet de retrouver les résultats indépendamment de leur livraison.
 
+## 5 novembre 2026 — cycle de 12 h (Europe/Zurich)
+
+**v0.6.8 — PUBLIÉE sur `main`.**
+
+- **Code concret :** `hue_solar.py` rejette NaN, infinis et types invalides pour les coordonnées ; `tests/test_solar.py` ajoute les tests d'heure d'hiver suisse, dates locales et entrées invalides. Aucune activation du contrôle solaire, aucune commande Hue modifiée.
+- **Tests :** CI PR #6 [42016086337](https://github.com/fchautems/Hue/actions/runs/42016086337) **completed/success** ; CI post-fusion [42016159059](https://github.com/fchautems/Hue/actions/runs/42016159059) **completed/success**. Aucun test sur Raspberry ou ampoules réelles.
+- **Publication :** [PR #6](https://github.com/fchautems/Hue/pull/6) fusionnée, [commit main 0ab06fb](https://github.com/fchautems/Hue/commit/0ab06fb9760b712fdd335dfeffd8b8f1a80da90f). Pas de GitHub Release dédiée ni installation Raspberry.
+- **Limites :** calcul astronomique encore approximatif ; pas de profil intelligent activé.
+- **Plan précis à 16 h :** commencer par `tests/test_solar.py` : ajouter une comparaison avec heures solaires de référence à Nyon/Lausanne, avec tolérance documentée ; corriger `hue_solar.py` seulement si nécessaire. Critère : tests saisons, DST et référence verts en CI, aucune modification du moteur de lampes.
+
+
 ## 5 novembre 2026 — cycle de 08 h (Europe/Zurich ; démarré à 07 h 55)
 
 **v0.6.7 — PUBLIÉE sur `main`.**
