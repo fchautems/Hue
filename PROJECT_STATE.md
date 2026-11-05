@@ -274,3 +274,11 @@ Mise à jour : 2026-10-23
 - **Contrôles :** la CI de la PR doit être vérifiée jusqu'au verdict final ; pas de tests physiques Raspberry/ampoules.
 - **Blocage :** la référence est volontairement arrondie (tolérance 20 minutes), non une validation astronomique de précision ; ne pas présenter cette couverture comme telle.
 - **Plan pour 20 h :** commencer par hue_solar.py : corriger la gestion de la date UTC lors d'un lever/coucher qui franchit minuit UTC, sans modifier les commandes Hue. Ajouter tests/test_solar_dateline.py couvrant longitudes extrêmes, dates locales et cas polaires. Critère : calcul daté correctement et CI Python/Node réussie ; limiter le périmètre au module solaire.
+
+
+## Cycle 2026-11-05 20:00 Europe/Zurich — v0.6.10
+- **État vérifié :** main à `fc8bddaa28de4d8653c6b267304a243b5bc217c0` avant intervention, PR ouvertes : aucune ; CI post-fusion v0.6.9 `42051449446` completed/success. Pas de GitHub Release dédiée.
+- **Code :** correction ciblée dans `hue_solar.py` : résolution du jour UTC (-1/0/+1) donnant la date civile locale demandée, au lieu de supposer UTC = date locale. Ajout de `tests/test_solar_dateline.py` pour Kiritimati, Pago Pago, Tokyo, Zurich aux solstices.
+- **Contrôles :** simulation Python isolée du même algorithme sur huit combinaisons lieu/date : dates et ordre lever/coucher OK. Vérification GitHub Actions de PR à consigner après création. Aucune commande Hue ni changement de configuration.
+- **Limites :** validation du dépôt complet et CI nécessaires avant fusion ; calcul astronomique toujours approximatif, pas de matériel réel.
+- **Plan précis cycle 2026-11-06 00:00 (nuit) :** commencer par `tests/test_solar_dateline.py` et `hue_solar.py` ; ajouter tests des transitions de dates civiles autour du Nouvel An (31 décembre/1er janvier) dans les deux fuseaux dateline, corriger uniquement si échec. Critère : tests solaires et CI complète verts ; aucun changement moteur Hue, aucune migration. Vérifier d'abord toute PR ouverte.
