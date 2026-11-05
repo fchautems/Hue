@@ -1,6 +1,6 @@
 """Offline approximate sunrise/sunset for previews; never controls lights."""
 from datetime import date, datetime, timedelta, timezone
-from math import acos, asin, atan2, cos, degrees, radians, sin, tan
+from math import acos, asin, atan2, cos, degrees, isfinite, radians, sin, tan
 from zoneinfo import ZoneInfo
 
 
@@ -12,7 +12,10 @@ def solar_times(day: date, latitude: float, longitude: float, tz_name: str = "Eu
     """
     if not isinstance(day, date) or isinstance(day, datetime):
         raise ValueError("day must be a date")
-    if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+    if (not isinstance(latitude, (int, float)) or isinstance(latitude, bool)
+            or not isinstance(longitude, (int, float)) or isinstance(longitude, bool)
+            or not isfinite(latitude) or not isfinite(longitude)
+            or not -90 <= latitude <= 90 or not -180 <= longitude <= 180):
         raise ValueError("invalid coordinates")
     tz = ZoneInfo(tz_name)
     n = day.timetuple().tm_yday
