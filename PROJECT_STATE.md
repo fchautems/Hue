@@ -284,3 +284,11 @@ Mise à jour : 2026-10-23
 - **Plan précis cycle 2026-11-06 00:00 (nuit) :** commencer par `tests/test_solar_dateline.py` et `hue_solar.py` ; ajouter tests des transitions de dates civiles autour du Nouvel An (31 décembre/1er janvier) dans les deux fuseaux dateline, corriger uniquement si échec. Critère : tests solaires et CI complète verts ; aucun changement moteur Hue, aucune migration. Vérifier d'abord toute PR ouverte.
 
 - **Publication vérifiée 20 h :** PR #8 fusionnée sur main au commit `15a91fa3eb5fa282125d650bda8afd2168a2e985`. GitHub Actions PR [42089869262](https://github.com/fchautems/Hue/actions/runs/42089869262) completed/success ; post-fusion [42089947588](https://github.com/fchautems/Hue/actions/runs/42089947588) completed/success. Version v0.6.10 publiée sur main (non déployée sur Raspberry). Prochaine étape inchangée : tests du Nouvel An sur la ligne de changement de date, sans pilotage matériel.
+
+
+## Cycle 2026-11-06 00 h (Europe/Zurich) — v0.6.11
+- **État vérifié :** main au commit 35575481 ; aucune PR ouverte avant cycle ; v0.6.10 CI post-fusion réussie (42089947588). Aucune GitHub Release dédiée.
+- **Changements :** huit cas supplémentaires de franchissement du Nouvel An à Kiritimati/Pago Pago dans tests/test_solar_dateline.py ; aucune modification du moteur, stockage, profils ou commandes.
+- **Contrôles :** CI PR #9 déclenchée (run 42126332719) ; verdict à vérifier avant fusion. Aucun test matériel.
+- **Blocage :** ne pas fusionner tant que la CI n'est pas completed/success.
+- **Prochain cycle 2026-11-06 04 h :** commencer par tests/test_solar.py : ajouter des tests d'invariance des résultats solaires (mêmes entrées -> mêmes heures), notamment changement de fuseau et dates hivernales ; corriger hue_solar.py uniquement en cas d'échec. Critère : suite complète CI verte ; aucun changement de comportement des lampes.
