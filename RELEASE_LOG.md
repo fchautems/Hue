@@ -5,9 +5,9 @@
 **v0.6.11 — PUBLIÉE sur `main` (commit 81bc94f).**
 
 - **Code concret :** 8 scénarios de dates civiles 31 décembre / 1er janvier (2025–2027) à Kiritimati et Pago Pago dans `tests/test_solar_dateline.py`, avec vérification du jour local et de l'ordre lever/coucher. Aucun changement de pilotage Hue, données locales ni Raspberry.
-- **Tests :** GitHub Actions PR #9 run [42126332719](https://github.com/fchautems/Hue/actions/runs/42126332719) **completed/success**. CI sur la tête finale de PR [42126379228](https://github.com/fchautems/Hue/actions/runs/42126379228) et post-fusion [42126397135](https://github.com/fchautems/Hue/actions/runs/42126397135) déclenchées, verdict à compléter après leur terminaison. Aucun test matériel.
+- **Tests :** GitHub Actions PR #9 run [42126332719](https://github.com/fchautems/Hue/actions/runs/42126332719) **completed/success**. CI sur la tête finale de PR [42126379228](https://github.com/fchautems/Hue/actions/runs/42126379228) **completed/success** et post-fusion [42126397135](https://github.com/fchautems/Hue/actions/runs/42126397135) **completed/success**. Aucun test matériel.
 - **Publication :** [PR #9](https://github.com/fchautems/Hue/pull/9) fusionnée, [commit main 81bc94f](https://github.com/fchautems/Hue/commit/81bc94f52b83079a6d5a92f6c505c3a2238bb84d). Pas de GitHub Release dédiée.
-- **Blocage :** aucun pour la fusion initiale ; vérification CI post-fusion en cours au moment de la rédaction.
+- **Blocage :** aucun ; CI complète réussie avant et après fusion.
 - **Plan du 6 novembre à 04 h (nuit) :** commencer par `tests/test_solar.py` : tester la reproductibilité des horaires solaires et les conversions de fuseaux à date fixe ; n'ajuster `hue_solar.py` qu'en cas d'échec. Critère : suite complète verte ; aucun changement de commandes Hue ni des réglages.
 
 
