@@ -231,3 +231,14 @@ Mise à jour : 2026-10-23
 - **Changement isolé :** `static/v062.js` refuse maintenant d'écrire la courbe si la lampe source change pendant le chargement ; `tests/test_v062_ui.cjs` ajoute un scénario de non-écriture après changement de source. Aucun réglage, moteur Hue ou mode de lampe modifié.
 - **Contrôles :** test de régression ajouté ; résultat CI de PR à vérifier avant toute fusion ; pas de test matériel. **AUCUNE VERSION PUBLIÉE** tant que CI non confirmée.
 - **Prochaine itération (04:00 Europe/Zurich) :** confirmer la CI et fusionner ce correctif si tous les tests réussissent ; sinon corriger le test. Puis cibler une amélioration ergonomique purement visuelle du sélecteur de profils, en commençant par `static/v062.css`, avec test de taille tactile mobile >=44 px ; sans changement de commandes Hue ni de configuration locale. La priorité solaire reste prévue pour une session de jour : calcul local lever/coucher distinct du réveil/coucher personnel, tests de date et DST.
+
+## v0.6.5 — Fusion et validation (2026-11-05, 04:00 Europe/Zurich)
+- **État vérifié :** PR #3, CI GitHub Actions 41930200673 réussie (suite Python et Node) ; fusion squash sur main au commit `5addabfd44c561bff9f1f1cfea4c9a2ae3436b8f`. Aucun GitHub Release autonome ; version v0.6.5 désigne le correctif sur main.
+- **Limites :** tests réels Raspberry/Hue non effectués ; aucune configuration locale ni commande matérielle modifiée.
+
+## Incrément nocturne v0.6.6 — 2026-11-05, 04:00 Europe/Zurich
+- **État vérifié :** v0.6.5 sur main, sélecteur de copie de courbe de v0.6.2 encore compact et sans style explicite de focus ; pas de release GitHub dédiée.
+- **Changements :** `static/v062.css` agrandit les contrôles de copie à 48 px, améliore la lisibilité du libellé et affiche le focus clavier ; `tests/test_v062_accessibility.cjs` vérifie les cibles tactiles >=44 px et le focus ; workflow CI modifié pour exécuter ce test et réagir aux CSS.
+- **Contrôles :** CI de la nouvelle PR à confirmer avant fusion ; aucun essai sur téléphone réel, Raspberry ou ampoules.
+- **Blocage :** publication v0.6.6 conditionnée au succès GitHub Actions ; ne pas fusionner sur échec.
+- **Prochaine session 08:00 :** confirmer la CI de l'incrément v0.6.6, corriger et fusionner si succès ; puis préparer en journée un calcul astronomique local isolé dans `hue_solar.py` (sans activation du pilotage), avec tests du 21 juin et du 21 décembre en Europe/Zurich, ainsi que des transitions d'heure d'été. Les heures de réveil/coucher personnels resteront distinctes et les réglages actuels inchangés.
