@@ -242,3 +242,11 @@ Mise à jour : 2026-10-23
 - **Contrôles :** CI de la nouvelle PR à confirmer avant fusion ; aucun essai sur téléphone réel, Raspberry ou ampoules.
 - **Blocage :** publication v0.6.6 conditionnée au succès GitHub Actions ; ne pas fusionner sur échec.
 - **Prochaine session 08:00 :** confirmer la CI de l'incrément v0.6.6, corriger et fusionner si succès ; puis préparer en journée un calcul astronomique local isolé dans `hue_solar.py` (sans activation du pilotage), avec tests du 21 juin et du 21 décembre en Europe/Zurich, ainsi que des transitions d'heure d'été. Les heures de réveil/coucher personnels resteront distinctes et les réglages actuels inchangés.
+
+## 5 novembre 2026 — v0.6.6 fusionnée, comptes rendus rendus accessibles
+- **État vérifié :** la PR #4 d'ergonomie a passé sa CI Python/Node ([41958392901](https://github.com/fchautems/Hue/actions/runs/41958392901)) et a été fusionnée sur `main` au commit `cfd777040c2c416cc62311e656b2b638a00bd019`. Les contrôles post-fusion sur `main` sont consultables via [41969707759](https://github.com/fchautems/Hue/actions/runs/41969707759).
+- **Modifications :** fusion de la v0.6.6 (cibles tactiles et focus clavier) ; création du journal de cycle permanent [RELEASE_LOG.md](https://github.com/fchautems/Hue/blob/main/RELEASE_LOG.md) contenant un compte rendu pour 00 h, 04 h et la correction de publication.
+- **Contrôles :** tests Python et Node de PR réussis, code relu ; aucune vérification physique sur Raspberry ou lampes. Journal consultable sur la branche `main`.
+- **Blocage résolu :** la CI réussie de v0.6.6 n'avait pas été prise en compte par l'automatisation, achevée quelques secondes trop tôt. Le prompt automatique demande désormais explicitement de reprendre et contrôler le résultat final CI avant de conclure.
+- **Limite :** l'envoi de notification push dépend de ChatGPT, état de livraison inconnu ; la publication du journal GitHub est vérifiable indépendamment.
+- **Prochaine action :** à 08 h, vérifier `main` et la CI, puis créer un incrément de calcul astronomique local (`hue_solar.py`) séparé du pilotage, avec tests des saisons et des changements d'heure Europe/Zurich.
