@@ -267,3 +267,10 @@ Mise à jour : 2026-10-23
 - **Contrôles :** PR #6 CI 42016086337 terminée `success`, fusion squash sur `main` au commit `0ab06fb9760b712fdd335dfeffd8b8f1a80da90f`, CI post-fusion 42016159059 terminée `success`. Aucune lampe ni Raspberry réel testé ou modifié.
 - **Blocages :** aucune intégration solaire aux profils ; précision astronomique à comparer à une référence indépendante ; aucune GitHub Release dédiée.
 - **Plan 16 h :** ajouter un test de référence de lever/coucher pour Lausanne/Nyon dans `tests/test_solar.py` avec tolérance explicite et, si écart confirmé, corriger uniquement `hue_solar.py` sans toucher aux commandes Hue. Vérifier saisons et DST en CI ; publier seulement après succès. Ensuite envisager l'aperçu solaire purement visuel.
+
+## Cycle 16 h — 2026-11-05 Europe/Zurich — v0.6.9
+- **État vérifié :** main dd2ad379 (journal v0.6.8), aucune PR ouverte, CI post-fusion v0.6.8 42016159059 success ; pas de GitHub Release dédiée.
+- **Code :** ajout de tests de référence saisonniers Lausanne et dates locales Nyon dans tests/test_solar_reference.py, sans changement de moteur Hue, de réglages ou de calcul de production.
+- **Contrôles :** la CI de la PR doit être vérifiée jusqu'au verdict final ; pas de tests physiques Raspberry/ampoules.
+- **Blocage :** la référence est volontairement arrondie (tolérance 20 minutes), non une validation astronomique de précision ; ne pas présenter cette couverture comme telle.
+- **Plan pour 20 h :** commencer par hue_solar.py : corriger la gestion de la date UTC lors d'un lever/coucher qui franchit minuit UTC, sans modifier les commandes Hue. Ajouter tests/test_solar_dateline.py couvrant longitudes extrêmes, dates locales et cas polaires. Critère : calcul daté correctement et CI Python/Node réussie ; limiter le périmètre au module solaire.
