@@ -1,7 +1,8 @@
 /* v0.6.2 — copie de courbe : commande secondaire compacte et tactile. */
 #tab-profiles .v062-copy-row{display:flex;flex-wrap:wrap;align-items:center;gap:9px 12px;border-top:1px solid #334b60;margin-top:14px;padding-top:13px}
-#tab-profiles .v062-copy-row label{font-size:12px;font-weight:650}
-#tab-profiles .v062-copy-row select{max-width:260px;min-width:150px;flex:1}
-#tab-profiles .v062-copy-row button{min-height:44px}
+#tab-profiles .v062-copy-row label{font-size:14px;font-weight:650}
+#tab-profiles .v062-copy-row select{max-width:260px;min-width:150px;min-height:48px;flex:1}
+#tab-profiles .v062-copy-row button{min-height:48px}
 #tab-profiles .v062-copy-row small{flex-basis:100%;font-size:11px;color:#a7bdcf;line-height:1.5}
+#tab-profiles .v062-copy-row select:focus-visible,#tab-profiles .v062-copy-row button:focus-visible{outline:3px solid #8dc8ff;outline-offset:2px}
 @media(max-width:700px){#tab-profiles .v062-copy-row select{min-width:0;max-width:none;width:100%;flex-basis:100%}#tab-profiles .v062-copy-row button{width:100%}}
