@@ -250,3 +250,11 @@ Mise à jour : 2026-10-23
 - **Blocage résolu :** la CI réussie de v0.6.6 n'avait pas été prise en compte par l'automatisation, achevée quelques secondes trop tôt. Le prompt automatique demande désormais explicitement de reprendre et contrôler le résultat final CI avant de conclure.
 - **Limite :** l'envoi de notification push dépend de ChatGPT, état de livraison inconnu ; la publication du journal GitHub est vérifiable indépendamment.
 - **Prochaine action :** à 08 h, vérifier `main` et la CI, puis créer un incrément de calcul astronomique local (`hue_solar.py`) séparé du pilotage, avec tests des saisons et des changements d'heure Europe/Zurich.
+
+
+## Cycle 08 h — 2026-11-05 Europe/Zurich
+- État vérifié : main v0.6.6, CI 41969707759 réussie, aucune PR ouverte avant intervention, aucune GitHub Release dédiée.
+- Code : PR #5, module solaire local autonome hue_solar.py et tests/test_solar.py, sans effet sur Hue ni sur les données locales.
+- Contrôles : 3 tests Python locaux réussis après correction de rollover UTC ; GitHub Actions nouvelle PR en attente de verdict final.
+- Blocage : ne pas fusionner avant CI concluante et validation des cas de dates locales.
+- Prochaine action à 12 h : améliorer hue_solar.py et tests/test_solar.py pour heure d'hiver, date locale et précision de référence ; vérifier CI et fusionner uniquement si validation complète, sans activation de commande de lampes.
