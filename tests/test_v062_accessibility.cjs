@@ -9,7 +9,7 @@ const rule = selector => {
   return match[1];
 };
 for (const selector of ['#tab-profiles .v062-copy-row select', '#tab-profiles .v062-copy-row button']) {
-  const value = rule(selector).match(/min-height:\\s*(\\d+)px/);
+  const value = rule(selector).match(/min-height:\s*(\d+)px/);
   assert.ok(value && Number(value[1]) >= 44, selector + ' must be >=44px tall');
 }
 assert.match(css, /\.v062-copy-row select:focus-visible/);
