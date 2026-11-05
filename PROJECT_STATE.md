@@ -259,4 +259,4 @@ Mise à jour : 2026-10-23
 - Blocage : ne pas fusionner avant CI concluante et validation des cas de dates locales.
 - Prochaine action à 12 h : améliorer hue_solar.py et tests/test_solar.py pour heure d'hiver, date locale et précision de référence ; vérifier CI et fusionner uniquement si validation complète, sans activation de commande de lampes.
 
-- **Publication v0.6.7 :** PR #5 validée par CI 41983753042 (success) et fusionnée sur main, commit fcc336df27bf774605e3c75843b0ef6c0f1b4b12. CI post-fusion à vérifier. Aucun déploiement Raspberry.
+- **Publication v0.6.7 :** PR #5 validée par CI 41983753042 (success) et fusionnée sur main, commit fcc336df27bf774605e3c75843b0ef6c0f1b4b12. CI post-fusion 41983798530 terminée avec succès. Aucun déploiement Raspberry.
