@@ -4,6 +4,16 @@ Ce fichier est le **point de consultation permanent des comptes rendus**. Il doi
 
 **Attention :** une version indiquée « publiée » signifie **fusionnée dans la branche `main` sur GitHub**, pas installée ni vérifiée sur le Raspberry. Les notifications mobiles dépendent des réglages ChatGPT ; ce fichier permet de retrouver les résultats indépendamment de leur livraison.
 
+## 5 novembre 2026 — cycle de 16 h (Europe/Zurich)
+
+**v0.6.9 — NON PUBLIÉE à ce stade.**
+
+- **Code concret :** ajout de `tests/test_solar_reference.py` pour contrôler les horaires locaux approximatifs des solstices à Lausanne et les dates locales des transitions DST à Nyon. Aucune commande Hue, donnée locale ou profil modifié.
+- **Tests :** CI PR #7 [42051357603](https://github.com/fchautems/Hue/actions/runs/42051357603) lancée, verdict à confirmer. Les valeurs de référence sont arrondies avec une tolérance de 20 minutes ; ce n'est pas une certification astronomique.
+- **PR :** [#7](https://github.com/fchautems/Hue/pull/7). Dernière version validée sur main : v0.6.8, [0ab06fb](https://github.com/fchautems/Hue/commit/0ab06fb9760b712fdd335dfeffd8b8f1a80da90f).
+- **Blocage :** ne pas fusionner sans CI terminée avec succès ; aucun essai physique.
+- **Plan à 20 h :** corriger dans `hue_solar.py` les franchissements de minuit UTC aux longitudes extrêmes, puis ajouter `tests/test_solar_dateline.py`. Critère : dates locales exactes et CI verte, sans modifier le pilotage des lampes.
+
 ## 5 novembre 2026 — cycle de 12 h (Europe/Zurich)
 
 **v0.6.8 — PUBLIÉE sur `main`.**
