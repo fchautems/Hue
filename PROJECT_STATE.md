@@ -260,3 +260,10 @@ Mise à jour : 2026-10-23
 - Prochaine action à 12 h : améliorer hue_solar.py et tests/test_solar.py pour heure d'hiver, date locale et précision de référence ; vérifier CI et fusionner uniquement si validation complète, sans activation de commande de lampes.
 
 - **Publication v0.6.7 :** PR #5 validée par CI 41983753042 (success) et fusionnée sur main, commit fcc336df27bf774605e3c75843b0ef6c0f1b4b12. CI post-fusion 41983798530 terminée avec succès. Aucun déploiement Raspberry.
+
+## Cycle 12 h — 2026-11-05 Europe/Zurich — v0.6.8
+- **État vérifié :** `main` initial `8647b33`, aucune PR ouverte ; v0.6.7 et CI post-fusion 41983798530 réussies. Pas de GitHub Release dédiée.
+- **Code :** `hue_solar.py` refuse coordonnées non finies, non numériques et booléennes avant calcul ; `tests/test_solar.py` couvre NaN, infinis, types invalides, changement d'heure d'hiver et date locale.
+- **Contrôles :** PR #6 CI 42016086337 terminée `success`, fusion squash sur `main` au commit `0ab06fb9760b712fdd335dfeffd8b8f1a80da90f`, CI post-fusion 42016159059 terminée `success`. Aucune lampe ni Raspberry réel testé ou modifié.
+- **Blocages :** aucune intégration solaire aux profils ; précision astronomique à comparer à une référence indépendante ; aucune GitHub Release dédiée.
+- **Plan 16 h :** ajouter un test de référence de lever/coucher pour Lausanne/Nyon dans `tests/test_solar.py` avec tolérance explicite et, si écart confirmé, corriger uniquement `hue_solar.py` sans toucher aux commandes Hue. Vérifier saisons et DST en CI ; publier seulement après succès. Ensuite envisager l'aperçu solaire purement visuel.
