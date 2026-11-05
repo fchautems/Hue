@@ -1,5 +1,15 @@
 # Hue Lab — journal des cycles et des publications
 
+## 5 novembre 2026 — cycle de 20 h (Europe/Zurich)
+
+**v0.6.10 — PUBLIÉE sur `main`.**
+
+- **Code concret :** `hue_solar.py` choisit le bon jour UTC pour que lever et coucher correspondent à la date civile locale demandée, même près de la ligne internationale de changement de date. Nouveau `tests/test_solar_dateline.py` : Kiritimati, Pago Pago, Tokyo, Zurich, solstices et ordre des événements. Aucune commande Hue ni donnée locale modifiée.
+- **Tests :** simulation Python isolée sur 8 combinaisons lieu/date réussie ; GitHub Actions PR #8 [42089869262](https://github.com/fchautems/Hue/actions/runs/42089869262) **completed/success** ; post-fusion [42089947588](https://github.com/fchautems/Hue/actions/runs/42089947588) **completed/success**.
+- **Publication :** [PR #8](https://github.com/fchautems/Hue/pull/8), [commit main 15a91fa](https://github.com/fchautems/Hue/commit/15a91fa3eb5fa282125d650bda8afd2168a2e985). Pas de GitHub Release dédiée, pas de déploiement Raspberry.
+- **Limites :** précision astronomique approximative, aucune validation matérielle. Aucun blocage de publication.
+- **Plan du 6 novembre à 00 h (nuit) :** commencer par `tests/test_solar_dateline.py` : ajouter les cas 31 décembre/1er janvier à Kiritimati et Pago Pago, puis corriger `hue_solar.py` seulement si un test échoue. Critère : dates locales et ordre des événements corrects, CI complète verte ; aucun changement de commande Hue ou de stockage.
+
 Ce fichier est le **point de consultation permanent des comptes rendus**. Il doit être enrichi **après chaque exécution automatisée, toutes les quatre heures**, même si la version n'est pas publiée. Les informations les plus récentes figurent en premier.
 
 **Attention :** une version indiquée « publiée » signifie **fusionnée dans la branche `main` sur GitHub**, pas installée ni vérifiée sur le Raspberry. Les notifications mobiles dépendent des réglages ChatGPT ; ce fichier permet de retrouver les résultats indépendamment de leur livraison.
