@@ -38,7 +38,18 @@ def solar_times(day: date, latitude: float, longitude: float, tz_name: str = "Eu
             return None
         h = 360 - degrees(acos(cos_h)) if sunrise else degrees(acos(cos_h))
         utc_hours = h / 15 + ra - 0.06571 * t - 6.622 - lng_hour
-        instant = datetime(day.year, day.month, day.day, tzinfo=timezone.utc) + timedelta(hours=utc_hours % 24)
-        return instant.astimezone(tz)
+        # NOAA's UTC hour is modulo one day, but the UTC *date* is not
+        # necessarily the requested civil date (notably near the dateline).
+        # Pick the UTC day whose converted local date matches the request.
+        utc_midnight = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+        utc_time = timedelta(hours=utc_hours % 24)
+        candidates = [
+            (utc_midnight + timedelta(days=shift) + utc_time).astimezone(tz)
+            for shift in (-1, 0, 1)
+        ]
+        matching = [instant for instant in candidates if instant.date() == day]
+        if len(matching) != 1:
+            raise ValueError("cannot resolve solar event on local date")
+        return matching[0]
 
     return {"sunrise": event(True), "sunset": event(False)}
