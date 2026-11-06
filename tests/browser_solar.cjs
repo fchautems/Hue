@@ -82,7 +82,7 @@ const assert=require('node:assert/strict');
  await page.reload();await page.locator('.nav [data-tab="profiles"]').click();
  await page.waitForFunction(()=>!document.querySelector('#solar-wake').disabled&&document.querySelector('#solar-comfort').value==='62');
  assert.equal(await page.locator('#solar-transition').inputValue(),'45');assert.equal(await page.locator('#solar-day_kelvin').inputValue(),'4500');
- await page.locator('#solar-transition').fill('180');assert.equal(await page.locator('#solar-save').isDisabled(),true,'overlapping night ramps rejected');
+ await page.locator('#solar-wake').fill('02:00');await page.locator('#solar-transition').fill('180');assert.equal(await page.locator('#solar-save').isDisabled(),true,'overlapping night ramps rejected');
  await page.locator('#solar-cancel').click();assert.equal(await page.locator('#solar-transition').inputValue(),'45');
  // Validation, polar fallback and recovery; invalid inputs never activate.
  await page.locator('#solar-wake').fill('23:30');
