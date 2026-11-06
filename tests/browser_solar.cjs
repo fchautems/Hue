@@ -52,6 +52,7 @@ const assert=require('node:assert/strict');
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
   await page.screenshot({path:`/tmp/hue-solar-${width}.png`,fullPage:true});
  }
  // Existing color editor keeps the daily source and hides duplicate schedule controls.
@@ -61,6 +62,7 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('#rgb-schedule-toggle').isVisible(),false);
  await page.locator('#rgb-presets button[data-h="32"]').click();await page.locator('#rgb-save').click();
  await page.waitForFunction(()=>!window.HueRGB.hasChanges());
+ await page.waitForFunction(()=>document.querySelector('#solar-save-status').textContent.includes('Suivi automatique actif'));
  assert.equal((await page.evaluate(()=>api('/api/profile/solar/light-0'))).type,'solar');
  // Validation, polar fallback and recovery; invalid inputs never activate.
  await page.locator('#solar-wake').fill('23:30');

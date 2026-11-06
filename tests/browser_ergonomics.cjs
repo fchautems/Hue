@@ -126,6 +126,7 @@ const assert=require('node:assert/strict');
  for(const width of [320,390,1320]){
    await page.setViewportSize({width,height:1000});
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
    await page.screenshot({path:`/tmp/hue-ergonomics-solar-${width}.png`,fullPage:true});
  }
  // Both copy operations retain their distinct behavior and confirmation.

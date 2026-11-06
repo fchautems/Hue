@@ -165,7 +165,7 @@
   const previousLampChange=lampSelect.onchange;
   lampSelect.onchange=e=>{
     if(window.HueSolar?.isBusy()){e.target.value=selectedId;return;}
-    if((simpleDirty || window.HueSolar?.hasChanges()) && !window.confirm('Modifications de la courbe simple non enregistrées. Les abandonner ?')){
+    if((simpleDirty || window.HueSolar?.hasChanges()) && !window.confirm('Modifications du profil non enregistrées. Les abandonner ?')){
       e.target.value=selectedId;return;
     }
     window.HueSolar?.discard();
@@ -176,7 +176,7 @@
   setTab=function(tab){
     if(window.HueSolar?.isBusy())return false;
     const leaving=activeTab==='profiles' && tab!=='profiles' && tab!=='colors' && (simpleDirty || window.HueSolar?.hasChanges());
-    if(leaving && !window.confirm('Modifications de la courbe simple non enregistrées. Les abandonner ?'))return false;
+    if(leaving && !window.confirm('Modifications du profil non enregistrées. Les abandonner ?'))return false;
     const result=previousSetTab(tab);
     if(leaving && result!==false){window.HueSolar?.discard();params={...saved};viewType=activeType;fillFields();draw();}
     return result;

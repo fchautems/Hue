@@ -9,7 +9,8 @@ Mise à jour : 2026-11-06
 - Implémenté : options solaires persistantes par lampe, cache journalier local en mémoire, horaires et couleurs cohérents, simulation sur la journée courante, copies complètes conservant le suivi ; aperçu saisonnier isolé des réglages.
 - Interface : choix Simple/Personnalisé/Soleil, formulaire par lampe, aperçu automatique, enregistrement unique, annulation/protection des brouillons ; pas de second interrupteur Auto ni de bouton d’application par date.
 - Contrôles locaux : 198 tests Python réussis (saisons, jours suivants, DST, redémarrage, sauvegarde atomique, modes/OFF/Vacances, RGB et copie), six suites Node réussies. Syntaxe et diff --check valides. Parcours navigateur adaptés, à exécuter dans la CI (Chromium local restreint).
-- Prochaine action : publier la branche, vérifier CI et captures, puis fusionner si succès. Brain Hue relu ; tâche automatique toujours en pause.
+- Première CI de PR #17 (42283119603) completed/success : Python/Node et deux parcours navigateur réussis. Captures relues : formulaire intégré lisible en mobile/PC ; capture repositionnée en haut pour éviter la superposition du bandeau fixe. Statut de suivi synchronisé avec Manuel/Auto à chaque rafraîchissement.
+- Prochaine action : confirmer la dernière CI et publier. Brain Hue relu ; tâche automatique toujours en pause.
 
 ## État actuel — v0.8.1 publiée — 2026-11-06
 - PR #16 fusionnée sur main au commit 20204fb11822b3ad38b94f2c4ac40725400e95ee. Autorisation explicite confirmée par Fréd dans cette reprise.

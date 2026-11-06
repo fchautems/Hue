@@ -102,7 +102,7 @@
   });
   const originalLoad=loadProfile;
   loadProfile=async function(){const id=selectedId;await originalLoad();if(id===selectedId)await reload(id);};
-  window.HueSolar={hasChanges:dirty,isBusy:()=>saving,discard,
+  window.HueSolar={hasChanges:dirty,isBusy:()=>saving,discard,refreshStatus:status,
     setView(next,kind){const changed=view!==next;view=next;active=kind;status();if(changed&&view==='solar'&&saved)renderPreview();}};
   fill(defaults);status();
   setInterval(()=>{

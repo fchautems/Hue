@@ -187,6 +187,7 @@ async function refresh() {
     $('#sim-notice').textContent=s.clock_mode==='accelere'?'L’horloge accélérée agit seulement sur les lampes en Auto.':'L’horloge réelle agit seulement sur les lampes en Auto.';
     addLightCards(s.lights);
     updateLights(s.lights);
+    window.HueSolar?.refreshStatus();
     tickClock();
   } catch(e){$('#bridge-label').textContent='Serveur indisponible';$('#error-banner').classList.remove('hidden');$('#error-banner').textContent=e.message;}
   finally{refreshBusy=false;}
