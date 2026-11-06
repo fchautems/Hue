@@ -2,6 +2,15 @@
 
 Mise à jour : 2026-11-06
 
+## État actuel — v0.10.0 publiée — 2026-11-06
+- PR #18 fusionnée sur main au commit 0b63a4c686bc4801f73c23adc1a747ccbca99937 ; arbre identique au commit validé 6da61b1 (2024fa3f). Aucun déploiement matériel.
+- Livré : confort et saturation réglables au réveil/coucher, durée commune de transition avant/après, luminosité nocturne réglable et saturation de nuit 100 %. Courbes en S asymétriques, transitions cycliques traversant minuit sans chevauchement.
+- Couleurs : trois teintes pleines matin/soir/nuit, blanc de journée indépendant CIE D (5000 K proposé, 4000–6500 K réglable), commandes xy limitées au gamut ; rendu écran indicatif, spectre solaire non reproduit.
+- Interface : un formulaire/enregistrement par lampe, double courbe luminosité/saturation, aperçus datés en lecture seule. Les anciens profils conservent leur comportement jusqu’à adoption explicite ; types Simple/Personnalisé et Manuel/OFF/Vacances préservés. Copies fixes de luminosité sans changement des couleurs ; édition des copies selon les contrôles Simple visibles.
+- Contrôles : 207 tests Python, six suites Node, deux parcours Chromium 320/390/1320 px réussis ; CI PR 42303072513 completed/success, captures relues. Le scénario de rechargement attend désormais les lampes initiales. CI main 42303253108 completed/success.
+- Limites : pont simulé uniquement, pas de test physique Raspberry/Hue, pas de météo ; réveil et coucher personnels dans la même journée.
+- Prochaine action : installer via Mises à jour puis ouvrir Soleil et adopter/enregistrer les nouveaux réglages une fois par lampe ; vérifier les niveaux réels, les couleurs et les priorités. Automatisation laissée en pause.
+
 ## Rythme solaire v0.10.0 en cours — 2026-11-06
 - Demande : confort au réveil/coucher, transition commune avant/après ces heures, minimum nocturne avec saturation 100 %, paliers réglables ; courbes en S asymétriques, teintes matin/soir/nuit et blanc de journée ajustable.
 - Base vérifiée : main 9823346 propre, v0.9.0 publiée. Brain et MODEL_GUIDE lus ; aucune reprise d’automatisation ni accès matériel.
