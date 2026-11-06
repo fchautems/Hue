@@ -292,7 +292,7 @@ function renderUpdateChanges(status){
   }
   const notes=Array.isArray(changes)?changes.filter(s=>typeof s==='string').slice(0,8):[];
   if(!notes.length && !pending && status.latest_note){
-    notes.push('Dernier cycle du journal : '+status.latest_note.replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g,'$1').replace(/[\`*]/g,''));
+    notes.push('Dernier cycle du journal : '+status.latest_note.replaceAll('**','').replaceAll('`',''));
   }
   if(!notes.length) notes.push(pending?'Détail indisponible pour cette version.':'Aucun historique d’installation disponible pour le moment.');
   for(const note of notes){
