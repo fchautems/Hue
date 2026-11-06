@@ -1,11 +1,11 @@
-# v0.9.0 — Soleil au quotidien — 2026-11-06
+# v0.9.0 — Soleil au quotidien — 2026-11-06 — PUBLIÉE SUR MAIN
 
 - Un seul choix de profil par lampe : Simple, Personnalisé ou Soleil.
 - Soleil mémorise le lieu, le réveil/coucher et les niveaux lumineux. Les horaires se recalculent automatiquement chaque jour, selon le fuseau du lieu, y compris après redémarrage. Aucun besoin de réappliquer le profil.
 - La date sert uniquement à prévisualiser une autre journée ; l’aperçu ne modifie ni les réglages ni la lampe.
 - Manuel suspend le suivi, Auto l’exécute, Vacances garde la priorité ; une lampe éteinte reste éteinte.
 - Les couleurs suivent les horaires du jour. Leur édition conserve Soleil et les anciens profils fixes restent intacts. La copie complète garde le suivi quotidien ; la copie de luminosité seule produit une courbe fixe du jour.
-- Contrôles en cours : 198 tests Python locaux réussis, six suites Node ; parcours navigateur mobile/PC à confirmer. Pas d’essai matériel ni de déploiement Raspberry. Sans météo.
+- Validation : 198 tests Python, six suites Node et parcours navigateur 320/390/1320 px réussis ; CI PR 42283707888 et CI main 42283937344 completed/success, captures relues. PR #17 fusionnée au commit ba02d8f. Pas d’essai matériel ni de déploiement Raspberry. Sans météo.
 
 # v0.8.1 — Soleil et cible cohérents — 2026-11-06 — PUBLIÉE SUR MAIN
 

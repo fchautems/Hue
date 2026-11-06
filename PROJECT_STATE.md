@@ -2,15 +2,14 @@
 
 Mise à jour : 2026-11-06
 
-## v0.9.0 en développement — 2026-11-06
-- Demande : remplacer le profil solaire figé par un choix permanent Simple/Personnalisé/Soleil par lampe ; options réveil/coucher, niveaux et lieu, aperçu par date sans activation datée.
-- Décision : stocker les options solaires, calculer les horaires pour la date locale du lieu (cache journalier en mémoire), préserver modes, anciennes courbes, couleurs et Vacances. Aucune migration automatique d’un ancien brouillon fixe.
-- Contrôles à réaliser : jours/saisons/DST, redémarrage et sauvegarde, priorité Manuel/OFF/Vacances, copies et couleurs, parcours mobile/PC.
-- Implémenté : options solaires persistantes par lampe, cache journalier local en mémoire, horaires et couleurs cohérents, simulation sur la journée courante, copies complètes conservant le suivi ; aperçu saisonnier isolé des réglages.
-- Interface : choix Simple/Personnalisé/Soleil, formulaire par lampe, aperçu automatique, enregistrement unique, annulation/protection des brouillons ; pas de second interrupteur Auto ni de bouton d’application par date.
-- Contrôles locaux : 198 tests Python réussis (saisons, jours suivants, DST, redémarrage, sauvegarde atomique, modes/OFF/Vacances, RGB et copie), six suites Node réussies. Syntaxe et diff --check valides. Parcours navigateur adaptés, à exécuter dans la CI (Chromium local restreint).
-- Première CI de PR #17 (42283119603) completed/success : Python/Node et deux parcours navigateur réussis. Captures relues : formulaire intégré lisible en mobile/PC ; capture repositionnée en haut pour éviter la superposition du bandeau fixe. Statut de suivi synchronisé avec Manuel/Auto à chaque rafraîchissement.
-- Prochaine action : confirmer la dernière CI et publier. Brain Hue relu ; tâche automatique toujours en pause.
+## État actuel — v0.9.0 publiée — 2026-11-06
+- PR #17 fusionnée sur main au commit ba02d8f86c8a2b135e81276f2b49cd45d2ba1b2c, après validation complète du commit ea9874d.
+- Livré : choix permanent Simple/Personnalisé/Soleil par lampe ; réveil/coucher, niveaux et lieu enregistrés une fois. Horaires et couleurs évalués selon chaque date locale, cache journalier en mémoire, reprise après redémarrage. L’aperçu daté ne modifie jamais le suivi.
+- Interface intégrée : formulaire et enregistrement unique, aperçu automatique, annulation/protection des brouillons, statut Manuel/Auto synchronisé ; trois libellés lisibles à 320 px. Couleurs éditables sans désactiver Soleil ni dupliquer les horaires.
+- Compatibilité : anciens profils fixes conservés sans conversion implicite, Manuel/OFF/Vacances prioritaires, personnalisation des couleurs préservée. Copie complète = options quotidiennes ; copie de luminosité seule = courbe fixe du jour.
+- Contrôles : 198 tests Python, six suites Node et deux parcours navigateur 320/390/1320 px réussis ; CI PR 42283707888 completed/success. Captures relues, arbre fusionné identique au code validé. CI main 42283937344 completed/success.
+- Limites : aucun essai physique Raspberry/Hue ni déploiement matériel. Sans météo ni relief, journée sans passage de minuit, repli sur le rythme personnel si soleil absent ; simulation accélérée sur les horaires d’aujourd’hui.
+- Prochaine action : installer via Mises à jour sur le Raspberry puis choisir Soleil, enregistrer et utiliser Auto sur les lampes concernées. Tâche de développement automatique toujours en pause.
 
 ## État actuel — v0.8.1 publiée — 2026-11-06
 - PR #16 fusionnée sur main au commit 20204fb11822b3ad38b94f2c4ac40725400e95ee. Autorisation explicite confirmée par Fréd dans cette reprise.
