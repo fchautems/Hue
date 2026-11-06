@@ -32,6 +32,7 @@ const {chromium}=require('playwright');
  await page.getByRole('button',{name:'Voir cette journée'}).click();
  await page.waitForFunction(()=>document.getElementById('solar-status').textContent.includes('polaire'));
  if(await page.locator('#solar-daylight').isVisible())throw Error('polar day band');
+ if(await page.locator('#solar-scale').isVisible())throw Error('polar scale');
  if(errors.length)throw Error(errors.join('\n'));
  console.log('PASS: 320/390/1320 px; seasonal preview '+summer+'; routine; invalid zone; polar fallback; no JS errors');
  await browser.close();
