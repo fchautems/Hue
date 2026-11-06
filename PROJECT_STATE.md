@@ -309,3 +309,5 @@ Mise à jour : 2026-10-23
 - **Contrôles :** GitHub Actions run 42177586752 lancé ; attendre le verdict completed/success avant toute fusion. Clone local impossible (DNS GitHub indisponible). Aucun test matériel.
 - **Blocage :** CI en cours ; ne pas fusionner avant conclusion.
 - **Prochaine session 2026-11-06 12 h :** commencer par le verdict de la PR #11 ; si verte, fusionner et vérifier la CI main. Puis examiner templates/index.html et static/v061.js pour une prévisualisation des horaires solaires en lecture seule, sans sauvegarde ni commandes. Critère : horaires visibles sur téléphone et PC, aucun appel de commande Hue, tests UI/CI verts. Risque : intégration UI ; préserver Manuel/Auto et simulation accélérée.
+
+- **Publication confirmée 08 h :** PR #11 fusionnée sur main au commit 0aa089de08c317850cf28f2a4e183615954f1a8b ; CI PR 42177638803 completed/success. Vérifier la CI post-fusion. Plan suivant : aperçu solaire non pilotant, fichiers templates/index.html et static/v061.js ; test contrat UI et CI verte.
