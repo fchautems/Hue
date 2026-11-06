@@ -292,3 +292,10 @@ Mise à jour : 2026-10-23
 - **Contrôles :** CI PR #9 déclenchée (run 42126332719) ; verdict à vérifier avant fusion. Aucun test matériel.
 - **Blocage :** ne pas fusionner tant que la CI n'est pas completed/success.
 - **Prochain cycle 2026-11-06 04 h :** commencer par tests/test_solar.py : ajouter des tests d'invariance des résultats solaires (mêmes entrées -> mêmes heures), notamment changement de fuseau et dates hivernales ; corriger hue_solar.py uniquement en cas d'échec. Critère : suite complète CI verte ; aucun changement de comportement des lampes.
+
+## Cycle 2026-11-06 04 h (Europe/Zurich) — v0.6.12
+- **État vérifié :** main c6e52ec (confirmation CI v0.6.11), aucune PR ouverte ; CI v0.6.11 post-fusion 42126397135 completed/success. Pas de GitHub Release dédiée.
+- **Code :** tests/test_solar.py enrichi de tests de reproductibilité sur quatre dates et d'invariance d'instants UTC sur trois dates (hiver, été, changement d'heure d'hiver). Aucun changement moteur Hue, stockage, interface ni Raspberry.
+- **Contrôles :** validation CI de PR à attendre avant toute fusion ; aucun essai physique.
+- **Blocage éventuel :** si CI non concluante, conserver la PR sans fusion et reprendre sa validation.
+- **Plan précis cycle 2026-11-06 08 h :** commencer par tests/test_solar.py et hue_solar.py : tester la cohérence du calcul autour de l'équinoxe, sans modifier le moteur de lampes ; ajouter un test de progression saisonnière et corriger seulement si nécessaire. Critère : suite CI verte, dates locales correctes, aucun effet sur Hue. En journée, envisager ensuite un aperçu ergonomique des heures solaires sans commande matérielle.
