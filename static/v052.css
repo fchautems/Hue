@@ -26,3 +26,7 @@
 #v052-activate-custom{margin:0 0 12px;min-height:44px}
 @media(max-width:700px){.v052-type-picker{align-items:stretch;flex-direction:column}.v052-tabs{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.v052-mode{padding:10px 8px}.v052-form{gap:9px}.v052-field{padding:11px 9px}.v052-field input[type="time"]{padding:7px 5px;min-width:0}.v052-level{gap:9px}.v052-actions{position:sticky;bottom:0;background:#182b3d;border-top:1px solid #40546a;padding:9px 0;z-index:3}.v052-actions button{flex:1;min-width:110px}}
 @media(max-width:340px){.v052-form{grid-template-columns:1fr}.v052-level{grid-template-columns:1fr}}
+
+#v052-solar-editor[hidden]{display:none!important}
+.profile-card[data-v052-view="solar"]>:is(#profile-chart,.profile-foot,.profile-help,#point-rows,.profile-actions){display:none!important}
+@media(max-width:700px){.v052-tabs{grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,.9fr))}.v052-mode{font-size:13px;padding:10px 4px}}

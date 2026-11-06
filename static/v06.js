@@ -79,6 +79,7 @@
     $('#rgb-color-gradient').style.background=`linear-gradient(90deg,${stops.join(',')})`;
     $('#rgb-hours-summary').textContent=timeKeys.map(k=>fmt(p[k])).join(' → ');
   }
+  let profileType="custom";
   function render(){
     if(!draft){saveButton.disabled=true;revertButton.disabled=true;return;}
     const p=selected(); const angle=wrap(p.h)*Math.PI/180,r=p.s*.42;
@@ -96,7 +97,10 @@
     $$('.rgb-phase').forEach(button=>{const key=button.dataset.phase;button.classList.toggle('active',key===selectedPhase);button.setAttribute('aria-pressed',String(key===selectedPhase));button.style.setProperty('--dot',hex(draft.colors[key].h,draft.colors[key].s));});
     $('#rgb-auto-phases').hidden=draft.mode==='manuel';
     $('#rgb-auto-settings').hidden=draft.mode==='manuel';
-    $('#rgb-mode-advisory').textContent=draft.mode==='auto'
+    const solar=profileType==='solar';
+    $('#rgb-schedule-toggle').parentElement.hidden=solar&&draft.mode==='auto';
+    $('#rgb-bright').parentElement.hidden=solar&&draft.mode==='auto';
+    $('#rgb-mode-advisory').textContent=solar&&draft.mode==='auto'?'Les horaires et la luminosité suivent Soleil ; tu peux ajuster les couleurs ici.':draft.mode==='auto'
       ? 'Enregistrer active la courbe Simple et les couleurs automatiques ; l’ancienne courbe personnalisée reste conservée.'
       : 'Enregistrer applique la couleur seulement si la lampe est déjà allumée ; sinon elle sera mémorisée pour le prochain allumage via Hue Lab.';
     const e=errorMessage();const err=$('#rgb-validation');err.textContent=e;err.hidden=!e;
@@ -148,7 +152,7 @@
     try{
       const res=await api(`/api/rgb/${encodeURIComponent(id)}`);
       if(token!==nonce)return;
-      capable=!!res.capable;
+      capable=!!res.capable;profileType=res.profile_type;
       const data={mode:res.mode,colors:clone(res.colors),simple_params:clone(res.simple_params),manual:clone(res.manual)};
       saved={data:clone(data),enabled:res.enabled};draft=data;
       setFeedback(!capable?'Le pont n’annonce pas la couleur RGB pour cette lampe.':'Sélectionne une couleur, puis enregistre pour l’appliquer.');
@@ -173,9 +177,10 @@
     try{
       const result=await api(`/api/rgb/${encodeURIComponent(id)}`,'PUT',clone(draft));
       if(uid!==id)return;
+      profileType=result.profile_type;
       const next={mode:result.mode,colors:clone(result.colors),simple_params:clone(result.simple_params),manual:clone(result.manual)};
       saved={data:clone(next),enabled:result.enabled};draft=clone(next);
-      setFeedback(result.mode==='auto'?'Profil Simple et couleurs automatiques activés.':'Couleur manuelle enregistrée.'+(!result.on?' Lampe éteinte : pas d’allumage automatique.':''));
+      setFeedback(result.mode==='auto'?(profileType==='solar'?'Couleurs enregistrées · suivi Soleil conservé.':'Profil Simple et couleurs automatiques activés.'):'Couleur manuelle enregistrée.'+(!result.on?' Lampe éteinte : pas d’allumage automatique.':''));
       await refresh();
       window.HueMerged?.afterRgbSave(id);
     }catch(error){setFeedback(error.message,true);showToast(error.message,true)}

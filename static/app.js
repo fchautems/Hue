@@ -33,6 +33,8 @@ async function safe(fn) { try {await fn();} catch(e) {showToast(e.message,true);
 function currentMinute() {
   if (!state) return 480;
   if (!state.simulation.enabled) {
+    const light=state.lights.find(l=>l.id===selectedId);
+    if(light?.profile_type==='solar'&&Number.isFinite(light.profile_minute))return (light.profile_minute+(performance.now()-lastStateAt)/60000)%1440;
     const now = new Date(); return now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
   }
   const sim=state.simulation;
@@ -185,6 +187,7 @@ async function refresh() {
     $('#sim-notice').textContent=s.clock_mode==='accelere'?'L’horloge accélérée agit seulement sur les lampes en Auto.':'L’horloge réelle agit seulement sur les lampes en Auto.';
     addLightCards(s.lights);
     updateLights(s.lights);
+    window.HueSolar?.refreshStatus();
     tickClock();
   } catch(e){$('#bridge-label').textContent='Serveur indisponible';$('#error-banner').classList.remove('hidden');$('#error-banner').textContent=e.message;}
   finally{refreshBusy=false;}

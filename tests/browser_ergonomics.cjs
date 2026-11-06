@@ -110,29 +110,24 @@ const assert=require('node:assert/strict');
  assert.ok(writes.some(r=>r.url==='/api/rgb/light-0'&&r.data.manual));
  await page.locator('#profile-light').selectOption('light-1');
  await page.waitForFunction(()=>selectedId==='light-1'&&window.HueRGB.currentId()==='light-1');
- // Solar preparation: exact solar anchors, asymmetric saved profile and feedback.
- await page.locator('#profile-solar > summary').click();
- await page.locator('#solar-date').fill('2026-11-06');
- await page.getByRole('button',{name:'Voir cette journée'}).click();
- await page.locator('#solar-results').waitFor({state:'visible'});
+ // Daily solar settings: date is preview-only; activation persists the rhythm.
+ await page.locator('.v052-mode[data-type="solar"]').click();
  await page.locator('#solar-wake').fill('05:15');
  await page.locator('#solar-bed').fill('22:30');
- await page.locator('#solar-generate').click();
- await page.locator('#solar-draft').waitFor({state:'visible'});
- await check(page.locator('#solar-apply').textContent().then(t=>t.includes('Salon')),'apply names selected lamp');
- page.once('dialog',d=>d.accept());
- await page.locator('#solar-apply').click();
- await page.waitForFunction(()=>document.querySelector('#solar-apply-status').textContent.includes('Manuel'));
- const solarSaved=await page.evaluate(()=>api('/api/profile/simple/light-1'));
- const sun=await page.evaluate(()=>api('/api/solar/preview?day=2026-11-06'));
- assert.equal(solarSaved.params.morning_end,Math.floor(sun.sunrise_minute));
- assert.equal(solarSaved.params.evening_start,Math.floor(sun.sunset_minute));
- assert.equal(solarSaved.params.transition_shape,'asymmetric');
- assert.equal(solarSaved.params.wake,315);
+ await page.locator('#solar-date').fill('2026-11-06');
+ await page.waitForFunction(()=>document.querySelector('#solar-draft-hours').textContent.includes('05:15–07:23'));
+ await page.locator('#solar-save').click();
+ await page.waitForFunction(()=>document.querySelector('#v052-type-status').textContent.includes('Soleil actif'));
+ const solarSaved=await page.evaluate(()=>api('/api/profile/solar/light-1'));
+ assert.equal(solarSaved.type,'solar');
+ assert.equal(solarSaved.config.wake,315);
+ assert.equal(solarSaved.config.bed,1350);
+ assert.equal('day' in solarSaved.config,false);
  for(const width of [320,390,1320]){
    await page.setViewportSize({width,height:1000});
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-   await page.locator('.solar-card').screenshot({path:`/tmp/hue-ergonomics-solar-${width}.png`});
+   await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
+   await page.screenshot({path:`/tmp/hue-ergonomics-solar-${width}.png`,fullPage:true});
  }
  // Both copy operations retain their distinct behavior and confirmation.
  await page.locator('.profile-copy > summary').click();

@@ -54,8 +54,8 @@
     try {
       const data = await api(`/api/profile/simple/${encodeURIComponent(fromId)}`);
       if (selectedId !== toId || source.value !== fromId) throw Error('La sélection a changé. Copie annulée.');
-      if (data.type === 'simple') {
-        await api(`/api/profile/simple/${encodeURIComponent(toId)}`, 'PUT', {params: data.params});
+      if (data.type === 'simple' || data.type === 'solar') {
+        await api(`/api/profile/simple/${encodeURIComponent(toId)}`, 'PUT', {params: data.type==='solar'?data.effective_params:data.params});
       } else if (data.type === 'custom') {
         const points = await api(`/api/profile/${encodeURIComponent(fromId)}`);
         if (selectedId !== toId) throw Error('La lampe sélectionnée a changé. Copie annulée.');
@@ -68,7 +68,7 @@
         window.HueRGB?.reloadIfClean(toId);
         await refresh();
       }
-      showToast('Courbe copiée. Tu peux la tester avec l’horloge accélérée.');
+      showToast(data.type==='solar'?'Courbe solaire du jour copiée en profil fixe.':'Courbe copiée. Tu peux la tester avec l’horloge accélérée.');
     } finally {
       busy = false;
       syncSources();

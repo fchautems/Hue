@@ -78,10 +78,12 @@
     buttons.forEach(b=>{const chosen=b.dataset.type===viewType;b.classList.toggle('active',chosen);b.setAttribute('aria-pressed',String(chosen));});
     card.dataset.v052View = viewType;
     container.hidden=viewType!=='simple';
+    document.querySelector('#v052-solar-editor').hidden=viewType!=='solar';
+    window.HueSolar?.setView(viewType,activeType);
     activateCustom.hidden=viewType!=='custom' || activeType==='custom';
     typeStatus.textContent = loading?'Chargement…':
       simpleDirty?'● Modifications non enregistrées — les lampes ne changent pas avant validation':
-      (activeType==='simple'?'✓ Profil simple actif':'✓ Profil personnalisé actif');
+      (activeType==='solar'?'✓ Soleil actif · recalcul quotidien':activeType==='simple'?'✓ Profil simple actif':'✓ Profil personnalisé actif');
     typeStatus.classList.toggle('unsaved',simpleDirty);
     save.disabled=saving||loading||!selectedId||viewType!=='simple'||!simpleDirty||!!error;
     cancel.disabled=saving||loading||!simpleDirty;
@@ -125,10 +127,10 @@
     });
   }
   buttons.forEach(btn=>btn.addEventListener('click',()=>{
-    if(loading||saving||viewType===btn.dataset.type)return;
+    if(loading||saving||window.HueSolar?.isBusy()||viewType===btn.dataset.type)return;
     // A different view alone is a preview: allow returning to the saved type.
     // Guard actual field edits until they are saved or cancelled.
-    if(profileDirty || keys.some(k=>params[k]!==saved[k])){
+    if(profileDirty || keys.some(k=>params[k]!==saved[k]) || window.HueSolar?.hasChanges()){
       showToast('Enregistre ou annule les modifications avant de changer de type de courbe.',true);return;
     }
     viewType=btn.dataset.type;
@@ -162,23 +164,27 @@
   });
   const previousLampChange=lampSelect.onchange;
   lampSelect.onchange=e=>{
-    if(simpleDirty && !window.confirm('Modifications de la courbe simple non enregistrées. Les abandonner ?')){
+    if(window.HueSolar?.isBusy()){e.target.value=selectedId;return;}
+    if((simpleDirty || window.HueSolar?.hasChanges()) && !window.confirm('Modifications du profil non enregistrées. Les abandonner ?')){
       e.target.value=selectedId;return;
     }
+    window.HueSolar?.discard();
     simpleDirty=false;
     previousLampChange?.call(lampSelect,e);
   };
   const previousSetTab=setTab;
   setTab=function(tab){
-    const leaving=activeTab==='profiles' && tab!=='profiles' && tab!=='colors' && simpleDirty;
-    if(leaving && !window.confirm('Modifications de la courbe simple non enregistrées. Les abandonner ?'))return false;
+    if(window.HueSolar?.isBusy())return false;
+    const leaving=activeTab==='profiles' && tab!=='profiles' && tab!=='colors' && (simpleDirty || window.HueSolar?.hasChanges());
+    if(leaving && !window.confirm('Modifications du profil non enregistrées. Les abandonner ?'))return false;
     const result=previousSetTab(tab);
-    if(leaving && result!==false){params={...saved};viewType=activeType;fillFields();draw();}
+    if(leaving && result!==false){window.HueSolar?.discard();params={...saved};viewType=activeType;fillFields();draw();}
     return result;
   };
-  window.addEventListener('beforeunload',e=>{if(simpleDirty){e.preventDefault();e.returnValue='';}});
+  window.addEventListener('beforeunload',e=>{if(simpleDirty||window.HueSolar?.hasChanges()){e.preventDefault();e.returnValue='';}});
   window.HueProfiles={
-    hasUnsaved:()=>simpleDirty||profileDirty,
+    hasUnsaved:()=>simpleDirty||profileDirty||!!window.HueSolar?.hasChanges(),
+    hasFieldEdits:()=>profileDirty||keys.some(k=>params[k]!==saved[k]),
     reload:()=>loadProfile()
   };
   fillFields();updateUI();

@@ -126,3 +126,11 @@ Dans le panneau solaire, règle ton réveil/coucher et les luminosités minimale
 **Appliquer à la lampe sélectionnée** remplace le profil actif après confirmation. Le mode Manuel/Auto est conservé ; une lampe déjà en Auto peut appliquer le nouveau profil immédiatement. Les lampes sans RGB reçoivent la luminosité seule. ON/OFF, Vacances et courbes personnalisées sauvegardées restent préservés.
 
 Le résultat est un profil fixe pour la date choisie, sans recalcul quotidien ni météo. Le brouillon n'est pas enregistré tant que tu ne l'appliques pas.
+
+## Profil Soleil — v0.9.0
+
+Dans **Profils & simulation**, choisis la lampe, puis **Soleil** dans le choix de profil. Renseigne ton réveil, ton coucher, les niveaux minimum/maximum et le lieu, puis clique **Enregistrer et activer Soleil**. Ces options sont mémorisées sur le serveur pour cette lampe. En **Auto**, les horaires et les couleurs sont recalculés pour chaque date locale du lieu, au fil des saisons et après un redémarrage. En **Manuel**, le suivi est suspendu ; Vacances reste prioritaire et une lampe OFF n’est pas rallumée.
+
+La **date de l’aperçu** sert seulement à explorer une journée : elle n’est jamais enregistrée dans le profil. La simulation accélérée utilise les horaires solaires d’aujourd’hui. Les heures astronomiques restent approximatives, sans météo ni relief ; si un lever/coucher est absent, le rythme personnel sert de repli. Les transitions restent bornées par le réveil/coucher et durent au moins 30 minutes.
+
+Pour quitter Soleil, enregistre un profil Simple ou active Personnalisée ; les options solaires sont conservées. Les anciens profils solaires fixes ne sont pas convertis automatiquement. La copie du **profil complet** inclut les options solaires et les couleurs ; la copie de **luminosité seule** fige la courbe solaire du jour en profil Simple.
