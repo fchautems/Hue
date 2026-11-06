@@ -33,6 +33,8 @@ async function safe(fn) { try {await fn();} catch(e) {showToast(e.message,true);
 function currentMinute() {
   if (!state) return 480;
   if (!state.simulation.enabled) {
+    const light=state.lights.find(l=>l.id===selectedId);
+    if(light?.profile_type==='solar'&&Number.isFinite(light.profile_minute))return (light.profile_minute+(performance.now()-lastStateAt)/60000)%1440;
     const now = new Date(); return now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
   }
   const sim=state.simulation;

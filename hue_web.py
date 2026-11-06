@@ -23,7 +23,7 @@ import requests
 import urllib3
 
 from hue_discovery import discover_local_bridges
-from hue_solar_profile import draft_profile
+from hue_solar_profile import draft_profile, DEFAULT_SOLAR_CONFIG, validate_solar_config
 from hue_solar import solar_times
 import hue_update_api
 from hue_presence_log import PresenceLog
@@ -123,7 +123,7 @@ class HueServer:
         # mais chaque ampoule dispose désormais de son propre contrôle.
         self.settings = {"auto": False, "mode": "manuel", "profiles": {},
                          "light_modes": {}, "manual_states": {},
-                         "simple_profiles": {}, "profile_types": {},
+                         "simple_profiles": {}, "profile_types": {}, "solar_profiles": {},
                          "rgb_profiles": {}, "rgb_manual": {}, "rgb_auto_enabled": {}}
         self._legacy_default_auto = False
         self.vacation = {"enabled": False, "light_ids": [], "seed": "",
@@ -160,11 +160,20 @@ class HueServer:
                                 self.settings["simple_profiles"][uid] = validate_simple_profile(raw)
                             except (ValueError, TypeError):
                                 self.log.warning("Profil simple invalide ignoré pour une lampe.")
+                    solar = loaded.get("solar_profiles", {})
+                    if isinstance(solar, dict):
+                        for uid, raw in solar.items():
+                            try:
+                                if isinstance(uid, str):
+                                    self.settings["solar_profiles"][uid] = validate_solar_config(raw)
+                            except (ValueError, TypeError):
+                                self.log.warning("Réglages solaires invalides ignorés pour une lampe.")
                     profile_types = loaded.get("profile_types", {})
                     if isinstance(profile_types, dict):
                         self.settings["profile_types"] = {
                             uid: kind for uid, kind in profile_types.items()
-                            if isinstance(uid, str) and kind in ("simple", "custom")
+                            if isinstance(uid, str) and (kind in ("simple", "custom") or
+                                (kind == "solar" and uid in self.settings["solar_profiles"]))
                         }
                     rgb_profiles = loaded.get("rgb_profiles", {})
                     if isinstance(rgb_profiles, dict):
@@ -212,6 +221,7 @@ class HueServer:
             except (OSError, ValueError, TypeError) as e:
                 self.log.warning("Paramètres non chargés : %s", e)
         # Une horloge accélérée ne redémarre jamais automatiquement après reboot.
+        self._solar_cache = {}  # one local day/config per lamp, never persisted
         self.clock_mode = "reel"
         self.settings["auto"] = any(v == "auto" for v in self.settings["light_modes"].values())
         # Restaurer une seule fois l'état manuel au démarrage du service, pas après
@@ -274,6 +284,7 @@ class HueServer:
             "manual_states": self.settings["manual_states"],
             "simple_profiles": self.settings["simple_profiles"],
             "profile_types": self.settings["profile_types"],
+            "solar_profiles": self.settings["solar_profiles"],
             "rgb_profiles": self.settings["rgb_profiles"],
             "rgb_manual": self.settings["rgb_manual"],
             "rgb_auto_enabled": self.settings["rgb_auto_enabled"],
@@ -578,6 +589,11 @@ class HueServer:
             modes = dict(self.settings["light_modes"])
             profiles = copy.deepcopy(self.settings["profiles"])
             simple_profiles = copy.deepcopy(self.settings["simple_profiles"])
+            solar_minutes = {}
+            for uid, kind in self.settings["profile_types"].items():
+                if kind == "solar":
+                    simple_profiles[uid] = self._effective_simple(uid)
+                    solar_minutes[uid] = self._profile_minute(uid, minute)
             profile_types = dict(self.settings["profile_types"])
             rgb_profiles = copy.deepcopy(self.settings["rgb_profiles"])
             rgb_enabled = dict(self.settings["rgb_auto_enabled"])
@@ -630,12 +646,15 @@ class HueServer:
                 continue  # Auto ne rallume jamais une ampoule éteinte.
             if online is not None and online != "connected":
                 continue
-            target = self._target_for(uid, minute, profiles, simple_profiles, profile_types)
+            lamp_minute = solar_minutes.get(uid, minute)
+            target = (simple_brightness_at(simple_profiles[uid], lamp_minute)
+                      if profile_types.get(uid) == "solar" else
+                      self._target_for(uid, minute, profiles, simple_profiles, profile_types))
             target_xy = None
-            if ("color" in light and profile_types.get(uid) == "simple" and
+            if ("color" in light and profile_types.get(uid) in ("simple", "solar") and
                     rgb_enabled.get(uid) is True and uid in rgb_profiles):
                 target_xy = hsv_to_xy(
-                    rgb_at(rgb_profiles[uid], simple_profiles.get(uid, DEFAULT_SIMPLE_PROFILE), minute),
+                    rgb_at(rgb_profiles[uid], simple_profiles.get(uid, DEFAULT_SIMPLE_PROFILE), lamp_minute),
                     light["color"].get("gamut"))
             current = light.get("dimming", {}).get("brightness")
             last = self.last_sent.get(uid, {})
@@ -1011,6 +1030,7 @@ class HueServer:
                     "target": self._target_for(uid, m),
                     "vacation_active": self.vacation["enabled"] and uid in self.vacation["light_ids"],
                     "profile_type": self.settings["profile_types"].get(uid, "custom"),
+                    "profile_minute": self._profile_minute(uid, m),
                     "rgb_auto": bool(self.settings["rgb_auto_enabled"].get(uid)),
                     "color_xy": copy.deepcopy(l.get("color", {}).get("xy")),
                     "control_mode": self.settings["light_modes"].get(l["id"], "manuel"),
@@ -1050,11 +1070,62 @@ class HueServer:
     def _target_for(self, uid, minute, profiles=None, simple_profiles=None, profile_types=None):
         """Consigne calculée selon le type actif de chaque lampe (verrou déjà pris)."""
         types = self.settings["profile_types"] if profile_types is None else profile_types
+        if types.get(uid) == "solar":
+            return simple_brightness_at(self._effective_simple(uid), self._profile_minute(uid, minute))
         if types.get(uid) == "simple":
             data = self.settings["simple_profiles"] if simple_profiles is None else simple_profiles
             return simple_brightness_at(data.get(uid, DEFAULT_SIMPLE_PROFILE), minute)
         data = self.settings["profiles"] if profiles is None else profiles
         return brightness_at(data.get(uid, DEFAULT_POINTS), minute)
+
+    def _solar_now(self, config):
+        return datetime.now(ZoneInfo(config["tz"]))
+
+    def _profile_minute(self, uid, fallback):
+        if self.settings["profile_types"].get(uid) != "solar" or self.clock_mode == "accelere":
+            return fallback
+        now = self._solar_now(self.settings["solar_profiles"][uid])
+        return now.hour * 60 + now.minute + now.second / 60
+
+    def _effective_simple(self, uid):
+        if self.settings["profile_types"].get(uid) != "solar":
+            return copy.deepcopy(self.settings["simple_profiles"].get(uid, DEFAULT_SIMPLE_PROFILE))
+        config = self.settings["solar_profiles"][uid]
+        day = self._solar_now(config).date()
+        key = (day, tuple(sorted(config.items())))
+        cached = self._solar_cache.get(uid)
+        if not cached or cached[0] != key:
+            draft = draft_profile(day, **config)
+            self._solar_cache[uid] = (key, draft)
+        return copy.deepcopy(self._solar_cache[uid][1]["params"])
+
+    def solar_profile(self, uid):
+        with self.lock:
+            self.require_light(uid)
+            config = copy.deepcopy(self.settings["solar_profiles"].get(uid, DEFAULT_SOLAR_CONFIG))
+            return {"type": self.settings["profile_types"].get(uid, "custom"), "config": config}
+
+    def set_solar_profile(self, uid, config):
+        config = validate_solar_config(config)
+        # Resolve today's anchors before persisting anything.
+        draft_profile(self._solar_now(config).date(), **config)
+        with self._automation_lock:
+            with self.lock:
+                light = self.require_light(uid)
+                if "dimming" not in light:
+                    raise ValueError("Cette lampe ne permet pas la variation de luminosité.")
+                previous = copy.deepcopy(self.settings)
+                self.settings["solar_profiles"][uid] = config
+                self.settings["profile_types"][uid] = "solar"
+                self.settings["rgb_profiles"].setdefault(uid, copy.deepcopy(DEFAULT_RGB_PHASES))
+                self.settings["rgb_auto_enabled"][uid] = "color" in light
+                try:
+                    self.save()
+                except Exception:
+                    self.settings = previous
+                    raise
+                self._profile_changed(uid)
+        return self.solar_profile(uid)
 
     def profile(self, uid):
         with self.lock:
@@ -1067,10 +1138,12 @@ class HueServer:
             return {
                 "type": self.settings["profile_types"].get(uid, "custom"),
                 "params": copy.deepcopy(self.settings["simple_profiles"].get(uid, DEFAULT_SIMPLE_PROFILE)),
+                "effective_params": self._effective_simple(uid),
             }
 
     def _profile_changed(self, uid):
         """Laisse la transition automatique rejoindre la nouvelle consigne en douceur."""
+        self._solar_cache.pop(uid, None)
         self.last_sent.pop(uid, None)
         self.auto_transition_pending.add(uid)
         self._event_wakeup.set()
@@ -1087,7 +1160,7 @@ class HueServer:
             if source_uid == target_uid:
                 raise ValueError("Choisis deux ampoules différentes.")
             kind = self.settings["profile_types"].get(source_uid, "custom")
-            if kind not in ("simple", "custom"):
+            if kind not in ("simple", "custom", "solar"):
                 raise ValueError("Type de courbe source invalide.")
             custom = validate_points(copy.deepcopy(
                 self.settings["profiles"].get(source_uid, DEFAULT_POINTS)))
@@ -1099,6 +1172,8 @@ class HueServer:
             can_rgb = "color" in target and "dimming" in target
             colors = validate_rgb_phases(copy.deepcopy(
                 self.settings["rgb_profiles"].get(source_uid, DEFAULT_RGB_PHASES)))
+            if kind == "solar":
+                self.settings["solar_profiles"][target_uid] = copy.deepcopy(self.settings["solar_profiles"][source_uid])
             self.settings["profiles"][target_uid] = custom
             self.settings["simple_profiles"][target_uid] = simple
             self.settings["profile_types"][target_uid] = kind
@@ -1166,7 +1241,7 @@ class HueServer:
             return {
                 "mode": self.settings["light_modes"].get(uid, "manuel"),
                 "profile_type": self.settings["profile_types"].get(uid, "custom"),
-                "simple_params": copy.deepcopy(self.settings["simple_profiles"].get(uid, DEFAULT_SIMPLE_PROFILE)),
+                "simple_params": self._effective_simple(uid),
                 "colors": copy.deepcopy(self.settings["rgb_profiles"].get(uid, DEFAULT_RGB_PHASES)),
                 "manual": {**copy.deepcopy(self.settings["rgb_manual"].get(uid, DEFAULT_MANUAL_COLOR)),
                            "b": int(round(manual.get("brightness", light.get("dimming", {}).get("brightness", 65)) or 65))},
@@ -1217,11 +1292,14 @@ class HueServer:
             with self.lock:
                 self.settings["rgb_profiles"][uid] = colors
                 self.settings["rgb_manual"][uid] = manual
-                self.settings["simple_profiles"][uid] = params
+                is_solar = self.settings["profile_types"].get(uid) == "solar"
+                if not is_solar:
+                    self.settings["simple_profiles"][uid] = params
                 self.settings["rgb_auto_enabled"][uid] = True
                 self.settings["light_modes"][uid] = mode
                 if mode == "auto":
-                    self.settings["profile_types"][uid] = "simple"
+                    if not is_solar:
+                        self.settings["profile_types"][uid] = "simple"
                     self.auto_transition_pending.add(uid)
                 else:
                     self.auto_transition_pending.discard(uid)
@@ -1305,13 +1383,13 @@ class HueServer:
                 choice = None
                 if mode == "manuel":
                     choice = self.settings["rgb_manual"].get(uid)
-                elif (self.settings["profile_types"].get(uid, "custom") == "simple"
+                elif (self.settings["profile_types"].get(uid, "custom") in ("simple", "solar")
                       and self.settings["rgb_auto_enabled"].get(uid)
                       and uid in self.settings["rgb_profiles"]):
                     choice = rgb_at(
                         self.settings["rgb_profiles"][uid],
-                        self.settings["simple_profiles"].get(uid, DEFAULT_SIMPLE_PROFILE),
-                        self.simulated_time())
+                        self._effective_simple(uid),
+                        self._profile_minute(uid, self.simulated_time()))
                 if choice:
                     payload["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
             self.client.resource(f"light/{uid}", "PUT", payload)
@@ -1624,13 +1702,33 @@ def solar_preview(day: str | None = None, latitude: float = 46.46,
 
 @app.get("/api/solar/draft")
 def solar_draft(day: str, wake: int, bed: int, latitude: float = 46.46,
-                longitude: float = 6.22, tz: str = "Europe/Zurich", low: int = 10, high: int = 85):
+                longitude: float = 6.22, tz: str = "Europe/Zurich", low: int = 10, high: int = 85, uid: str | None = None):
     try:
         ZoneInfo(tz)
         selected = date.fromisoformat(day)
     except (ZoneInfoNotFoundError, ValueError):
         raise ValueError("Date ou fuseau horaire invalide.") from None
-    return ok(draft_profile(selected, latitude, longitude, tz, wake, bed, low, high))
+    draft = draft_profile(selected, latitude, longitude, tz, wake, bed, low, high)
+    if uid:
+        with controller.lock:
+            controller.require_light(uid)
+            colors = copy.deepcopy(controller.settings["rgb_profiles"].get(uid, DEFAULT_RGB_PHASES))
+        draft["colors"] = colors
+        for sample in draft["samples"]:
+            sample["color"] = rgb_at(colors, draft["params"], sample["minute"])
+    return ok(draft)
+
+
+@app.get("/api/profile/solar/{uid}")
+def solar_profile_settings(uid: str):
+    return ok(controller.solar_profile(uid))
+
+
+@app.put("/api/profile/solar/{uid}")
+def save_solar_profile(uid: str, data: dict = Body(...)):
+    if set(data) != {"config"}:
+        raise ValueError("Configuration solaire incomplète.")
+    return ok(controller.set_solar_profile(uid, data["config"]))
 
 
 @app.post("/api/profile/solar/{uid}")

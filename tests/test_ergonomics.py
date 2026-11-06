@@ -30,7 +30,7 @@ class ErgonomicsTests(unittest.TestCase):
         for uid in ('clock-source', 'clock-svg', 'sim-play', 'sim-speed', 'time-slider',
                     'profile-light', 'profile-chart', 'v052-chart', 'v052-save',
                     'save-profile', 'cancel-profile', 'rgb-wheel', 'rgb-save',
-                    'solar-apply', 'vacation-toggle', 'vacation-test-toggle',
+                    'solar-save', 'vacation-toggle', 'vacation-test-toggle',
                     'vacation-day-next', 'presence-older', 'export-diag',
                     'refresh-logs', 'setup-pair', 'update-check', 'update-apply'):
             with self.subTest(uid=uid):

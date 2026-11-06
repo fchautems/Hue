@@ -20,3 +20,13 @@
 .solar-scale{display:flex;justify-content:space-between;margin-top:6px;color:#a7bdcf;font-size:11px}
 .solar-status{min-height:24px}
 @media(max-width:450px){.solar-card{padding:16px}.solar-stats{gap:8px}.solar-stats span{font-size:9px}.solar-actions button{flex:1}.solar-form>label{flex-basis:100%}}
+
+#v052-solar-editor{padding:0;border:0;margin:16px 0 0}
+.solar-preview{margin-top:24px;padding-top:18px;border-top:1px solid var(--border)}
+#solar-curve{width:100%;height:auto;margin-top:12px}
+#solar-swatch{height:36px;border-radius:8px}
+#solar-results .solar-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+.solar-preview .solar-routine{align-items:end}
+#solar-today{margin-bottom:0}
+#solar-save-status{font-size:13px}
+#solar-save-status.unsaved{color:var(--gold)}

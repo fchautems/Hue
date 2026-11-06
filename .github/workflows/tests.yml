@@ -41,6 +41,7 @@ jobs:
       - name: Frontend syntax and copy regression
         run: |
           node --check tests/browser_ergonomics.cjs
+          node --check static/solar_daily.js
           node --check static/solar_draft.js
           node --check static/solar.js
           node tests/test_solar_ui.cjs
@@ -62,7 +63,7 @@ jobs:
           npx playwright install chromium
       - name: Solar preview mobile and desktop
         run: |
-          python -m uvicorn hue_web:app --host 127.0.0.1 --port 8765 > /tmp/hue-web.log 2>&1 &
+          python -m uvicorn browser_server:app --app-dir tests --host 127.0.0.1 --port 8765 > /tmp/hue-web.log 2>&1 &
           trap 'kill $!' EXIT
           for attempt in $(seq 1 30); do
             curl --silent --fail http://127.0.0.1:8765/api/solar/preview > /dev/null && break
