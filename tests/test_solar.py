@@ -46,5 +46,28 @@ class SolarTests(unittest.TestCase):
             solar_times(datetime.now(), 46, 6)
 
 
+    def test_repeatable_solar_events(self):
+        """Fixed inputs must be deterministic, including the DST boundary."""
+        for day in (date(2026, 1, 15), date(2026, 3, 29),
+                    date(2026, 10, 25), date(2026, 12, 21)):
+            with self.subTest(day=day):
+                first = solar_times(day, 46.5, 6.2)
+                self.assertEqual(first, solar_times(day, 46.5, 6.2))
+                for event in ("sunrise", "sunset"):
+                    self.assertEqual(first[event].date(), day)
+                    self.assertIsNotNone(first[event].utcoffset())
+
+    def test_timezone_conversion_same_utc_instant(self):
+        """Changing output timezone must not change the physical solar event."""
+        for day in (date(2026, 1, 15), date(2026, 6, 21),
+                    date(2026, 10, 25)):
+            with self.subTest(day=day):
+                swiss = solar_times(day, 46.5, 6.2, "Europe/Zurich")
+                utc = solar_times(day, 46.5, 6.2, "UTC")
+                for event in ("sunrise", "sunset"):
+                    self.assertEqual(swiss[event].timestamp(), utc[event].timestamp())
+                    self.assertEqual(utc[event].utcoffset().total_seconds(), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
