@@ -95,6 +95,12 @@ const assert=require('node:assert/strict');
  await page.locator('#setup-discover').click();
  await page.waitForFunction(()=>!document.querySelector('#setup-discover').disabled);
  assert.equal(await page.locator('#setup-bridges').isVisible(),false,'one result requires no dropdown');
+ await page.locator('#setup-ip').fill('10.0.0.2');
+ await page.locator('#setup-discover').click();
+ await page.locator('#setup-use-detected').waitFor({state:'visible'});
+ assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.2','saved IP not overwritten');
+ await page.locator('#setup-use-detected').click();
+ assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.12','explicit one-click use');
  // Typing while fetching survives the delayed discovery response.
  let releaseDiscovery;
  await page.route('**/api/setup/discover',async r=>{await new Promise(resolve=>releaseDiscovery=resolve);await r.fulfill({json:{ok:true,data:{bridges:['10.0.0.2','10.0.0.13']}}});});
@@ -115,9 +121,9 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>activeTab==='dashboard');
  assert.equal(writes.find(r=>r.url==='/api/setup/pair').data.ip,'10.0.0.12');
  // Vacations, manual commands, history and advanced diagnostics remain reachable.
- await page.locator('.light-card').first().locator('.light-switch').uncheck();
+ await page.locator('.light-card').first().locator('.switch').click();
  await page.waitForFunction(()=>!state.lights[0].on);
- await page.locator('.light-card').first().locator('.light-switch').check();
+ await page.locator('.light-card').first().locator('.switch').click();
  await page.locator('.light-card').first().locator('[data-control="auto"]').click();
  await page.locator('.light-card').first().locator('.light-rgb').click();
  await check(page.locator('#rgb-wheel').isVisible(),'color shortcut opens disclosure');

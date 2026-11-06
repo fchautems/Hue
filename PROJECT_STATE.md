@@ -375,3 +375,9 @@ Mise à jour : 2026-11-06
 - **Contrôles locaux :** 187 tests Python réussis ; six suites Node réussies, syntaxe JS et compilation Python valides. Scénarios navigateur ajoutés pour responsive 320/390/1320, profils/couleurs/simulation, IP asynchrone, association, copies, Vacances, historique, diagnostics et mises à jour.
 - **Limite :** Chromium local bloqué par création de socket système (Operation not permitted). Les scénarios navigateur seront exécutés par CI sur branche avant fusion. Aucun test matériel ni déploiement Raspberry. Données privées, schémas de stockage, worker Hue et services systemd inchangés.
 - **Prochaine action :** publication autorisée sur branche, CI navigateur, corrections éventuelles puis fusion et vérification de la CI main.
+
+### v0.8.0 — contrôle navigateur initial
+- CI PR #15 : Python, Node et scénario solaire réussis ; navigation responsive, simulation, sauvegardes/brouillons, copies et découverte passés jusqu'au contrôle marche/arrêt. Échec du script de test : il cliquait l'input masqué sous le décor de l'interrupteur, au lieu de son label visible. Test corrigé pour utiliser le contrôle réellement cliquable.
+- Captures 320/390/1320 relues : aucune troncature horizontale de la page. Suppression du titre « Courbe de luminosité » répété et du lien vers Diagnostics déjà dans ce même panneau. Navigation mobile rendue persistante pour garder l'accès aux mises à jour lors du défilement.
+- Ajout d'un bouton explicite « Utiliser [IP] » si un seul pont détecté diffère de l'adresse saisie : aucune frappe ni remplacement automatique nécessaire. Une configuration déjà appairée ne lance aucune recherche au simple passage dans Paramètres.
+- Prochaine action : rejouer la CI complète et terminer les parcours Vacances/diagnostics/installation initiale.

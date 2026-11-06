@@ -36,7 +36,7 @@ class ErgonomicsTests(unittest.TestCase):
             with self.subTest(uid=uid):
                 self.assertEqual(len(self.parser.ids[uid]), 1)
         self.assertIn('tab-profiles', self.parser.ids['clock-source'][0][2])
-        self.assertIn('tab-diagnostics', self.parser.ids['go-diagnostics'][0][2])
+        self.assertIn('tab-diagnostics', self.parser.ids['diag-lights'][0][2])
 
     def test_ip_is_not_filled_with_a_fictional_discovery(self):
         attrs = self.parser.ids['setup-ip'][0][1]

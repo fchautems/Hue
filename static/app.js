@@ -237,6 +237,8 @@ function setupSelection() {
 }
 async function discoverHue() {
   const input=$('#setup-ip');
+  const useDetected=$('#setup-use-detected');
+  useDetected.hidden=true;
   setSetupStatus('Recherche du pont sur le réseau…');
   const button=$('#setup-discover');button.disabled=true;
   try {
@@ -247,8 +249,12 @@ async function discoverHue() {
     select.hidden=ips.length<2;
     // Never overwrite a saved address or typing, including edits made while fetching.
     if(ips.length===1 && !input.value.trim() && !setupIpEdited)input.value=ips[0];
+    if(ips.length===1 && input.value.trim()!==ips[0]){
+      useDetected.textContent='Utiliser '+ips[0];
+      useDetected.dataset.ip=ips[0];useDetected.hidden=false;
+    }
     if(ips.length)setSetupStatus(ips.length===1
-      ? `Pont détecté : ${ips[0]}. ${input.value.trim()!==ips[0]?'Adresse saisie conservée ; tu peux la remplacer manuellement.':'Tu peux démarrer l’association si nécessaire.'}`
+      ? `Pont détecté : ${ips[0]}. ${input.value.trim()!==ips[0]?'Adresse saisie conservée ; utilise le bouton pour choisir ce pont.':'Tu peux démarrer l’association si nécessaire.'}`
       : `${ips.length} ponts détectés. Choisis un pont ou conserve l’adresse saisie.`);
     else setSetupStatus('Aucun pont trouvé. Adresse saisie conservée. Vérifie le réseau ou saisis l’IP de ton pont.',true);
   } catch(e) {setSetupStatus(e.message,true);}
@@ -260,17 +266,17 @@ async function initializeSetup() {
   try {
     const cfg=await api('/api/setup/status');
     if(cfg.ip && !setupIpEdited && !$('#setup-ip').value.trim())$('#setup-ip').value=cfg.ip;
-    if(cfg.paired){setSetupStatus('Une configuration existe. Si elle ne fonctionne plus, tu peux refaire l’association.');}
+    if(cfg.paired){setSetupStatus('Une configuration existe. Si elle ne fonctionne plus, tu peux refaire l’association.');return;}
   } catch(e){setSetupStatus(e.message,true);}
   // A working stored configuration does not require a discovery or pairing.
-  if(!$('#setup-ip').value.trim() && !setupIpEdited)await discoverHue();
+  await discoverHue();
 }
 async function pairHue() {
   if(setupInProgress)return;
   const ip=setupSelection();
   if(!ip){setSetupStatus('Sélectionne un pont ou saisis son adresse IP.',true);return;}
   setupInProgress=true;setupCancelled=false;
-  $('#setup-pair').disabled=true;$('#setup-ip').disabled=true;$('#setup-discover').disabled=true;$('#setup-bridges').disabled=true;$('#setup-cancel').classList.remove('hidden');
+  $('#setup-pair').disabled=true;$('#setup-ip').disabled=true;$('#setup-discover').disabled=true;$('#setup-bridges').disabled=true;$('#setup-use-detected').disabled=true;$('#setup-cancel').classList.remove('hidden');
   const stopAt=Date.now()+45000;
   try{
     while(Date.now()<stopAt && !setupCancelled){
@@ -291,7 +297,7 @@ async function pairHue() {
       if(!setupCancelled) await new Promise(resolve=>setTimeout(resolve,1500));
     }
     setSetupStatus(setupCancelled?'Association annulée.':'Délai écoulé. Relance l’association et appuie sur le bouton du pont.',!setupCancelled);
-  }finally{setupInProgress=false;$('#setup-pair').disabled=false;$('#setup-ip').disabled=false;$('#setup-discover').disabled=false;$('#setup-bridges').disabled=false;$('#setup-cancel').classList.add('hidden');}
+  }finally{setupInProgress=false;$('#setup-pair').disabled=false;$('#setup-ip').disabled=false;$('#setup-discover').disabled=false;$('#setup-bridges').disabled=false;$('#setup-use-detected').disabled=false;$('#setup-cancel').classList.add('hidden');}
 }
 
 function renderUpdateChanges(status){
@@ -359,12 +365,15 @@ function bindEvents(){
   $('#update-apply').onclick=()=>safe(()=>runUpdater('apply'));
   $('#setup-discover').onclick=()=>safe(discoverHue);
   $('#setup-ip').addEventListener('input',()=>{setupIpEdited=true;});
+  $('#setup-use-detected').onclick=()=>{
+    $('#setup-ip').value=$('#setup-use-detected').dataset.ip;
+    setupIpEdited=true;$('#setup-use-detected').hidden=true;
+  };
   $('#setup-bridges').onchange=e=>{if(e.target.value){$('#setup-ip').value=e.target.value;setupIpEdited=true;}};
   $('#setup-pair').onclick=()=>safe(pairHue);
   $('#setup-cancel').onclick=()=>{setupCancelled=true;setSetupStatus('Annulation demandée…');};
   $$('[data-tab]').forEach(btn=>btn.onclick=()=>setTab(btn.dataset.tab));
   $('#clock-source').onchange=e=>safe(async()=>{await api('/api/clock-mode','POST',{mode:e.target.value});showToast('Horloge '+(e.target.value==='reel'?'réelle':'accélérée')+' sélectionnée pour les lampes Auto.');await refresh();});
-  $('#go-diagnostics').onclick=()=>setTab('diagnostics');
   $('#sim-play').onclick=()=>safe(async()=>{await api('/api/simulation','POST',{running:!state.simulation.running});await refresh();});
   $('#sim-speed').onchange=e=>safe(async()=>{await api('/api/simulation','POST',{seconds_per_day:Number(e.target.value)});await refresh();});
   $('#time-slider').addEventListener('input',e=>{seekDragging=true;$('#seek-label').textContent=mm(Number(e.target.value));$('#hour-hand').setAttribute('transform',`rotate(${Number(e.target.value)/1440*360} 160 160)`);});

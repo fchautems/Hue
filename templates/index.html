@@ -128,7 +128,6 @@
         </div>
       </div>      </div><div class="curve-column">
 <details id="v061-advanced" class="v061-advanced" open><summary><span><strong>Courbe de luminosité</strong><small>Profil simple ou personnalisé · aperçu et enregistrement</small></span><span class="v061-chevron" aria-hidden="true">⌄</span></summary>
-      <div class="section-title space-top"><h2>Courbe de luminosité</h2><span>Personnalisable par ampoule, appliquée uniquement en Auto</span></div>
       <div class="card profile-card">
 
         <div class="v052-type-picker"><strong>Type de courbe</strong><div class="v052-tabs" role="group" aria-label="Type de courbe horaire"><button type="button" class="v052-mode active" data-type="custom" aria-pressed="true">Personnalisée</button><button type="button" class="v052-mode" data-type="simple" aria-pressed="false">Simple</button></div></div>
@@ -331,7 +330,7 @@
       <div class="setup-hero"><div class="eyebrow">CONNEXION LOCALE</div><h2>Connecter le pont Philips Hue</h2><p>Tout se fait ici. Aucun fichier de configuration à modifier et aucune commande à saisir.</p></div>
       <div class="card setup-card">
         <div class="setup-step"><div class="step-n">1</div><div><h3>Découvrir ton pont</h3><p>La recherche utilise le service Hue puis, si nécessaire, le réseau local. Tu peux aussi indiquer directement son adresse IP.</p>
-          <div class="setup-row"><button id="setup-discover" type="button" class="btn primary">Rechercher le pont</button><select id="setup-bridges" hidden class="field" aria-label="Pont détecté"><option value="">Aucun pont sélectionné</option></select></div>
+          <div class="setup-row"><button id="setup-discover" type="button" class="btn primary">Rechercher le pont</button><button id="setup-use-detected" type="button" class="btn muted" hidden>Utiliser le pont détecté</button><select id="setup-bridges" hidden class="field" aria-label="Pont détecté"><option value="">Aucun pont sélectionné</option></select></div>
           <label class="field-label" for="setup-ip">Adresse IP du pont</label>
           <input id="setup-ip" class="field setup-ip" placeholder="Ex. 10.0.0.12" autocomplete="off" inputmode="decimal">
         </div></div>
@@ -346,7 +345,7 @@
 
     <section id="tab-diagnostics" class="settings-panel hidden">
       <div class="section-title space-top"><h2>Comportement après coupure secteur</h2><span>À paramétrer par ampoule dans les paramètres avancés</span></div>
-      <div class="card auto-card"><div><h3>Démarrage doux — 10 % recommandé</h3><p>Configure chaque ampoule compatible à 10 % dans les paramètres avancés. Pour une lampe en Auto, le serveur corrige ensuite progressivement vers la courbe de luminosité.</p></div><button id="go-diagnostics" class="btn muted">Voir les diagnostics</button></div>
+      <div class="card auto-card"><div><h3>Démarrage doux — 10 % recommandé</h3><p>Configure chaque ampoule compatible à 10 % dans les paramètres avancés. Pour une lampe en Auto, le serveur corrige ensuite progressivement vers la courbe de luminosité.</p></div></div>
       <div class="hint">Si l'interrupteur mural coupe le courant, la luminosité au tout premier instant dépend du réglage <strong>powerup</strong> de l'ampoule. Le serveur ne peut intervenir qu'après la reconnexion au pont.</div>
       <div class="section-title"><h2>État du pont et capacités</h2><button id="refresh-diagnostics" class="btn muted">↻ Actualiser</button></div>
       <div class="card"><div id="diag-meta" class="diag-meta">Lecture du pont…</div><div id="diag-lights" class="diag-lights"></div><div class="diag-actions"><button id="export-diag" class="btn muted">↓ Exporter diagnostic JSON</button></div></div>
