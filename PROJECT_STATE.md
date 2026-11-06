@@ -381,3 +381,10 @@ Mise à jour : 2026-11-06
 - Captures 320/390/1320 relues : aucune troncature horizontale de la page. Suppression du titre « Courbe de luminosité » répété et du lien vers Diagnostics déjà dans ce même panneau. Navigation mobile rendue persistante pour garder l'accès aux mises à jour lors du défilement.
 - Ajout d'un bouton explicite « Utiliser [IP] » si un seul pont détecté diffère de l'adresse saisie : aucune frappe ni remplacement automatique nécessaire. Une configuration déjà appairée ne lance aucune recherche au simple passage dans Paramètres.
 - Prochaine action : rejouer la CI complète et terminer les parcours Vacances/diagnostics/installation initiale.
+
+### v0.8.0 — validation complète avant fusion
+- **État vérifié :** code `ca304929a3e97f70752f2aebddd1083511dc4808`, PR #15 ; [CI 42250031236](https://github.com/fchautems/Hue/actions/runs/42250031236) completed/success.
+- **Contrôles :** 187 tests Python ; six suites Node ; compilation Python/syntaxe JS ; deux scénarios Chromium complets. Responsive 320/390/1320 px, horloge visible, aucune page débordant horizontalement, sauvegarde/annulation/brouillons des profils simple/personnalisé/RGB, deux copies, référence réelle/accélérée et pause/vitesse, IP conservée pendant recherche, sélection explicite du pont, association, ON/OFF et Manuel/Auto, Vacances et test 60 s, historique, dialogue powerup, export JSON, logs, badge et disponibilité de l'installation.
+- **Relecture visuelle :** captures finales 390 et 1320 relues, captures 320 de la première passe également relues ; doublons de titres corrigés. Contrôles utiles conservés ; seul l'ancien raccourci Diagnostics devenu une auto-navigation dans son nouveau panneau a été retiré.
+- **Limites :** pont simulé uniquement ; SSDP dépend du support/filtrage multicast du réseau. Pas d'essai physique ni de déploiement Raspberry. Pas de migration de données, schémas de profils et moteurs inchangés. Tâche automatique laissée en pause.
+- **Prochaine action :** fusion autorisée sur main, vérification CI post-fusion ; puis installation depuis Mises à jour sur Raspberry et validation matérielle par Fréd.
