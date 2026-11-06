@@ -49,6 +49,7 @@
     return '';
   }
   function level(p, minute) {
+    if(p.solar_rhythm)return window.HueRhythm.brightness(p,minute);
     const m = ((minute%1440)+1440)%1440;
     const lo=p.min_brightness, hi=p.max_brightness;
     if(m<=p.wake || m>=p.bed)return lo;
@@ -74,7 +75,7 @@
     updateUI(error);
   }
   function updateUI(error='') {
-    simpleDirty = viewType !== activeType || keys.some(k=>params[k]!==saved[k]);
+    simpleDirty = viewType !== activeType || (JSON.stringify(params)!==JSON.stringify(saved));
     buttons.forEach(b=>{const chosen=b.dataset.type===viewType;b.classList.toggle('active',chosen);b.setAttribute('aria-pressed',String(chosen));});
     card.dataset.v052View = viewType;
     container.hidden=viewType!=='simple';
@@ -121,6 +122,7 @@
   for(const [key,field] of Object.entries(fields)) {
     field.addEventListener(clockKeys.includes(key)?'change':'input',()=>{
       const value=clockKeys.includes(key)?parseTime(field.value):Number(field.value);
+      delete params.solar_rhythm;delete params.solar_colors;
       params[key]=value;
       if(!clockKeys.includes(key))document.querySelector(`#v052-${key}-value`).textContent=`${value} %`;
       draw();
@@ -130,7 +132,7 @@
     if(loading||saving||window.HueSolar?.isBusy()||viewType===btn.dataset.type)return;
     // A different view alone is a preview: allow returning to the saved type.
     // Guard actual field edits until they are saved or cancelled.
-    if(profileDirty || keys.some(k=>params[k]!==saved[k]) || window.HueSolar?.hasChanges()){
+    if(profileDirty || (JSON.stringify(params)!==JSON.stringify(saved)) || window.HueSolar?.hasChanges()){
       showToast('Enregistre ou annule les modifications avant de changer de type de courbe.',true);return;
     }
     viewType=btn.dataset.type;
@@ -184,7 +186,7 @@
   window.addEventListener('beforeunload',e=>{if(simpleDirty||window.HueSolar?.hasChanges()){e.preventDefault();e.returnValue='';}});
   window.HueProfiles={
     hasUnsaved:()=>simpleDirty||profileDirty||!!window.HueSolar?.hasChanges(),
-    hasFieldEdits:()=>profileDirty||keys.some(k=>params[k]!==saved[k]),
+    hasFieldEdits:()=>profileDirty||(JSON.stringify(params)!==JSON.stringify(saved)),
     reload:()=>loadProfile()
   };
   fillFields();updateUI();

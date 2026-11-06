@@ -1,3 +1,12 @@
+# v0.10.0 — Réveil anticipé, soirée confortable — 2026-11-06 — EN VALIDATION
+
+- Soleil : niveaux de confort et saturation réglables au réveil/coucher, durée commune avant réveil/après coucher, nuit au minimum lumineux et saturation 100 %.
+- Courbes en S asymétriques : montée avancée, baisse retardée ; transitions nocturnes possibles à travers minuit, sans chevauchement.
+- Trois teintes pleines matin/soir/nuit et blanc de journée indépendant, référence 5’000 K ajustable de 4’000 à 6’500 K. Conversion xy et gamut de la lampe ; aperçu écran indicatif.
+- Formulaire par lampe avec un seul enregistrement, deux courbes luminosité/saturation et aperçu daté sans commande. L’ancien profil est conservé jusqu’à l’adoption explicite.
+- Persistance, saisons, fuseau, Manuel/OFF/Vacances et copies préservés. La copie de luminosité seule ne remplace pas les couleurs de destination.
+- Contrôles locaux : 207 tests Python et six suites Node réussis ; contrôles navigateur en CI avant fusion (Chromium local bloqué par le système). Aucun essai matériel ni déploiement Raspberry.
+
 # v0.9.0 — Soleil au quotidien — 2026-11-06 — PUBLIÉE SUR MAIN
 
 - Un seul choix de profil par lampe : Simple, Personnalisé ou Soleil.

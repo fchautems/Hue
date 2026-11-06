@@ -34,6 +34,7 @@
   }
   function brightnessAt(m) {
     const p=draft.simple_params,low=p.min_brightness,high=p.max_brightness;
+    if(p.solar_rhythm)return window.HueRhythm.brightness(p,m);
     const progress=(t,evening=false)=>ease(p.transition_shape==='asymmetric'?(evening?t*t:1-(1-t)**2):t);
     if(m<=p.wake||m>=p.bed)return low;
     if(m<p.morning_end)return low+(high-low)*progress((m-p.wake)/(p.morning_end-p.wake));
@@ -98,9 +99,15 @@
     $('#rgb-auto-phases').hidden=draft.mode==='manuel';
     $('#rgb-auto-settings').hidden=draft.mode==='manuel';
     const solar=profileType==='solar';
+    const rhythmSolar=solar&&!!draft.simple_params.solar_rhythm&&draft.mode==='auto';
+    $('#rgb-auto-phases').hidden=draft.mode==='manuel'||rhythmSolar;
+    $('#rgb-auto-settings').hidden=draft.mode==='manuel'||rhythmSolar;
+    $('.rgb-wheel-layout').hidden=rhythmSolar;
+    $('#rgb-presets').hidden=rhythmSolar;
+    $('#rgb-presets-title').hidden=rhythmSolar;
     $('#rgb-schedule-toggle').parentElement.hidden=solar&&draft.mode==='auto';
     $('#rgb-bright').parentElement.hidden=solar&&draft.mode==='auto';
-    $('#rgb-mode-advisory').textContent=solar&&draft.mode==='auto'?'Les horaires et la luminosité suivent Soleil ; tu peux ajuster les couleurs ici.':draft.mode==='auto'
+    $('#rgb-mode-advisory').textContent=rhythmSolar?'Les couleurs, le blanc de journée et les courbes se règlent directement dans le profil Soleil.':solar&&draft.mode==='auto'?'Les horaires et la luminosité suivent Soleil ; tu peux ajuster les couleurs ici.':draft.mode==='auto'
       ? 'Enregistrer active la courbe Simple et les couleurs automatiques ; l’ancienne courbe personnalisée reste conservée.'
       : 'Enregistrer applique la couleur seulement si la lampe est déjà allumée ; sinon elle sera mémorisée pour le prochain allumage via Hue Lab.';
     const e=errorMessage();const err=$('#rgb-validation');err.textContent=e;err.hidden=!e;
@@ -132,11 +139,12 @@
   $$('.rgb-phase').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;selectedPhase=button.dataset.phase;render()}));
   $$('.rgb-seg button').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;draft.mode=button.dataset.mode;render()}));
   $$('#rgb-presets button').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;selected().h=Number(button.dataset.h);selected().s=Number(button.dataset.s);render()}));
+  function editSchedule(){delete draft.simple_params.solar_rhythm;delete draft.simple_params.solar_colors;}
   $('#rgb-sat').addEventListener('input',e=>{if(!draft)return;selected().s=Number(e.target.value);render()});
-  $('#rgb-bright').addEventListener('input',e=>{if(!draft)return;if(draft.mode==='manuel')draft.manual.b=Number(e.target.value);else draft.simple_params.max_brightness=Number(e.target.value);render()});
-  $('#rgb-min').addEventListener('input',e=>{if(!draft)return;draft.simple_params.min_brightness=Number(e.target.value);render()});
-  $('#rgb-max').addEventListener('input',e=>{if(!draft)return;draft.simple_params.max_brightness=Number(e.target.value);render()});
-  for(const key of timeKeys){$(`#rgb-${key}`).addEventListener('change',e=>{if(!draft)return;const value=parseClock(e.target.value);if(Number.isNaN(value)){setFeedback('Heure invalide.',true);e.target.value=fmt(draft.simple_params[key]);return;}draft.simple_params[key]=value;render()});}
+  $('#rgb-bright').addEventListener('input',e=>{if(!draft)return;if(draft.mode==='manuel')draft.manual.b=Number(e.target.value);else {editSchedule();draft.simple_params.max_brightness=Number(e.target.value);}render()});
+  $('#rgb-min').addEventListener('input',e=>{if(!draft)return;editSchedule();draft.simple_params.min_brightness=Number(e.target.value);render()});
+  $('#rgb-max').addEventListener('input',e=>{if(!draft)return;editSchedule();draft.simple_params.max_brightness=Number(e.target.value);render()});
+  for(const key of timeKeys){$(`#rgb-${key}`).addEventListener('change',e=>{if(!draft)return;const value=parseClock(e.target.value);if(Number.isNaN(value)){setFeedback('Heure invalide.',true);e.target.value=fmt(draft.simple_params[key]);return;}editSchedule();draft.simple_params[key]=value;render()});}
   $('#rgb-schedule-toggle').addEventListener('click',()=>{const button=$('#rgb-schedule-toggle');const show=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(show));$('#rgb-schedule-chevron').textContent=show?'⌃':'⌄';$('#rgb-schedule-content').hidden=!show;});
   function listLights(){
     const lights=state?.lights||[];

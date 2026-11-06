@@ -115,7 +115,7 @@ const assert=require('node:assert/strict');
  await page.locator('#solar-wake').fill('05:15');
  await page.locator('#solar-bed').fill('22:30');
  await page.locator('#solar-date').fill('2026-11-06');
- await page.waitForFunction(()=>document.querySelector('#solar-draft-hours').textContent.includes('05:15–07:23'));
+ await page.waitForFunction(()=>document.querySelector('#solar-draft-hours').textContent.includes('04:45–05:15'));
  await page.locator('#solar-save').click();
  await page.waitForFunction(()=>document.querySelector('#v052-type-status').textContent.includes('Soleil actif'));
  const solarSaved=await page.evaluate(()=>api('/api/profile/solar/light-1'));
