@@ -69,5 +69,26 @@ class SolarTests(unittest.TestCase):
                     self.assertEqual(utc[event].utcoffset().total_seconds(), 0)
 
 
+
+    def test_equinox_progression_nyon(self):
+        """Around the March equinox daylight grows smoothly in absolute time."""
+        from datetime import timedelta, timezone
+        days = [date(2026, 3, d) for d in (17, 19, 21, 23)]
+        results = [solar_times(day, 46.38, 6.24) for day in days]
+        for day, result in zip(days, results):
+            with self.subTest(day=day):
+                self.assertEqual(result["sunrise"].date(), day)
+                self.assertEqual(result["sunset"].date(), day)
+                self.assertLess(result["sunrise"], result["sunset"])
+        # Compare local clock hours; all dates precede the Swiss DST switch.
+        minutes = lambda instant: instant.hour * 60 + instant.minute + instant.second / 60
+        sunrise = [minutes(result["sunrise"]) for result in results]
+        sunset = [minutes(result["sunset"]) for result in results]
+        self.assertTrue(all(a > b for a, b in zip(sunrise, sunrise[1:])))
+        self.assertTrue(all(a < b for a, b in zip(sunset, sunset[1:])))
+        # No unexpected multi-hour jumps over a two-day interval.
+        self.assertTrue(all(0 < a - b < 12 for a, b in zip(sunrise, sunrise[1:])))
+        self.assertTrue(all(0 < b - a < 12 for a, b in zip(sunset, sunset[1:])))
+
 if __name__ == "__main__":
     unittest.main()

@@ -301,3 +301,11 @@ Mise à jour : 2026-10-23
 - **Plan précis cycle 2026-11-06 08 h :** commencer par tests/test_solar.py et hue_solar.py : tester la cohérence du calcul autour de l'équinoxe, sans modifier le moteur de lampes ; ajouter un test de progression saisonnière et corriger seulement si nécessaire. Critère : suite CI verte, dates locales correctes, aucun effet sur Hue. En journée, envisager ensuite un aperçu ergonomique des heures solaires sans commande matérielle.
 
 - **Publication confirmée 04 h :** PR #10 fusionnée sur main c3eda0f7b7bdbdf26ad48a9736b4df2b2347504a ; CI PR 42153467048 completed/success ; CI main 42153532541 completed/success. Prochain incrément : test de progression équinoxe dans tests/test_solar.py, puis aperçu non pilotant.
+
+
+## Cycle 2026-11-06 08 h (Europe/Zurich) — v0.6.13
+- **État vérifié :** main 07371be (documentation v0.6.12) ; PR #11 créée sur branche isolée. Dernière version de code confirmée sur main : v0.6.12.
+- **Changements :** tests/test_solar.py : nouveau test de progression des levers/couchers autour de l'équinoxe de mars à Nyon (dates locales, progression monotone, absence de sauts anormaux). Aucun changement du moteur Hue, stockage, modes ni Raspberry.
+- **Contrôles :** GitHub Actions run 42177586752 lancé ; attendre le verdict completed/success avant toute fusion. Clone local impossible (DNS GitHub indisponible). Aucun test matériel.
+- **Blocage :** CI en cours ; ne pas fusionner avant conclusion.
+- **Prochaine session 2026-11-06 12 h :** commencer par le verdict de la PR #11 ; si verte, fusionner et vérifier la CI main. Puis examiner templates/index.html et static/v061.js pour une prévisualisation des horaires solaires en lecture seule, sans sauvegarde ni commandes. Critère : horaires visibles sur téléphone et PC, aucun appel de commande Hue, tests UI/CI verts. Risque : intégration UI ; préserver Manuel/Auto et simulation accélérée.
