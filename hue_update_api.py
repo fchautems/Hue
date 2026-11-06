@@ -6,12 +6,14 @@ processus. Toutes les commandes systemctl utilisent des noms d'unités fixes.
 from __future__ import annotations
 
 import ipaddress
+import re
 import json
 import os
 from pathlib import Path
 import subprocess
 from urllib.parse import urlsplit
 
+ROOT = Path(__file__).resolve().parent
 HOME = Path.home()
 STATUS_FILE = Path(os.environ.get("HUE_UPDATE_STATUS_FILE", HOME / ".local/state/hue-lab-update/status.json"))
 MANAGER_WORKER = Path(os.environ.get("HUE_UPDATE_WORKER_PATH", HOME / ".local/share/hue-lab-updater/worker.py"))
@@ -81,17 +83,67 @@ def worker_installed() -> bool:
     return MANAGER_WORKER.is_file() and UPDATE_SERVICE.is_file()
 
 
+def local_revision() -> str | None:
+    """Read the installed Git SHA without calling Git or contacting GitHub."""
+    git_dir = ROOT / ".git"
+    try:
+        if git_dir.is_file():
+            pointer = git_dir.read_text(encoding="utf-8").strip()
+            if not pointer.startswith("gitdir:"):
+                return None
+            git_dir = (ROOT / pointer[7:].strip()).resolve()
+        head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+        if head.startswith("ref: "):
+            ref = head[5:]
+            if not ref.startswith("refs/") or ".." in Path(ref).parts:
+                return None
+            ref_file = git_dir / ref
+            if ref_file.is_file():
+                head = ref_file.read_text(encoding="utf-8").strip()
+            else:
+                packed = (git_dir / "packed-refs").read_text(encoding="utf-8")
+                matches = [line.split(" ", 1)[0] for line in packed.splitlines()
+                           if line.endswith(" " + ref)]
+                if not matches:
+                    return None
+                head = matches[-1]
+        return head[:12] if re.fullmatch(r"[a-fA-F0-9]{40,64}", head) else None
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
+def latest_release_note() -> str | None:
+    """Fallback for the first upgrade, whose old worker cannot save release notes."""
+    try:
+        lines = (ROOT / "RELEASE_LOG.md").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return None
+    in_entry = False
+    for line in lines:
+        if line.startswith("## "):
+            if in_entry:
+                break
+            in_entry = True
+        elif in_entry and line.startswith("- **Code concret :** "):
+            return line[len("- **Code concret :** "):][:400]
+    return None
+
+
 def status() -> dict:
     data = {"configured": worker_installed(), "phase": "idle", "busy": False}
     if STATUS_FILE.is_file():
         try:
             raw = json.loads(STATUS_FILE.read_text(encoding="utf-8"))
             if isinstance(raw, dict):
-                for key in ("phase", "busy", "message", "installed", "remote", "available", "updated_at", "rollback"):
+                for key in ("phase", "busy", "message", "installed", "remote", "available", "updated_at", "rollback", "changes", "change_kind", "last_changes", "last_change_kind"):
                     if key in raw:
                         data[key] = raw[key]
         except (OSError, ValueError, TypeError):
             pass
+    revision = local_revision()
+    if revision:
+        data["installed"] = revision
+    data["latest_note"] = latest_release_note()
     return data
 
 
