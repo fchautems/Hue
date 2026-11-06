@@ -90,7 +90,9 @@ const assert=require('node:assert/strict');
  const values=await page.evaluate(()=>{window.targetObserver.disconnect();return window.targetValues;});
  assert.ok(values.length>5,'sample several timer updates');
  assert.ok(values.every(v=>v===expectTarget),`conflicting target writers: ${values.join(', ')}`);
- await page.locator('#v052-cancel').click();
+ // Return to the saved simple profile; its cancel button is hidden in custom view.
+ await page.locator('.v052-mode[data-type="simple"]').click();
+ await page.waitForFunction(()=>!window.HueProfiles.hasUnsaved());
  await page.locator('#clock-source').selectOption('reel');
  await page.waitForFunction(()=>state.clock_mode==='reel');
  // Colors remain editable; cancelling a navigation retains the draft.

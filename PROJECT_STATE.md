@@ -2,6 +2,15 @@
 
 Mise à jour : 2026-11-06
 
+## Reprise v0.8.1 — 2026-11-06
+- Périmètre confirmé avec la conversation précédente : cible stable, ergonomie Profils & simulation, suppression des plafonds de deux/trois heures ; montée avancée, baisse retardée, teintes calées sur les horaires solaires.
+- PR #16 reprise au commit 9828793. CI 42262017834 : Python, Node et navigateur solaire réussis ; parcours ergonomique bloqué par un clic du test sur Annuler, masqué après passage à la vue personnalisée.
+- Correction du scénario : retour par le bouton Simple et vérification de l’absence de brouillon, sans supprimer le contrôle anti-alternance de la cible.
+- Contrôles de reprise : 192 tests Python et six suites Node réussis localement. Chromium local échoue sur la création du socket système ; validation navigateur par CI requise.
+- Blocage : l’envoi du commit local 21779c8 vers fchautems/Hue, branche fix/solar-target-v081 (PR #16), a été refusé par la revue automatique pour autorisation destination/contenu insuffisamment explicite. Aucune nouvelle tentative ni fusion.
+- Accord ciblé reçu le 2026-11-06 : Fréd confirme « Oui toujours » à l’envoi des corrections v0.8.1 dans fchautems/Hue, PR #16, puis fusion si tous les contrôles passent. Blocage d’autorisation résolu.
+- Prochaine action : envoyer ces corrections, vérifier la CI et les captures, puis fusionner si succès. Aucun accès matériel ni reprise de la tâche automatique.
+
 ## Correctifs v0.8.1 en cours — 2026-11-06
 - Demande confirmée : corriger la cible instable, supprimer les limites solaires de 2/3 heures, montée plus rapide le matin et baisse plus tardive le soir ; clarifier cet écran.
 - État vérifié : base main 6949331, aucun MODEL_GUIDE.md/AGENTS.md dans le dépôt. Brain non exposé. Deux écrivains concurrents du champ cible identifiés (timer app.js enregistré avant surcharge v052.js).
