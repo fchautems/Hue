@@ -10,13 +10,21 @@ def draft_profile(day, latitude, longitude, tz, wake, bed, low=10, high=85):
     times = solar_times(day, latitude, longitude, tz)
     minute = lambda value: value.hour * 60 + value.minute
     rise, sunset = times['sunrise'], times['sunset']
-    # Personal rhythm is authoritative: solar adjustment remains bounded.
-    morning_end = max(wake + 30, min(wake + 120, minute(rise) + 30 if rise else wake + 60))
-    evening_start = max(morning_end, bed - 180, min(bed - 30, minute(sunset) if sunset else bed - 90))
+    # Solar anchors are used directly. Only the existing 30-minute minimum
+    # and chronological order constrain days outside the user's waking hours.
+    rise_minute = minute(rise) if rise else wake + 60
+    set_minute = minute(sunset) if sunset else bed - 90
+    morning_end = max(wake + 30, min(bed - 30, rise_minute))
+    evening_start = max(morning_end, min(bed - 30, set_minute))
     params = validate_simple_profile(dict(wake=wake, morning_end=morning_end,
-        evening_start=evening_start, bed=bed, min_brightness=low, max_brightness=high))
+        evening_start=evening_start, bed=bed, min_brightness=low, max_brightness=high,
+        transition_shape="asymmetric"))
     colors = validate_rgb_phases(DEFAULT_RGB_PHASES)
     samples = [dict(minute=m, brightness=simple_brightness_at(params, m),
                     color=rgb_at(colors, params, m)) for m in range(0, 1441, 15)]
+    note = ""
+    if rise and sunset and (morning_end != rise_minute or evening_start != set_minute):
+        note = "Soleil hors de ta plage de veille : horaires ajustés pour conserver l’ordre et au moins 30 minutes par transition."
     return dict(day=day.isoformat(), params=params, colors=colors, samples=samples,
+                timing_note=note,
                 polar_fallback=rise is None or sunset is None)

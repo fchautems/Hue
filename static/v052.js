@@ -13,15 +13,12 @@
   const clockKeys = ['wake','morning_end','evening_start','bed'];
   const buttons = [...document.querySelectorAll('.v052-mode')];
   const fields = Object.fromEntries(keys.map(key => [key, document.querySelector(`#v052-${key}`)]));
-  const target = document.querySelector('#profile-target');
   const typeStatus = document.querySelector('#v052-type-status');
   const formError = document.querySelector('#v052-error');
   const save = document.querySelector('#v052-save');
   const cancel = document.querySelector('#v052-cancel');
   const activateCustom = document.querySelector('#v052-activate-custom');
   const originalLoad = loadProfile;
-  const originalRender = renderChart;
-  const originalTick = tickClock;
   let activeType = 'custom';
   let viewType = 'custom';
   let params = {...DEFAULT};
@@ -39,6 +36,7 @@
     return h < 24 && m < 60 ? h*60 + m : NaN;
   };
   const ease = raw => {const t = Math.max(0,Math.min(1,raw));return t*t*t*(t*(6*t-15)+10)};
+  const progress = (t, evening=false) => ease(params.transition_shape==='asymmetric'?(evening?t*t:1-(1-t)**2):t);
   function validate(p) {
     if (keys.some(k => !Number.isInteger(p[k]))) return 'Renseigne toutes les valeurs.';
     if (!(0 <= p.wake && p.wake < p.morning_end && p.morning_end <= p.evening_start &&
@@ -54,9 +52,9 @@
     const m = ((minute%1440)+1440)%1440;
     const lo=p.min_brightness, hi=p.max_brightness;
     if(m<=p.wake || m>=p.bed)return lo;
-    if(m<p.morning_end)return lo+(hi-lo)*ease((m-p.wake)/(p.morning_end-p.wake));
+    if(m<p.morning_end)return lo+(hi-lo)*progress((m-p.wake)/(p.morning_end-p.wake));
     if(m<=p.evening_start)return hi;
-    return hi-(hi-lo)*ease((m-p.evening_start)/(p.bed-p.evening_start));
+    return hi-(hi-lo)*progress((m-p.evening_start)/(p.bed-p.evening_start),true);
   }
   function draw() {
     const svg = document.querySelector('#v052-chart');
@@ -73,7 +71,6 @@
     svg.innerHTML=`<defs><linearGradient id="v052-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#85d5c0" stop-opacity=".25"/><stop offset="100%" stop-color="#85d5c0" stop-opacity="0"/></linearGradient></defs>${grid}${fill}<path d="${path}" fill="none" stroke="#85d5c0" stroke-width="3.5" vector-effect="non-scaling-stroke"/>`;
     formError.textContent=error;
     formError.hidden=!error;
-    target.textContent=error?'Cible — %':`Cible ${Math.round(level(params,currentMinute()))} %`;
     updateUI(error);
   }
   function updateUI(error='') {
@@ -119,16 +116,6 @@
     await originalLoad();
     await fetchProfile();
   };
-  // v0.5.1 garde le graphique de la courbe personnalisée ; masquer seulement sa présentation.
-  renderChart = function() {
-    originalRender();
-    if(viewType==='simple' && !validate(params))target.textContent=`Cible ${Math.round(level(params,currentMinute()))} %`;
-  };
-  tickClock = function() {
-    originalTick();
-    if(viewType==='simple' && !validate(params))target.textContent=`Cible ${Math.round(level(params,currentMinute()))} %`;
-  };
-
   for(const [key,field] of Object.entries(fields)) {
     field.addEventListener(clockKeys.includes(key)?'change':'input',()=>{
       const value=clockKeys.includes(key)?parseTime(field.value):Number(field.value);
@@ -139,7 +126,9 @@
   }
   buttons.forEach(btn=>btn.addEventListener('click',()=>{
     if(loading||saving||viewType===btn.dataset.type)return;
-    if(profileDirty || simpleDirty){
+    // A different view alone is a preview: allow returning to the saved type.
+    // Guard actual field edits until they are saved or cancelled.
+    if(profileDirty || keys.some(k=>params[k]!==saved[k])){
       showToast('Enregistre ou annule les modifications avant de changer de type de courbe.',true);return;
     }
     viewType=btn.dataset.type;

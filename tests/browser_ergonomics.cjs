@@ -65,6 +65,38 @@ const assert=require('node:assert/strict');
  await nav('settings').click();
  assert.equal(await page.evaluate(()=>activeTab),'profiles');
  await page.locator('#v052-cancel').click();
+ // Saved server target must stay authoritative across both periodic callbacks,
+ // simple/custom editor switches and unsaved drafts (old UI alternated values).
+ await page.locator('#clock-source').selectOption('accelere');
+ await page.waitForFunction(()=>state.clock_mode==='accelere');
+ await page.evaluate(async()=>{
+   await api('/api/clock-mode','POST',{mode:'accelere'});
+   await api('/api/simulation','POST',{minute:720,running:false});
+ });
+ // refresh() may already be awaiting a response sampled before the pause.
+ await page.waitForFunction(()=>!state.simulation.running&&Math.abs(state.minute-720)<.01);
+ const activeTarget=await page.evaluate(()=>Math.round(state.lights.find(l=>l.id===selectedId).target));
+ const expectTarget=`Cible active ${activeTarget} %`;
+ await page.evaluate(()=>{
+   window.targetValues=[];
+   window.targetObserver=new MutationObserver(()=>window.targetValues.push(document.querySelector('#profile-target').textContent));
+   window.targetObserver.observe(document.querySelector('#profile-target'),{childList:true,subtree:true,characterData:true});
+ });
+ await page.locator('#v052-max_brightness').fill('92');
+ await page.waitForTimeout(2300);
+ await page.locator('.v052-mode[data-type="custom"]').click();
+ assert.equal(await page.locator('.profile-card').getAttribute('data-v052-view'),'simple','field edits remain guarded');
+ await page.locator('#v052-cancel').click();
+ await page.locator('.v052-mode[data-type="custom"]').click();
+ await page.waitForTimeout(1100);
+ const values=await page.evaluate(()=>{window.targetObserver.disconnect();return window.targetValues;});
+ assert.ok(values.length>5,'sample several timer updates');
+ assert.ok(values.every(v=>v===expectTarget),`conflicting target writers: ${values.join(', ')}`);
+ // Return to the saved simple profile; its cancel button is hidden in custom view.
+ await page.locator('.v052-mode[data-type="simple"]').click();
+ await page.waitForFunction(()=>!window.HueProfiles.hasUnsaved());
+ await page.locator('#clock-source').selectOption('reel');
+ await page.waitForFunction(()=>state.clock_mode==='reel');
  // Colors remain editable; cancelling a navigation retains the draft.
  await page.locator('#profile-colors > summary').click();
  await page.waitForFunction(()=>document.querySelector('#rgb-status').textContent.includes('RGB')||document.querySelector('#rgb-status').textContent.includes('Configuration'));
@@ -78,6 +110,30 @@ const assert=require('node:assert/strict');
  assert.ok(writes.some(r=>r.url==='/api/rgb/light-0'&&r.data.manual));
  await page.locator('#profile-light').selectOption('light-1');
  await page.waitForFunction(()=>selectedId==='light-1'&&window.HueRGB.currentId()==='light-1');
+ // Solar preparation: exact solar anchors, asymmetric saved profile and feedback.
+ await page.locator('#profile-solar > summary').click();
+ await page.locator('#solar-date').fill('2026-11-06');
+ await page.getByRole('button',{name:'Voir cette journée'}).click();
+ await page.locator('#solar-results').waitFor({state:'visible'});
+ await page.locator('#solar-wake').fill('05:15');
+ await page.locator('#solar-bed').fill('22:30');
+ await page.locator('#solar-generate').click();
+ await page.locator('#solar-draft').waitFor({state:'visible'});
+ await check(page.locator('#solar-apply').textContent().then(t=>t.includes('Salon')),'apply names selected lamp');
+ page.once('dialog',d=>d.accept());
+ await page.locator('#solar-apply').click();
+ await page.waitForFunction(()=>document.querySelector('#solar-apply-status').textContent.includes('Manuel'));
+ const solarSaved=await page.evaluate(()=>api('/api/profile/simple/light-1'));
+ const sun=await page.evaluate(()=>api('/api/solar/preview?day=2026-11-06'));
+ assert.equal(solarSaved.params.morning_end,Math.floor(sun.sunrise_minute));
+ assert.equal(solarSaved.params.evening_start,Math.floor(sun.sunset_minute));
+ assert.equal(solarSaved.params.transition_shape,'asymmetric');
+ assert.equal(solarSaved.params.wake,315);
+ for(const width of [320,390,1320]){
+   await page.setViewportSize({width,height:1000});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   await page.locator('.solar-card').screenshot({path:`/tmp/hue-ergonomics-solar-${width}.png`});
+ }
  // Both copy operations retain their distinct behavior and confirmation.
  await page.locator('.profile-copy > summary').click();
  await page.locator('#v062-copy-source').selectOption('light-0');
