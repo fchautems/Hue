@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');
 (async()=>{
  const browser=await chromium.launch({headless:true});
- const page=await browser.newPage();
+ const page=await browser.newPage({locale:'fr-CH'});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:8765');
  await page.waitForTimeout(700);
@@ -12,7 +12,7 @@ const {chromium}=require('playwright');
   await page.locator('#solar-title').scrollIntoViewIfNeeded();
   const overflow=await page.locator('.solar-card').evaluate(el=>el.scrollWidth>el.clientWidth);
   if(overflow)throw Error('solar overflow '+width);
-  await page.screenshot({path:'/tmp/hue-solar-'+width+'.png',fullPage:false});
+  await page.locator('.solar-card').screenshot({path:'/tmp/hue-solar-'+width+'.png'});
  }
  await page.locator('#solar-date').fill('2026-06-21');
  if(await page.locator('#solar-results').isVisible())throw Error('stale results visible');

@@ -1,4 +1,4 @@
-.solar-card{margin-bottom:20px;min-width:0}
+.solar-card{margin-bottom:20px;min-width:0;padding:24px}
 .solar-card [hidden]{display:none!important}
 .solar-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .solar-card p,.solar-card small{line-height:1.6;color:var(--muted,#a7bdcf)}
