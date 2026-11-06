@@ -96,6 +96,22 @@ const assert=require('node:assert/strict');
  await page.locator('#solar-date').fill('2027-06-21');
  await page.waitForFunction(()=>document.querySelector('#solar-draft-hours').textContent.includes('Soleil absent'));
  await page.locator('#solar-cancel').click();
+ // A fixed brightness copy preserves destination colours and remains editable.
+ await page.locator('#profile-light').selectOption('light-1');
+ await page.waitForFunction(()=>selectedId==='light-1'&&!document.querySelector('#solar-wake').disabled);
+ const colorsBefore=(await page.evaluate(()=>api('/api/rgb/light-1'))).colors;
+ await page.locator('.profile-copy > summary').click();await page.locator('#v062-copy-source').selectOption('light-0');
+ page.once('dialog',d=>d.accept());await page.locator('#v062-copy').click();
+ await page.waitForFunction(()=>document.querySelector('.profile-card').dataset.v052View==='simple'&&!document.querySelector('#v052-max_brightness').disabled);
+ const copied=await page.evaluate(()=>api('/api/profile/simple/light-1'));
+ assert.equal(copied.params.solar_colors,false);
+ assert.equal(copied.params.solar_rhythm.comfort,62);
+ assert.deepEqual((await page.evaluate(()=>api('/api/rgb/light-1'))).colors,colorsBefore);
+ await page.locator('#v052-max_brightness').fill('91');await page.locator('#v052-save').click();
+ await page.waitForFunction(()=>!window.HueProfiles.hasUnsaved());
+ assert.equal('solar_rhythm' in (await page.evaluate(()=>api('/api/profile/simple/light-1'))).params,false,'editing a fixed copy adopts the visible simple controls');
+ await page.locator('#profile-light').selectOption('light-0');
+ await page.waitForFunction(()=>selectedId==='light-0'&&document.querySelector('.profile-card').dataset.v052View==='solar'&&!document.querySelector('#solar-wake').disabled);
  // Switching away from Soleil keeps its options for a later return.
  await page.locator('.v052-mode[data-type="custom"]').click();
  await page.locator('#v052-activate-custom').click();

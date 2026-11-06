@@ -8,6 +8,7 @@ Mise à jour : 2026-11-06
 - Implémentation : options nouvelles séparées du schéma solaire historique ; les profils existants gardent leur comportement jusqu’au nouvel enregistrement. Moteur cyclique pour les transitions passant minuit, interpolation du blanc CIE D (5000 K proposé, 4000–6500 K réglable) vers les teintes saturées.
 - Contrôles locaux : 207 tests Python et six suites Node réussis ; syntaxe/compilation et diff valides. Tests des paliers exacts, continuité, monotonie, passage minuit, CIE D50/gamut, parité Python/JS chaque minute, commandes simulées/persistance, copies et compatibilité. Chromium local interdit de créer son socket ; validation des parcours par CI requise. Aucune publication de cette version à ce stade.
 - Publication : PR #18 ouverte, moteur Python/Node vert en CI. Premier parcours navigateur arrivé à la validation des durées ; attente erronée du test corrigée (180 min tenaient bien dans une nuit de 405 min). Parcours général adapté aux nouvelles bornes de réveil.
+- Relecture : parcours solaire et général réussis dans CI 42302537233, captures 390/1320 relues. Finition : piste des teintes colorée et édition explicite des copies solaires fixes convertie vers les contrôles Simple visibles ; protection des brouillons étendue à cette conversion. Nouveau contrôle navigateur ajouté pour ce cas.
 - Prochaine action : terminer CI/parcours et captures 320/390/1320 px, corriger si nécessaire puis fusionner si vert. Aucun déploiement matériel, automatisation toujours en pause.
 
 ## État actuel — v0.9.0 publiée — 2026-11-06

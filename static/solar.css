@@ -37,3 +37,6 @@
 .solar-hue-swatch{display:block;height:28px;border-radius:7px;border:1px solid #ffffff50}
 .solar-legend{display:flex;gap:20px;font-size:12px}
 .solar-legend span:first-child{color:#efbf6d}.solar-legend span:last-child{color:#85d5c0}
+
+.solar-hue::-webkit-slider-runnable-track{height:8px;border-radius:8px;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}
+.solar-hue::-moz-range-track{height:8px;border-radius:8px;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}

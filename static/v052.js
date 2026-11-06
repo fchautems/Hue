@@ -75,7 +75,7 @@
     updateUI(error);
   }
   function updateUI(error='') {
-    simpleDirty = viewType !== activeType || keys.some(k=>params[k]!==saved[k]);
+    simpleDirty = viewType !== activeType || (JSON.stringify(params)!==JSON.stringify(saved));
     buttons.forEach(b=>{const chosen=b.dataset.type===viewType;b.classList.toggle('active',chosen);b.setAttribute('aria-pressed',String(chosen));});
     card.dataset.v052View = viewType;
     container.hidden=viewType!=='simple';
@@ -132,7 +132,7 @@
     if(loading||saving||window.HueSolar?.isBusy()||viewType===btn.dataset.type)return;
     // A different view alone is a preview: allow returning to the saved type.
     // Guard actual field edits until they are saved or cancelled.
-    if(profileDirty || keys.some(k=>params[k]!==saved[k]) || window.HueSolar?.hasChanges()){
+    if(profileDirty || (JSON.stringify(params)!==JSON.stringify(saved)) || window.HueSolar?.hasChanges()){
       showToast('Enregistre ou annule les modifications avant de changer de type de courbe.',true);return;
     }
     viewType=btn.dataset.type;
@@ -186,7 +186,7 @@
   window.addEventListener('beforeunload',e=>{if(simpleDirty||window.HueSolar?.hasChanges()){e.preventDefault();e.returnValue='';}});
   window.HueProfiles={
     hasUnsaved:()=>simpleDirty||profileDirty||!!window.HueSolar?.hasChanges(),
-    hasFieldEdits:()=>profileDirty||keys.some(k=>params[k]!==saved[k]),
+    hasFieldEdits:()=>profileDirty||(JSON.stringify(params)!==JSON.stringify(saved)),
     reload:()=>loadProfile()
   };
   fillFields();updateUI();

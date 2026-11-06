@@ -139,11 +139,12 @@
   $$('.rgb-phase').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;selectedPhase=button.dataset.phase;render()}));
   $$('.rgb-seg button').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;draft.mode=button.dataset.mode;render()}));
   $$('#rgb-presets button').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;selected().h=Number(button.dataset.h);selected().s=Number(button.dataset.s);render()}));
+  function editSchedule(){delete draft.simple_params.solar_rhythm;delete draft.simple_params.solar_colors;}
   $('#rgb-sat').addEventListener('input',e=>{if(!draft)return;selected().s=Number(e.target.value);render()});
-  $('#rgb-bright').addEventListener('input',e=>{if(!draft)return;if(draft.mode==='manuel')draft.manual.b=Number(e.target.value);else draft.simple_params.max_brightness=Number(e.target.value);render()});
-  $('#rgb-min').addEventListener('input',e=>{if(!draft)return;draft.simple_params.min_brightness=Number(e.target.value);render()});
-  $('#rgb-max').addEventListener('input',e=>{if(!draft)return;draft.simple_params.max_brightness=Number(e.target.value);render()});
-  for(const key of timeKeys){$(`#rgb-${key}`).addEventListener('change',e=>{if(!draft)return;const value=parseClock(e.target.value);if(Number.isNaN(value)){setFeedback('Heure invalide.',true);e.target.value=fmt(draft.simple_params[key]);return;}draft.simple_params[key]=value;render()});}
+  $('#rgb-bright').addEventListener('input',e=>{if(!draft)return;if(draft.mode==='manuel')draft.manual.b=Number(e.target.value);else {editSchedule();draft.simple_params.max_brightness=Number(e.target.value);}render()});
+  $('#rgb-min').addEventListener('input',e=>{if(!draft)return;editSchedule();draft.simple_params.min_brightness=Number(e.target.value);render()});
+  $('#rgb-max').addEventListener('input',e=>{if(!draft)return;editSchedule();draft.simple_params.max_brightness=Number(e.target.value);render()});
+  for(const key of timeKeys){$(`#rgb-${key}`).addEventListener('change',e=>{if(!draft)return;const value=parseClock(e.target.value);if(Number.isNaN(value)){setFeedback('Heure invalide.',true);e.target.value=fmt(draft.simple_params[key]);return;}editSchedule();draft.simple_params[key]=value;render()});}
   $('#rgb-schedule-toggle').addEventListener('click',()=>{const button=$('#rgb-schedule-toggle');const show=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(show));$('#rgb-schedule-chevron').textContent=show?'⌃':'⌄';$('#rgb-schedule-content').hidden=!show;});
   function listLights(){
     const lights=state?.lights||[];
