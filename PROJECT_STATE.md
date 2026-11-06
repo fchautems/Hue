@@ -299,3 +299,5 @@ Mise à jour : 2026-10-23
 - **Contrôles :** validation CI de PR à attendre avant toute fusion ; aucun essai physique.
 - **Blocage éventuel :** si CI non concluante, conserver la PR sans fusion et reprendre sa validation.
 - **Plan précis cycle 2026-11-06 08 h :** commencer par tests/test_solar.py et hue_solar.py : tester la cohérence du calcul autour de l'équinoxe, sans modifier le moteur de lampes ; ajouter un test de progression saisonnière et corriger seulement si nécessaire. Critère : suite CI verte, dates locales correctes, aucun effet sur Hue. En journée, envisager ensuite un aperçu ergonomique des heures solaires sans commande matérielle.
+
+- **Publication confirmée 04 h :** PR #10 fusionnée sur main c3eda0f7b7bdbdf26ad48a9736b4df2b2347504a ; CI PR 42153467048 completed/success ; CI main 42153532541 completed/success. Prochain incrément : test de progression équinoxe dans tests/test_solar.py, puis aperçu non pilotant.
