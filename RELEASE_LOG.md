@@ -1,5 +1,16 @@
 # Hue Lab — journal des cycles et des publications
 
+## 6 novembre 2026 — cycle de 08 h (Europe/Zurich ; démarré avant 08 h)
+
+**v0.6.13 — PUBLIÉE sur main (commit 0aa089d).**
+
+- **Code concret :** test de progression des horaires solaires autour de l'équinoxe à Nyon dans `tests/test_solar.py` : dates locales, lever avançant, coucher reculant et absence de saut de plusieurs heures. Aucune commande Hue, migration ou donnée locale modifiée.
+- **Tests :** GitHub Actions de PR #11 [42177638803](https://github.com/fchautems/Hue/actions/runs/42177638803) completed/success ; CI initiale [42177586752](https://github.com/fchautems/Hue/actions/runs/42177586752) completed/success. CI post-fusion à vérifier ; aucun test réel Raspberry/ampoules. Clone local impossible : DNS github.com indisponible dans le conteneur.
+- **Publication :** [PR #11](https://github.com/fchautems/Hue/pull/11) fusionnée, [commit main 0aa089d](https://github.com/fchautems/Hue/commit/0aa089de08c317850cf28f2a4e183615954f1a8b). Pas de GitHub Release dédiée.
+- **Blocage :** aucun pour fusion ; validation post-fusion à confirmer.
+- **Plan du 6 novembre à 12 h :** commencer par `templates/index.html` et `static/v061.js` ; préparer un aperçu en lecture seule des heures solaires calculées, adapté téléphone et PC, sans modifier Manuel/Auto, les profils ni envoyer de commandes. Ajouter un test de contrat UI/serveur et vérifier la CI avant fusion. Risque : complexité de l'interface ; limiter l'incrément à l'affichage.
+
+
 ## 6 novembre 2026 — cycle de 04 h (Europe/Zurich)
 
 **v0.6.12 — PUBLIÉE sur `main` (commit c3eda0f).**
