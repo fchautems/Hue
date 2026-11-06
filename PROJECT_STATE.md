@@ -2,6 +2,16 @@
 
 Mise à jour : 2026-11-06
 
+## État actuel — v0.8.0
+- Refonte ergonomique fusionnée sur `main` via PR #15 au commit `dad1066915666a1e32d935030ec102c655919ad9` le 2026-11-06.
+- Navigation : Lampes & vacances, Profils & simulation, Historique ; Pont/Avancé/Maintenance dans Paramètres. Accès permanent aux mises à jour et badge. Courbe/horloge rapprochées, couleurs/soleil/copies repliables.
+- IP saisie et configuration locale conservées ; aucun modèle d'IP imposé, choix explicite d'un pont détecté et secours SSDP local. Aucun changement des schémas de données ni des moteurs Hue.
+- Validation avant fusion : 187 tests Python, six suites Node, deux parcours navigateur 320/390/1320 réussis ; CI PR `42250031236` verte, captures relues.
+- [CI main 42250382795](https://github.com/fchautems/Hue/actions/runs/42250382795) terminée completed/success : Python, Node et les deux parcours navigateur réussis. Aucun déploiement ni essai physique Raspberry/Hue. La découverte multicast reste à valider sur le réseau utilisateur.
+- Prochaine action : installer depuis Mises à jour sur Raspberry et vérifier le fonctionnement matériel. Automatisation laissée en pause.
+
+Les sections suivantes conservent l'historique des versions.
+
 ## État vérifié
 - Prototype CLI antérieur (`hue.py`) validé par l'utilisateur : découverte du pont `10.0.0.2`, appairage et détection de 3 ampoules (`Couloir - entrée`, `Salon`, `Couloir - douche`). L'utilisateur a validé le proof of concept.
 - Nouveau projet Hue Web v0.1 développé **en espace isolé**, sans accès au disque `F:` du PC et sans possibilité de test sur les vraies lampes.
@@ -388,3 +398,10 @@ Mise à jour : 2026-11-06
 - **Relecture visuelle :** captures finales 390 et 1320 relues, captures 320 de la première passe également relues ; doublons de titres corrigés. Contrôles utiles conservés ; seul l'ancien raccourci Diagnostics devenu une auto-navigation dans son nouveau panneau a été retiré.
 - **Limites :** pont simulé uniquement ; SSDP dépend du support/filtrage multicast du réseau. Pas d'essai physique ni de déploiement Raspberry. Pas de migration de données, schémas de profils et moteurs inchangés. Tâche automatique laissée en pause.
 - **Prochaine action :** fusion autorisée sur main, vérification CI post-fusion ; puis installation depuis Mises à jour sur Raspberry et validation matérielle par Fréd.
+
+
+### v0.8.0 publiée — 2026-11-06
+- PR #15 fusionnée sur main au commit `dad1066915666a1e32d935030ec102c655919ad9`.
+- [CI avant fusion 42250031236](https://github.com/fchautems/Hue/actions/runs/42250031236) et [CI main 42250382795](https://github.com/fchautems/Hue/actions/runs/42250382795) completed/success : 187 tests Python, régressions Node et deux parcours Chromium complets. Captures téléphone/PC relues.
+- Version disponible via Mises à jour. Aucun déploiement Raspberry ni essai matériel effectué ; paramètres, profils et données privées conservés, aucun changement des moteurs de pilotage. Automatisation laissée en pause.
+- Prochaine action : installation et validation matérielle par Fréd, notamment découverte sur le LAN réel et maintien des profils/couleurs/Vacances.
