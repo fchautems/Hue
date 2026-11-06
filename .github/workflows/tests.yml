@@ -57,7 +57,9 @@ jobs:
       - name: Browser dependencies
         run: |
           npm install --no-save --package-lock=false playwright
-          npx playwright install --with-deps chromium
+          # ubuntu-latest already provides the browser libraries and Latin fonts.
+          # Avoid apt's optional font packs: a slow mirror can exhaust the job.
+          npx playwright install chromium
       - name: Solar preview mobile and desktop
         run: |
           python -m uvicorn hue_web:app --host 127.0.0.1 --port 8765 > /tmp/hue-web.log 2>&1 &
