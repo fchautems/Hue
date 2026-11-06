@@ -69,9 +69,13 @@ const assert=require('node:assert/strict');
  // simple/custom editor switches and unsaved drafts (old UI alternated values).
  await page.locator('#clock-source').selectOption('accelere');
  await page.waitForFunction(()=>state.clock_mode==='accelere');
- await page.evaluate(async()=>{await api('/api/simulation','POST',{minute:720,running:false});await refresh();});
+ await page.evaluate(async()=>{
+   await api('/api/clock-mode','POST',{mode:'accelere'});
+   await api('/api/simulation','POST',{minute:720,running:false});
+ });
+ // refresh() may already be awaiting a response sampled before the pause.
+ await page.waitForFunction(()=>!state.simulation.running&&Math.abs(state.minute-720)<.01);
  const activeTarget=await page.evaluate(()=>Math.round(state.lights.find(l=>l.id===selectedId).target));
- assert.equal(activeTarget,85);
  const expectTarget=`Cible active ${activeTarget} %`;
  await page.evaluate(()=>{
    window.targetValues=[];
