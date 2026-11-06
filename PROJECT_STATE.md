@@ -339,3 +339,10 @@ Mise à jour : 2026-11-06
 
 ### Publication autorisée — 2026-11-06
 - Fréd a explicitement donné carte blanche pour publier cette version. Le blocage d’autorisation précédent est résolu ; validation CI navigateur en cours de préparation, tâche automatique toujours en pause.
+
+## v0.7.0 publiée et validée — 2026-11-06
+- **État vérifié :** publication explicitement autorisée par Fréd ; PR #13 fusionnée sur main au commit `fc9f8d1c173207ed4d27f722cdba8361d47f7457`. Ancien blocage de publication résolu.
+- **Contrôles :** CI PR [42186168064](https://github.com/fchautems/Hue/actions/runs/42186168064) et CI main [42186352053](https://github.com/fchautems/Hue/actions/runs/42186352053) terminées completed/success : suite Python, régressions Node et scénarios Chromium 320/390/1320 px. Captures mobile/PC relues ; espacement desktop et masquage des cas polaires corrigés avant fusion.
+- **Livré :** aperçu solaire hors ligne dans Horloge & lumières (lieu, date, lever/coucher, durée du jour, frise, réveil/coucher personnel). Aucun changement aux commandes des lampes ni aux profils persistants. Pas de déploiement ni d’essai physique Raspberry/Hue.
+- **Blocages :** aucun pour la publication GitHub. Le nouvel aperçu ne génère pas encore de profil automatique solaire.
+- **Prochaine action :** installer via Mises à jour sur le Raspberry et vérifier l’aperçu ; développement futur du brouillon de profil solaire luminosité/couleur à activation explicite. Tâche toutes les quatre heures maintenue en pause, aucune reprise automatique.

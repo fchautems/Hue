@@ -1,10 +1,11 @@
-# v0.7.0 — 6 novembre 2026 — NON PUBLIÉE — PRÊTE LOCALEMENT
+# v0.7.0 — 6 novembre 2026 — PUBLIÉE SUR MAIN
 
-- **Code concret :** nouvel aperçu solaire dans Horloge & lumières : lieu/date, lever et coucher du soleil, durée du jour, frise et comparaison à tes heures de réveil/coucher. Calcul hors ligne ; préférences d’aperçu mémorisées dans le navigateur.
-- **Tests :** 177 tests Python et contrôles JavaScript locaux réussis. CI distante et navigateur mobile/PC non exécutés : publication refusée par la revue automatique faute d’accord explicite pour l’envoi externe.
-- **Matériel :** aucun déploiement Raspberry ni essai physique. Le panneau est un aperçu sans commande de lampe.
-- **Décision :** tâche de développement toutes les quatre heures mise en pause à la demande de Fréd. Pas de reprise automatique prévue.
-- **Suite :** obtenir l’accord de publication, valider/publier ce panneau, puis lors d’une prochaine session proposer un profil solaire luminosité et couleur avec activation explicite.
+- **Code concret :** aperçu solaire visible dans Horloge & lumières : lieu/date, lever et coucher du soleil, durée du jour, frise jour/nuit et comparaison avec tes heures de réveil/coucher. Calcul hors ligne ; préférences d’aperçu locales au navigateur.
+- **Publication :** [PR #13](https://github.com/fchautems/Hue/pull/13), commit [fc9f8d1](https://github.com/fchautems/Hue/commit/fc9f8d1c173207ed4d27f722cdba8361d47f7457).
+- **Tests :** 177 tests Python locaux réussis ; suites Python/Node et navigateur Chromium 320/390/1320 px réussies en [CI PR](https://github.com/fchautems/Hue/actions/runs/42186168064) et [CI main](https://github.com/fchautems/Hue/actions/runs/42186352053), toutes deux completed/success. Captures mobile et PC relues.
+- **Matériel :** installation sur Raspberry et essais avec ampoules non effectués. L’aperçu ne commande aucune lampe et ne modifie aucun profil.
+- **Décision :** tâche toutes les quatre heures mise en pause à la demande de Fréd. Aucune reprise automatique prévue. Autorisation de publication confirmée, blocage précédent résolu.
+- **Suite :** installer depuis Mises à jour, puis lors d’une prochaine session proposer un brouillon de profil solaire luminosité/couleur avec activation explicite.
 
 # Hue Lab — journal des cycles et des publications
 
