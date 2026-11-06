@@ -84,6 +84,8 @@ const assert=require('node:assert/strict');
  });
  await page.locator('#v052-max_brightness').fill('92');
  await page.waitForTimeout(2300);
+ await page.locator('.v052-mode[data-type="custom"]').click();
+ assert.equal(await page.locator('.profile-card').getAttribute('data-v052-view'),'simple','field edits remain guarded');
  await page.locator('#v052-cancel').click();
  await page.locator('.v052-mode[data-type="custom"]').click();
  await page.waitForTimeout(1100);

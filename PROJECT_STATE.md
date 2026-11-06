@@ -3,6 +3,7 @@
 Mise à jour : 2026-11-06
 
 ## Reprise v0.8.1 — 2026-11-06
+- Envoi Git sans identifiants indisponible ; correctif envoyé via le connecteur GitHub au commit b634770. CI 42264150851 : défaut réel identifié dans le sélecteur Simple/Personnalisée : consulter l’autre type rendait le retour au type actif impossible, le bouton Annuler étant masqué. Correction : autoriser les changements de vue sans édition, conserver la protection des champs modifiés. Régression navigateur renforcée pour les deux cas.
 - Périmètre confirmé avec la conversation précédente : cible stable, ergonomie Profils & simulation, suppression des plafonds de deux/trois heures ; montée avancée, baisse retardée, teintes calées sur les horaires solaires.
 - PR #16 reprise au commit 9828793. CI 42262017834 : Python, Node et navigateur solaire réussis ; parcours ergonomique bloqué par un clic du test sur Annuler, masqué après passage à la vue personnalisée.
 - Correction du scénario : retour par le bouton Simple et vérification de l’absence de brouillon, sans supprimer le contrôle anti-alternance de la cible.

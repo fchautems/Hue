@@ -126,7 +126,9 @@
   }
   buttons.forEach(btn=>btn.addEventListener('click',()=>{
     if(loading||saving||viewType===btn.dataset.type)return;
-    if(profileDirty || simpleDirty){
+    // A different view alone is a preview: allow returning to the saved type.
+    // Guard actual field edits until they are saved or cancelled.
+    if(profileDirty || keys.some(k=>params[k]!==saved[k])){
       showToast('Enregistre ou annule les modifications avant de changer de type de courbe.',true);return;
     }
     viewType=btn.dataset.type;
