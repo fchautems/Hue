@@ -2,6 +2,14 @@
 
 Mise à jour : 2026-11-06
 
+## État actuel — v0.8.1 publiée — 2026-11-06
+- PR #16 fusionnée sur main au commit 20204fb11822b3ad38b94f2c4ac40725400e95ee. Autorisation explicite confirmée par Fréd dans cette reprise.
+- Livré : cible issue du seul profil actif du serveur, luminosité lue et état Manuel/Auto/Vacances séparés ; parcours solaire clarifié, retour à la lampe nommée ; passage Simple/Personnalisée réversible sans perdre les vrais brouillons.
+- Nouveaux profils solaires : horaires sans plafonds de deux/trois heures ; exemple vérifié 05:15–07:23 et 17:13–22:30. Montée rapide puis lissée, baisse plus tardive, couleurs calées sur ces horaires. Les profils existants restent conservés ; repréparer puis appliquer pour adopter le correctif.
+- Contrôles : 192 tests Python, six suites Node et deux parcours navigateur 320/390/1320 px réussis ; CI PR 42264568465 et CI main 42264894227 completed/success, captures relues. Arbre fusionné identique au code validé.
+- Limites : aucun déploiement ni test physique Raspberry/Hue. Profil fixe pour la date choisie, sans recalcul quotidien ni météo. Tâche automatique toujours en pause.
+- Prochaine action : installer via Mises à jour sur le Raspberry, repréparer/appliquer le profil solaire et vérifier les lampes réelles.
+
 ## Reprise v0.8.1 — 2026-11-06
 - Envoi Git sans identifiants indisponible ; correctif envoyé via le connecteur GitHub au commit b634770. CI 42264150851 : défaut réel identifié dans le sélecteur Simple/Personnalisée : consulter l’autre type rendait le retour au type actif impossible, le bouton Annuler étant masqué. Correction : autoriser les changements de vue sans édition, conserver la protection des champs modifiés. Régression navigateur renforcée pour les deux cas.
 - Périmètre confirmé avec la conversation précédente : cible stable, ergonomie Profils & simulation, suppression des plafonds de deux/trois heures ; montée avancée, baisse retardée, teintes calées sur les horaires solaires.

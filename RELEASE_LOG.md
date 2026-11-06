@@ -1,10 +1,11 @@
-# v0.8.1 — Soleil et cible cohérents — 2026-11-06
+# v0.8.1 — Soleil et cible cohérents — 2026-11-06 — PUBLIÉE SUR MAIN
 
 - Cible issue du profil actif calculé par le serveur : suppression de l’alternance avec l’ancienne courbe. Luminosité lue sur le pont et état Manuel/Auto/Vacances visibles séparément.
 - Nouveaux profils solaires : lever/coucher du soleil utilisés sans plafonds de deux/trois heures ; montée rapide le matin et baisse plus tardive le soir. Teintes existantes conservées ; les anciens profils ne changent pas automatiquement.
 - Préparation solaire avant les couleurs, aperçu clairement séparé des commandes et retour après application à la lampe nommée.
 - Profil toujours fixe pour la date choisie : régénérer et appliquer pour profiter de la correction. Pas de recalcul quotidien ni météo dans cette version.
-- Validation : 192 tests Python et six suites Node réussis localement ; CI navigateur à valider avant publication sur main. Aucun test matériel ni déploiement Raspberry.
+- Sélection Simple/Personnalisée réversible pour consulter les courbes ; protection des champs modifiés conservée.
+- Validation : 192 tests Python, six suites Node et parcours navigateur 320/390/1320 px réussis ; CI PR 42264568465 et CI main 42264894227 completed/success, captures relues. PR #16 fusionnée, commit 20204fb. Aucun test matériel ni déploiement Raspberry.
 
 # v0.7.1 — 6 novembre 2026 — PUBLIÉE SUR MAIN
 
