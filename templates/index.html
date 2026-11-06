@@ -4,31 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hue • Laboratoire de lumière</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/v03.css">
-  <link rel="stylesheet" href="/static/v04.css">
-  <link rel="stylesheet" href="/static/v05.css">
-  <link rel="stylesheet" href="/static/v051.css">
-  <link rel="stylesheet" href="/static/v052.css">
-  <link rel="stylesheet" href="/static/v06.css">
-  <link rel="stylesheet" href="/static/v061.css">
-  <link rel="stylesheet" href="/static/v062.css?v=062">
-  <link rel="stylesheet" href="/static/presence.css?v=064">
-  <link rel="stylesheet" href="/static/vacation.css?v=03">
-  <script src="/static/app.js?v=062" defer></script>
-  <script src="/static/v051.js?v=051" defer></script>
-  <script src="/static/v052.js?v=052" defer></script>
-  <script src="/static/v06.js?v=060" defer></script>
-  <script src="/static/v061.js?v=061" defer></script>
-  <script src="/static/v062.js?v=062" defer></script>
-  <script src="/static/v063.js?v=063" defer></script>
-  <script src="/static/presence.js?v=064" defer></script>
-  <script src="/static/vacation.js?v=03" defer></script>
+  <link rel="stylesheet" href="/static/style.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v03.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v04.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v05.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v051.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v052.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v06.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v061.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/v062.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/presence.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/vacation.css?rev={{ asset_rev }}">
+  <script src="/static/app.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/v051.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/v052.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/v06.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/v061.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/v062.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/v063.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/presence.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/vacation.js?rev={{ asset_rev }}" defer></script>
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span>Commande locale · v0.6.4</span></div></div>
+    <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span id="brand-version">Commande locale · révision en cours de lecture</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="dashboard"><span>◫</span> Tableau de bord</button>
       <button class="nav-item" data-tab="profiles"><span>◷</span> Horloge & lumières</button>
@@ -310,6 +310,12 @@
           <div><small>Dernière version GitHub</small><strong id="update-remote">—</strong></div>
         </div>
         <p id="update-status" role="status" aria-live="polite">Chargement de l'état des mises à jour…</p>
+        <section id="update-changes" class="update-changes" aria-labelledby="update-changes-title">
+          <h3 id="update-changes-title">Quoi de neuf ?</h3>
+          <p id="update-changes-type">Vérifie GitHub pour voir les changements.</p>
+          <ul id="update-changes-list"></ul>
+          <a href="https://github.com/fchautems/Hue/blob/main/RELEASE_LOG.md" target="_blank" rel="noopener noreferrer">Journal complet des versions (GitHub)</a>
+        </section>
         <div class="update-actions">
           <button id="update-check" class="btn muted" type="button">↻ Vérifier GitHub</button>
           <button id="update-apply" class="btn primary" type="button" disabled>Installer et redémarrer</button>
@@ -317,7 +323,7 @@
         <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
     </section>
-    <footer>Hue Lab 0.6.4 · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
+    <footer><span id="footer-version">Hue Lab · révision inconnue</span> · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>
 </div>
 <dialog id="powerup-dialog"><div class="dialog-content"><h2>Comportement à la remise sous tension</h2><p id="powerup-name"></p><p class="warning-text">Cette action modifie le paramètre mémorisé dans l'ampoule. Le réglage « personnalisé » est fixe : il ne peut pas consulter l'heure lorsque le courant revient.</p><label class="field-label" for="powerup-preset">Mode de redémarrage</label><select id="powerup-preset" class="field"><option value="last_on_state">Dernier état allumé</option><option value="custom">Luminosité fixe personnalisée</option><option value="powerfail">Retour après coupure</option><option value="safety">Sécurité / défaut</option></select><div id="powerup-brightness-wrap"><label class="field-label" for="powerup-brightness">Luminosité personnalisée (%)</label><input id="powerup-brightness" class="field" type="number" min="1" max="100" value="10"></div><p class="warning-text">Le serveur vérifie le réglage mémorisé, mais le démarrage physique doit être testé à l’interrupteur.</p><div class="dialog-actions"><button id="cancel-powerup" class="btn muted">Annuler</button><button id="save-powerup" class="btn primary">Appliquer au matériel</button></div></div></dialog>
