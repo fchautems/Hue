@@ -179,14 +179,14 @@
     simpleDirty=false;
     previousLampChange?.call(lampSelect,e);
   };
-  document.querySelector('.nav')?.addEventListener('click',e=>{
-    const btn=e.target.closest?.('.nav-item');
-    if(!btn || btn.dataset.tab==='profiles' || activeTab!=='profiles' || !simpleDirty)return;
-    if(!window.confirm('Modifications de la courbe simple non enregistrées. Les abandonner ?')){
-      e.preventDefault();e.stopImmediatePropagation();return;
-    }
-    simpleDirty=false;
-  },true);
+  const previousSetTab=setTab;
+  setTab=function(tab){
+    const leaving=activeTab==='profiles' && tab!=='profiles' && tab!=='colors' && simpleDirty;
+    if(leaving && !window.confirm('Modifications de la courbe simple non enregistrées. Les abandonner ?'))return false;
+    const result=previousSetTab(tab);
+    if(leaving && result!==false){params={...saved};viewType=activeType;fillFields();draw();}
+    return result;
+  };
   window.addEventListener('beforeunload',e=>{if(simpleDirty){e.preventDefault();e.returnValue='';}});
   window.HueProfiles={
     hasUnsaved:()=>simpleDirty||profileDirty,

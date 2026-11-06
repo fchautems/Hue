@@ -40,6 +40,7 @@ jobs:
 
       - name: Frontend syntax and copy regression
         run: |
+          node --check tests/browser_ergonomics.cjs
           node --check static/solar_draft.js
           node --check static/solar.js
           node tests/test_solar_ui.cjs
@@ -66,6 +67,22 @@ jobs:
             sleep 1
           done
           node tests/browser_solar.cjs
+      - name: Activity navigation and existing capabilities
+        run: |
+          python -m uvicorn browser_server:app --app-dir tests --host 127.0.0.1 --port 8766 > /tmp/hue-browser.log 2>&1 &
+          trap 'kill $!' EXIT
+          for attempt in $(seq 1 30); do
+            curl --silent --fail http://127.0.0.1:8766/api/state > /dev/null && break
+            sleep 1
+          done
+          node tests/browser_ergonomics.cjs
+      - name: Ergonomics screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ergonomics-screenshots
+          path: /tmp/hue-ergonomics-*.png
+          if-no-files-found: ignore
       - name: Solar preview screenshots
         if: always()
         uses: actions/upload-artifact@v4

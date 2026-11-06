@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 import requests
 import urllib3
 
+from hue_discovery import discover_local_bridges
 from hue_solar_profile import draft_profile
 from hue_solar import solar_times
 import hue_update_api
@@ -1487,9 +1488,15 @@ class HueOnboarding:
             response.raise_for_status()
             result = response.json()
         except (requests.RequestException, ValueError) as e:
-            raise HueError("Découverte Hue indisponible. Saisis l'adresse IP du pont, par exemple 10.0.0.2.") from e
+            local = discover_local_bridges()
+            if local:
+                return local
+            raise HueError("Découverte Hue indisponible (Internet et réseau local). Adresse saisie conservée : vérifie-la puis associe le pont.") from e
         if not isinstance(result, list):
-            raise HueError("Réponse de découverte Hue invalide. Saisis l'IP manuellement.")
+            local = discover_local_bridges()
+            if local:
+                return local
+            raise HueError("Réponse de découverte Hue invalide. Adresse saisie conservée ; saisis l'IP manuellement.")
         found = []
         for bridge in result:
             if not isinstance(bridge, dict):
@@ -1500,7 +1507,7 @@ class HueOnboarding:
                 continue
             if ip not in found:
                 found.append(ip)
-        return found
+        return found or discover_local_bridges()
 
     def pair_once(self, ip):
         ip = local_bridge_ip(ip)

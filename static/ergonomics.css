@@ -1,0 +1,47 @@
+/* v0.8: activity navigation; existing components and data contracts are retained. */
+[hidden]{display:none!important}
+.nav .secondary-nav{margin-top:24px;border-top:1px solid var(--border);border-radius:0 0 10px 10px}
+.nav .update-shortcut{font-size:12px;flex-wrap:wrap;gap:8px}
+#update-badge{font-size:10px;color:var(--mint);border:1px solid #317a6d;border-radius:12px;padding:3px 6px}
+.settings-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.settings-nav .active{border-color:var(--gold);color:var(--gold)}
+.settings-panel{min-width:0}
+.setup-result{padding:20px 5px;color:var(--muted);font-size:13px;line-height:1.6}
+.profile-workspace{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(0,1.5fr);gap:18px;align-items:start}
+.profile-workspace>div{min-width:0}
+#tab-profiles .profile-workspace .two-col.top-section{display:grid!important;grid-template-columns:minmax(0,1fr)}
+#tab-profiles #v061-advanced{margin-top:0}
+#tab-profiles .mode-control{display:block;margin:12px 0 20px;padding:12px;background:var(--panel-2)}
+#tab-profiles .mode-control small{display:block;margin-top:6px;color:var(--muted);line-height:1.5}
+#tab-profiles .mode-control select{width:100%;max-width:none}
+#tab-profiles #v061-sim-options{display:none}
+body.v051-show-simulator #tab-profiles #v061-sim-options{display:block}
+#v051-simulation-toggle{display:block;width:100%;min-height:44px}
+.activity-details{border:1px solid var(--border);border-radius:14px;margin:18px 0;min-width:0;overflow:clip}
+.activity-details>summary,.profile-copy>summary{cursor:pointer;padding:16px;color:var(--text);min-height:48px}
+.activity-details>summary{font-weight:650;background:var(--panel-2)}
+#tab-profiles .activity-details .solar-card,#tab-profiles .activity-details .rgb-header{margin:0;border:0;border-radius:0}
+.profile-copy{margin-top:12px;border-top:1px solid var(--border)}
+.profile-copy>summary{font-size:12px;padding:12px 0}
+#tab-profiles .profile-copy .v062-copy-row{margin:0 0 10px;padding-top:0;border:0}
+.nav button:focus-visible,summary:focus-visible,.settings-nav button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+@media(max-width:1200px){.profile-workspace{grid-template-columns:minmax(0,1fr)} }
+@media(max-width:700px){
+ .sidebar{position:sticky;top:0;z-index:10;padding:10px 14px;border-bottom:1px solid var(--border)}
+ .sidebar .brand{margin-bottom:8px}
+ .sidebar .nav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;overflow:visible}
+ .sidebar .nav-item{grid-column:span 2;white-space:normal;justify-content:center;text-align:center;gap:5px;padding:10px 4px;font-size:11px;min-height:48px}
+ .sidebar .nav .secondary-nav,.sidebar .nav .update-shortcut{grid-column:span 3;margin:0;border:0}
+ .sidebar .nav-item>span{font-size:16px;width:auto}
+ .main{padding-top:18px}
+ .topbar h1{font-size:27px}
+ .top-time{padding:8px 13px}
+ .profile-workspace{gap:14px}
+ .settings-nav{display:grid;grid-template-columns:1fr}
+ .settings-nav button{text-align:left;min-height:44px}
+ #tab-profiles .v061-lamp-bar .profile-bar{display:grid;grid-template-columns:minmax(0,1fr)}
+ #tab-profiles .v061-lamp-bar #profile-target{justify-self:start}
+ #tab-profiles .clock-card{padding:14px}
+ #tab-settings .auto-card{flex-direction:column;padding:18px}
+ .toast{left:14px;right:14px;max-width:none}
+}

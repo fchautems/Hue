@@ -50,7 +50,7 @@ class UnifiedInterfaceTests(unittest.TestCase):
     def test_a_single_combined_navigation_entry(self):
         self.assertEqual(self.parser.nav.count("profiles"), 1)
         self.assertEqual(self.parser.nav.count("colors"), 0)
-        self.assertIn("Horloge & lumières", self.template)
+        self.assertIn("Profils & simulation", self.template)
 
     def test_clock_is_preserved_and_rgb_nested_in_same_tab(self):
         p = self.parser
@@ -80,7 +80,7 @@ class UnifiedInterfaceTests(unittest.TestCase):
         self.assertIn("event.stopImmediatePropagation()", self.ui)
         self.assertIn("window.HueRGB?.open(selectedId, true)", self.ui)
         self.assertIn("window.HueProfiles?.hasUnsaved()", self.ui)
-        self.assertIn("activeTab==='profiles'&&tab!=='profiles'&&hasChanges()", self.rgb_ui)
+        self.assertIn("activeTab==='profiles'&&tab!=='profiles'&&tab!=='colors'&&hasChanges()", self.rgb_ui)
         self.assertIn("draft=clone(saved.data);render()", self.rgb_ui)
 
     def test_script_order(self):

@@ -10,10 +10,11 @@ async function runCase(type, {unsaved=false, confirmed=true, changeTarget=false,
   const source={value:'',options:[],replaceChildren(...opts){this.options=opts;this.value=opts[0]?.value||'';}};
   const row={className:'',set innerHTML(_) {},querySelector:s=>s==='#v062-copy-source'?source:button};
   const lamp={value:'hall',options:[{value:'hall',textContent:'Hall'},{value:'couloir',textContent:'Couloir'}],addEventListener() {}};
-  const bar={appendChild(x){assert.equal(x,row)}};
+  const details={children:[],append(...nodes){this.children.push(...nodes)}};
+  const bar={appendChild(x){assert.equal(x,details);assert.equal(x.children[1],row)}};
   const win={confirm(){return confirmed},HueProfiles:{hasUnsaved:()=>unsaved,reload:async()=>{calls.push(['reload'])}},HueRGB:{hasChanges:()=>false,reloadIfClean:()=>{calls.push(['rgbReload'])}}};
   const ctx={
-    window:win,selectedId:'hall',document:{querySelector:s=>s==='#profile-light'?lamp:s==='#tab-profiles .v061-lamp-bar'?bar:null,createElement:tag=>tag==='div'?row:{value:'',textContent:''}},
+    window:win,selectedId:'hall',document:{querySelector:s=>s==='#profile-light'?lamp:s==='#tab-profiles .v061-lamp-bar'?bar:null,createElement:tag=>tag==='div'?row:tag==='details'?details:{value:'',textContent:''}},
     MutationObserver:class{observe(){}},
     api:async(url,method='GET',data)=>{calls.push([method,url,data]);if(changeTarget)ctx.selectedId='autre';if(changeSource)source.value='autre';if(url==='/api/profile/simple/couloir'&&method==='GET')return {type,params:{wake:350}};if(url==='/api/profile/couloir'&&method==='GET')return [{minute:0,brightness:10},{minute:720,brightness:80}];return {};},
     safe:async fn=>{try{await fn()}catch(e){status.push(e.message)}},

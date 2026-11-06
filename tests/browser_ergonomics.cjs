@@ -1,0 +1,178 @@
+// Real browser, actual API and simulated bridge. Never contacts the user's lamps.
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({headless:true});
+ const page=await browser.newPage({locale:'fr-CH'});
+ const errors=[],writes=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push({url:new URL(r.url()).pathname,data:r.postDataJSON()});});
+ await page.route('**/api/update/status',r=>r.fulfill({json:{ok:true,data:{configured:true,installed:'old123456',remote:'new123456',available:true,changes:['Navigation revue'],change_kind:'interface'}}}));
+ await page.goto('http://127.0.0.1:8766');
+ await page.locator('.light-card').first().waitFor();
+ const nav=tab=>page.locator('.nav [data-tab="'+tab+'"]');
+ const check=async(condition,msg)=>assert.ok(await condition,msg);
+ await check(page.locator('#update-badge').isVisible(),'permanent update badge');
+ assert.equal(writes.length,0,'opening the app must not command lamps');
+ // Layout and reachable daily activities at phone/tablet/desktop widths.
+ for(const width of [320,390,1320]){
+  await page.setViewportSize({width,height:1000});
+  for(const tab of ['dashboard','profiles','presence','settings','updates']){
+   await nav(tab).click();
+   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
+   assert.equal(overflow,false,`${tab} overflow at ${width}`);
+   if(tab==='profiles'){
+    await check(page.locator('#clock-svg').isVisible(),'clock visible');
+    await check(page.locator('#profile-chart').isVisible(),'curve visible');
+   }
+  }
+  await nav('profiles').click();
+  await page.screenshot({path:`/tmp/hue-ergonomics-${width}.png`,fullPage:true});
+ }
+ // Clock source has one location and is absent from technical panels.
+ assert.equal(await page.locator('#clock-source').count(),1);
+ await page.locator('#clock-source').selectOption('accelere');
+ await page.waitForFunction(()=>state.clock_mode==='accelere');
+ await page.locator('#v051-simulation-toggle').click();
+ await check(page.locator('#sim-play').isEnabled(),'simulation can run');
+ await page.locator('#sim-play').click();
+ await page.waitForFunction(()=>state.simulation.running);
+ await page.locator('#sim-play').click();
+ await page.waitForFunction(()=>!state.simulation.running);
+ await page.locator('#sim-speed').selectOption('60');
+ await page.waitForFunction(()=>state.simulation.seconds_per_day===60);
+ await page.locator('#clock-source').selectOption('reel');
+ await page.waitForFunction(()=>state.clock_mode==='reel');
+ // Custom curve: cancellation, navigation protection and explicit save.
+ await page.locator('#v051-level-number').fill('27');
+ await page.locator('#v051-level-number').press('Tab');
+ await page.waitForFunction(()=>profileDirty);
+ page.once('dialog',d=>d.dismiss());
+ await nav('updates').click();
+ assert.equal(await page.evaluate(()=>activeTab),'profiles','update shortcut respects dirty curve');
+ await page.locator('#cancel-profile').click();
+ await page.locator('#v051-level-number').fill('28');
+ await page.locator('#v051-level-number').press('Tab');
+ await page.locator('#save-profile').click();
+ await page.waitForFunction(()=>!profileDirty);
+ assert.ok(writes.some(r=>r.url==='/api/profile/light-0'&&r.data.points));
+ // Simple profile and shared lamp selection; edits remain guarded.
+ await page.locator('.v052-mode[data-type="simple"]').click();
+ await page.locator('#v052-save').click();
+ await page.waitForFunction(()=>document.querySelector('#v052-type-status').textContent.includes('actif'));
+ await page.locator('#v052-wake').fill('06:30');
+ page.once('dialog',d=>d.dismiss());
+ await nav('settings').click();
+ assert.equal(await page.evaluate(()=>activeTab),'profiles');
+ await page.locator('#v052-cancel').click();
+ // Colors remain editable; cancelling a navigation retains the draft.
+ await page.locator('#profile-colors > summary').click();
+ await page.waitForFunction(()=>document.querySelector('#rgb-status').textContent.includes('RGB')||document.querySelector('#rgb-status').textContent.includes('Configuration'));
+ await page.locator('#rgb-manual').click();
+ await page.locator('#rgb-presets button[data-h="0"]').click();
+ page.once('dialog',d=>d.dismiss());
+ await nav('presence').click();
+ assert.equal(await page.evaluate(()=>activeTab),'profiles');
+ await page.locator('#rgb-save').click();
+ await page.waitForFunction(()=>!window.HueRGB.hasChanges());
+ assert.ok(writes.some(r=>r.url==='/api/rgb/light-0'&&r.data.manual));
+ await page.locator('#profile-light').selectOption('light-1');
+ await page.waitForFunction(()=>selectedId==='light-1'&&window.HueRGB.currentId()==='light-1');
+ // Both copy operations retain their distinct behavior and confirmation.
+ await page.locator('.profile-copy > summary').click();
+ await page.locator('#v062-copy-source').selectOption('light-0');
+ page.once('dialog',d=>d.accept());
+ await page.locator('#v063-copy-full').click();
+ await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Profil complet copié'));
+ page.once('dialog',d=>d.accept());
+ await page.locator('#v062-copy').click();
+ await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Courbe copiée'));
+ // Technical functions live under Settings, without the clock source.
+ await nav('settings').click();
+ await check(page.locator('#clock-source').isHidden(),'no clock source in settings');
+ await page.locator('.settings-nav [data-tab="setup"]').click();
+ assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.12');
+ await page.locator('#setup-discover').click();
+ await page.waitForFunction(()=>!document.querySelector('#setup-discover').disabled);
+ assert.equal(await page.locator('#setup-bridges').isVisible(),false,'one result requires no dropdown');
+ await page.locator('#setup-ip').fill('10.0.0.2');
+ await page.locator('#setup-discover').click();
+ await page.locator('#setup-use-detected').waitFor({state:'visible'});
+ assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.2','saved IP not overwritten');
+ await page.locator('#setup-use-detected').click();
+ assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.12','explicit one-click use');
+ // Typing while fetching survives the delayed discovery response.
+ let releaseDiscovery;
+ await page.route('**/api/setup/discover',async r=>{await new Promise(resolve=>releaseDiscovery=resolve);await r.fulfill({json:{ok:true,data:{bridges:['10.0.0.2','10.0.0.13']}}});});
+ await page.locator('#setup-discover').click();
+ await page.waitForFunction(()=>document.querySelector('#setup-discover').disabled);
+ await page.locator('#setup-ip').fill('10.0.0.12');
+ while(!releaseDiscovery)await new Promise(r=>setTimeout(r,10));
+ releaseDiscovery();
+ await page.waitForFunction(()=>!document.querySelector('#setup-discover').disabled);
+ assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.12');
+ await check(page.locator('#setup-bridges').isVisible(),'multiple discovered choices');
+ await page.locator('#setup-bridges').selectOption('10.0.0.13');
+ assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.13');
+ await page.locator('#setup-ip').fill('10.0.0.12');
+ // Association still uses the explicit manual address and preserves button instructions.
+ await page.route('**/api/setup/pair',r=>r.fulfill({json:{ok:true,data:{paired:true,ip:'10.0.0.12',lights:3}}}));
+ await page.locator('#setup-pair').click();
+ await page.waitForFunction(()=>activeTab==='dashboard');
+ assert.equal(writes.find(r=>r.url==='/api/setup/pair').data.ip,'10.0.0.12');
+ // Vacations, manual commands, history and advanced diagnostics remain reachable.
+ await page.locator('.light-card').first().locator('.switch').click();
+ await page.waitForFunction(()=>!state.lights[0].on);
+ await page.locator('.light-card').first().locator('.switch').click();
+ await page.locator('.light-card').first().locator('[data-control="auto"]').click();
+ await page.locator('.light-card').first().locator('.light-rgb').click();
+ await check(page.locator('#rgb-wheel').isVisible(),'color shortcut opens disclosure');
+ await nav('dashboard').click();
+ await page.locator('#vacation-lights input').first().check();
+ await page.locator('#vacation-toggle').click();
+ await page.waitForFunction(()=>document.querySelector('#vacation-status').textContent==='ACTIF');
+ await page.locator('#vacation-test-toggle').click();
+ await page.waitForFunction(()=>document.querySelector('#vacation-test-toggle').dataset.running==='true');
+ await page.locator('#vacation-test-toggle').click();
+ await page.waitForFunction(()=>document.querySelector('#vacation-test-toggle').dataset.running==='false');
+ await page.locator('#vacation-toggle').click();
+ await page.waitForFunction(()=>document.querySelector('#vacation-status').textContent!=='ACTIF');
+ await nav('presence').click();
+ await check(page.locator('#presence-rows').isVisible(),'history preserved');
+ await nav('settings').click();
+ await page.locator('.settings-nav [data-tab="diagnostics"]').click();
+ await page.locator('#diag-lights .diag-item').first().waitFor();
+ await page.locator('.powerup-btn').first().click();
+ await check(page.locator('#powerup-dialog').isVisible(),'powerup dialog');
+ await page.locator('#cancel-powerup').click();
+ const download=page.waitForEvent('download');
+ await page.locator('#export-diag').click();
+ assert.ok((await download).suggestedFilename().endsWith('.json'));
+ await page.locator('#refresh-logs').click();
+ await check(page.locator('#log-display').isVisible(),'logs preserved');
+ await nav('updates').click();
+ await check(page.locator('#update-apply').isEnabled(),'installation remains accessible');
+ // First installation: no made-up IP and association opens inside Settings.
+ const first=await browser.newPage();
+ first.on('pageerror',e=>errors.push(e.message));
+ await first.route('**/api/state',async route=>{
+   const response=await route.fetch();const json=await response.json();
+   json.needs_setup=true;json.connected=false;json.lights=[];
+   await route.fulfill({json});
+ });
+ await first.route('**/api/setup/status',r=>r.fulfill({json:{ok:true,data:{ip:'',paired:false}}}));
+ await first.route('**/api/setup/discover',r=>r.fulfill({json:{ok:true,data:{bridges:['10.0.0.12']}}}));
+ await first.goto('http://127.0.0.1:8766');
+ await first.waitForFunction(()=>document.querySelector('#setup-ip').value==='10.0.0.12');
+ assert.equal(await first.evaluate(()=>activeTab),'setup');
+ assert.equal(await first.locator('#setup-bridges').isVisible(),false);
+ await first.route('**/api/setup/discover',r=>r.fulfill({status:502,json:{ok:false,error:'Découverte indisponible'}}));
+ await first.locator('#setup-ip').fill('10.0.0.99');
+ await first.locator('#setup-discover').click();
+ await first.waitForFunction(()=>document.querySelector('#setup-status').textContent.includes('indisponible'));
+ assert.equal(await first.locator('#setup-ip').inputValue(),'10.0.0.99');
+ await first.close();
+ assert.equal(errors.length,0,errors.join('\n'));
+ console.log('PASS: responsive navigation, clock, curve/simple/RGB saves and guards, both copies, async discovery, pairing, manual/Auto, vacation test, history, powerup, export, logs, update badge.');
+ await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});
