@@ -104,3 +104,11 @@ Les anciens onglets **Courbes horaires** et **Couleurs RGB** ne font plus qu'un 
 Dans **Horloge & lumières**, le panneau « La lumière au fil des saisons » affiche le lever et le coucher du soleil, la durée du jour et une frise. Choisir Le Muids/Arzier, Nyon, Lausanne, ou saisir les coordonnées et un fuseau IANA dans « Autre lieu ». La date est libre ; « Aujourd’hui » utilise le fuseau choisi.
 
 Les repères « Mon réveil » et « Mon coucher » comparent ton rythme aux heures solaires. Les préférences d’aperçu sont mémorisées dans ce navigateur. Cet aperçu fonctionne sans Internet ni pont associé, ne sauvegarde aucun profil de lampe et n’envoie aucune commande Hue. Les horaires sont approximatifs (sans relief/météo) ; aux latitudes polaires, un événement peut être absent.
+
+## Brouillon solaire complet (v0.7.1)
+
+Dans le panneau solaire, règle ton réveil/coucher et les luminosités minimale/maximale, puis choisis **Préparer un profil pour cette date**. La courbe et le curseur montrent luminosité et couleurs au cours de la journée. Le rythme personnel reste prioritaire : le soleil module la fin de montée et le début de descente dans des limites explicites. Le générateur accepte une journée sans passage de minuit d'au moins trois heures.
+
+**Appliquer à la lampe sélectionnée** remplace le profil actif après confirmation. Le mode Manuel/Auto est conservé ; une lampe déjà en Auto peut appliquer le nouveau profil immédiatement. Les lampes sans RGB reçoivent la luminosité seule. ON/OFF, Vacances et courbes personnalisées sauvegardées restent préservés.
+
+Le résultat est un profil fixe pour la date choisie, sans recalcul quotidien ni météo. Le brouillon n'est pas enregistré tant que tu ne l'appliques pas.

@@ -1,9 +1,10 @@
-# v0.7.1 — 6 novembre 2026 — EN VALIDATION
+# v0.7.1 — 6 novembre 2026 — PUBLIÉE SUR MAIN
 
-- **Code concret :** préparation d’un profil luminosité/couleurs depuis ton rythme et le soleil ; aperçu graphique et curseur horaire ; application explicite à la lampe choisie. Profil fixe pour la date, sans recalcul quotidien ni météo.
-- **Préservation :** mode Manuel/Auto, ON/OFF, Vacances et anciennes courbes personnalisées. Couleur activée seulement sur une lampe RGB.
-- **Contrôles :** tests locaux puis CI Python/Node/Chromium à confirmer avant fusion. Aucun déploiement Raspberry.
-- **Suite :** valider/publier cet incrément. Automatisation toujours en pause.
+- **Code concret :** générateur de profil luminosité/couleurs à partir du réveil/coucher et du soleil, niveaux mini/maxi réglables, courbe et aperçu couleur par curseur. Application explicite à la lampe choisie, avec confirmation.
+- **Limite claire :** profil fixe pour la date sélectionnée. Aucune adaptation quotidienne ou météo. Modes Manuel/Auto, ON/OFF et Vacances préservés ; une lampe déjà en Auto peut appliquer le nouveau profil immédiatement. Luminosité seule sur lampe non RGB.
+- **Publication :** [PR #14](https://github.com/fchautems/Hue/pull/14), [commit dc454a1](https://github.com/fchautems/Hue/commit/dc454a1047c98e6e0c39134df71cc137e4c5ca75).
+- **Tests :** 181 tests Python locaux réussis, CI Python/Node/Chromium [PR 42189702290](https://github.com/fchautems/Hue/actions/runs/42189702290) et [main 42189888211](https://github.com/fchautems/Hue/actions/runs/42189888211) completed/success. Annulation/application, erreurs et aperçu testés ; capture relue. Aucun essai physique ni déploiement Raspberry.
+- **Suite :** installer depuis Mises à jour et tester le brouillon. Évolution future : recalcul solaire quotidien configurable. Automatisation de développement toujours en pause.
 
 # v0.7.0 — 6 novembre 2026 — PUBLIÉE SUR MAIN
 

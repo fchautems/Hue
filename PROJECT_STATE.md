@@ -353,3 +353,9 @@ Mise à jour : 2026-11-06
 - Application explicite atomique luminosité/couleurs compatibles à une lampe ; modes, état ON/OFF, Vacances et anciennes courbes personnalisées conservés. Aucune commande de pont dans la route d’application ; le worker normal applique ensuite si Auto. Restauration mémoire si sauvegarde échoue.
 - Contrôles locaux : suite Python et Node ; CI et navigateur à vérifier avant publication. Aucun essai matériel.
 - Prochaine action : terminer CI et publier ; tâche automatique maintenue en pause.
+
+## v0.7.1 publiée — 2026-11-06
+- PR #14 fusionnée sur main au commit `dc454a1047c98e6e0c39134df71cc137e4c5ca75`. [CI PR 42189702290](https://github.com/fchautems/Hue/actions/runs/42189702290) et [CI main 42189888211](https://github.com/fchautems/Hue/actions/runs/42189888211) completed/success.
+- 181 tests Python locaux réussis ; régressions Node et scénarios navigateur réussis, dont brouillon, curseur, invalidation après édition, rythme invalide, annulation et application explicite (requête simulée en navigateur). Capture du brouillon relue.
+- Profil fixe pour la date choisie, sans recalcul quotidien ni météo. Modes Manuel/Auto, ON/OFF, Vacances préservés ; ancien profil personnalisé conservé dans les réglages avancés. Aucun essai physique ni déploiement Raspberry.
+- Prochaine action : tester depuis Mises à jour sur Raspberry ; prochaine évolution possible : configuration solaire persistante recalculée chaque jour, réutilisant ce générateur avec aperçu et activation explicite. Tâche automatique toujours en pause.
