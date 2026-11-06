@@ -34,10 +34,11 @@
   }
   function brightnessAt(m) {
     const p=draft.simple_params,low=p.min_brightness,high=p.max_brightness;
+    const progress=(t,evening=false)=>ease(p.transition_shape==='asymmetric'?(evening?t*t:1-(1-t)**2):t);
     if(m<=p.wake||m>=p.bed)return low;
-    if(m<p.morning_end)return low+(high-low)*ease((m-p.wake)/(p.morning_end-p.wake));
+    if(m<p.morning_end)return low+(high-low)*progress((m-p.wake)/(p.morning_end-p.wake));
     if(m<=p.evening_start)return high;
-    return high-(high-low)*ease((m-p.evening_start)/(p.bed-p.evening_start));
+    return high-(high-low)*progress((m-p.evening_start)/(p.bed-p.evening_start),true);
   }
   function rgb(h,s,l) {
     h=wrap(h)/360;s=s/100;l=l/100;

@@ -66,7 +66,20 @@ function tickClock() {
   $("#clock-digital").textContent=mm(minute);
   if(!seekDragging){$("#time-slider").value=Math.floor(minute);$("#seek-label").textContent=mm(minute);}
   const d=new Date(); $("#real-clock").textContent=d.toLocaleTimeString("fr-CH",{hour12:false});
-  if (state && selectedId && editingPoints.length && !profileDirty) $("#profile-target").textContent=`Cible ${Math.round(interpolation(editingPoints,minute))} %`;
+  renderProfileTarget();
+}
+function renderProfileTarget() {
+  // The saved active profile is evaluated by the server, never by an editor.
+  const light=state?.lights.find(l=>l.id===selectedId);
+  const target=$('#profile-target'),status=$('#profile-live-status');
+  target.textContent=Number.isFinite(light?.target)?`Cible active ${Math.round(light.target)} %`:'Cible active — %';
+  if(!status)return;
+  if(!light){status.textContent='Choisis une lampe pour voir son état.';return;}
+  const observed=Number.isFinite(light.brightness)?`${Math.round(light.brightness)} %`:'— %';
+  const vacation=light.vacation_active;
+  const reason=vacation?'Vacances prioritaire':light.control_mode!=='auto'?'Manuel · profil non appliqué':!light.on?'Éteinte · profil en attente':light.status!=='connected'?'Connexion à vérifier':'Auto · profil actif';
+  status.textContent=`Lampe : ${observed} · ${reason}`;
+  if(state.error)status.textContent+=' · lecture du pont indisponible';
 }
 function addLightCards(lights) {
   const ids=lights.map(l=>l.id).join("|");

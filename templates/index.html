@@ -96,7 +96,7 @@
     </section>
 
     <section id="tab-profiles" class="tab hidden">
-<div class="card v061-lamp-bar"><div class="profile-bar"><label for="profile-light">Ampoule</label><select id="profile-light" class="field"></select><span class="chip" id="profile-target">Cible — %</span></div></div>
+<div class="card v061-lamp-bar"><div class="profile-bar"><label for="profile-light">Lampe à configurer</label><select id="profile-light" class="field"></select><span class="chip" id="profile-target">Cible active — %</span></div><p id="profile-live-status" class="profile-live-status">Choisis une lampe pour voir son état.</p><small>La cible correspond au profil enregistré. Les aperçus ci-dessous ne commandent aucune lampe.</small></div>
       <div class="profile-workspace"><div class="simulation-column">
       <div class="two-col top-section" id="v051-simulator">
         <div class="card clock-card">
@@ -157,6 +157,46 @@
         <div class="profile-actions"><button id="add-point" class="btn muted">+ Ajouter un point</button><span id="profile-edit-status" role="status" aria-live="polite">✓ Courbe enregistrée</span><button id="cancel-profile" class="btn muted" type="button">Annuler</button><button id="save-profile" class="btn primary" type="button">Enregistrer</button></div>
       </div>
       </details>      </div></div>
+      <details class="activity-details" id="profile-solar"><summary>Préparer un profil avec le soleil</summary>
+      <section class="card solar-card" aria-labelledby="solar-title">
+        <div class="solar-heading"><div><div class="eyebrow">SOLEIL · CALCUL LOCAL</div>
+          <h2 id="solar-title">Préparer avec le soleil</h2></div><span class="chip">Profil pour une date</span></div>
+        <p>1. Choisis la journée et ton rythme. 2. Vérifie la courbe. 3. Applique à la lampe choisie en haut.</p>
+        <form id="solar-form" class="solar-form">
+          <label>Lieu<select id="solar-place" class="field"><option value="muids">Le Muids / Arzier</option><option value="nyon">Nyon</option><option value="lausanne">Lausanne</option><option value="custom">Autre lieu</option></select></label>
+          <label>Date<input id="solar-date" class="field" type="date" required></label>
+          <div id="solar-coordinates" class="solar-coordinates hidden">
+            <label>Latitude<input id="solar-lat" class="field" type="number" min="-90" max="90" step="any" value="46.46" required></label>
+            <label>Longitude<input id="solar-lon" class="field" type="number" min="-180" max="180" step="any" value="6.22" required></label>
+            <label>Fuseau horaire<input id="solar-zone" class="field" value="Europe/Zurich" required placeholder="Europe/Zurich"></label>
+          </div>
+          <div class="solar-actions"><button type="button" id="solar-today" class="btn muted">Aujourd’hui</button><button type="submit" class="btn primary">Voir cette journée</button></div>
+        </form>
+        <div class="solar-results" id="solar-results" hidden>
+          <div class="solar-stats"><div><span>LEVER DU SOLEIL</span><strong id="solar-rise">—</strong></div><div><span>COUCHER DU SOLEIL</span><strong id="solar-set">—</strong></div><div><span>DURÉE DU JOUR</span><strong id="solar-duration">—</strong></div></div>
+          <div class="solar-timeline" role="img" id="solar-timeline" aria-label="Journée solaire"><div id="solar-daylight"></div><span id="solar-wake-marker" class="solar-marker">Réveil</span><span id="solar-bed-marker" class="solar-marker solar-bed">Coucher</span></div>
+          <div id="solar-scale" class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+          <div class="solar-routine"><label>Mon réveil<input id="solar-wake" class="field" type="time" value="07:00" required></label><label>Mon coucher<input id="solar-bed" class="field" type="time" value="22:30" required></label></div>
+          <p id="solar-comparison"></p>
+          <div class="solar-routine"><label>Minimum (%)<input id="solar-low" class="field" type="number" min="1" max="99" value="10"></label><label>Maximum (%)<input id="solar-high" class="field" type="number" min="2" max="100" value="85"></label></div>
+          <button id="solar-generate" type="button" class="btn primary">Préparer un profil pour cette date</button>
+          <div id="solar-draft" hidden>
+            <h3>Profil proposé · <span id="solar-draft-date"></span></h3>
+            <p>Montée rapide le matin, baisse plus tardive le soir. Couleurs chaudes le soir et la nuit, plus neutres le jour. Horaires fixes après application, sans recalcul quotidien ni météo.</p>
+            <svg id="solar-curve" viewBox="0 0 720 130" role="img" aria-label="Courbe de luminosité sur vingt-quatre heures" style="width:100%;height:auto"><polyline id="solar-curve-line" fill="none" stroke="#efbf6d" stroke-width="3"/></svg>
+            <div class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+            <label>Heure de l’aperçu · sans action sur la lampe<input id="solar-sample" type="range" min="0" max="96" value="48"></label>
+            <p id="solar-sample-label"></p><div id="solar-swatch" style="height:36px;border-radius:8px" aria-hidden="true"></div>
+            <p id="solar-draft-hours"></p>
+            <button id="solar-apply" class="btn primary" type="button">Appliquer à la lampe sélectionnée</button>
+            <p id="solar-apply-status" role="status" aria-live="polite"></p>
+            <p>Remplace le profil actif. Le mode Manuel/Auto reste inchangé ; une lampe déjà en Auto peut suivre ce profil immédiatement. Les lampes sans RGB reçoivent la luminosité seule.</p>
+          </div>
+        </div>
+        <p id="solar-status" class="solar-status" role="status" aria-live="polite">Choisis une date pour découvrir les horaires.</p>
+        <small>Horaires astronomiques approximatifs, sans météo ni relief. Ton réveil et ton coucher restent indépendants du soleil et des profils des lampes. Préférences d’aperçu mémorisées sur ce navigateur.</small>
+      </section>
+      </details>
       <details class="activity-details" id="profile-colors"><summary>Couleurs & horaires du profil simple</summary>
     <section id="tab-colors" class="rgb-integrated" aria-labelledby="rgb-heading">
       <div class="rgb-header card">
@@ -256,44 +296,7 @@
       </div>
     </section>
       </details>
-      <details class="activity-details" id="profile-solar"><summary>Préparer un profil avec le soleil</summary>
-      <section class="card solar-card" aria-labelledby="solar-title">
-        <div class="solar-heading"><div><div class="eyebrow">SOLEIL · CALCUL LOCAL</div>
-          <h2 id="solar-title">La lumière au fil des saisons</h2></div><span class="chip">Aperçu</span></div>
-        <p>Compare le jour naturel à ton rythme. Cet aperçu ne commande aucune lampe.</p>
-        <form id="solar-form" class="solar-form">
-          <label>Lieu<select id="solar-place" class="field"><option value="muids">Le Muids / Arzier</option><option value="nyon">Nyon</option><option value="lausanne">Lausanne</option><option value="custom">Autre lieu</option></select></label>
-          <label>Date<input id="solar-date" class="field" type="date" required></label>
-          <div id="solar-coordinates" class="solar-coordinates hidden">
-            <label>Latitude<input id="solar-lat" class="field" type="number" min="-90" max="90" step="any" value="46.46" required></label>
-            <label>Longitude<input id="solar-lon" class="field" type="number" min="-180" max="180" step="any" value="6.22" required></label>
-            <label>Fuseau horaire<input id="solar-zone" class="field" value="Europe/Zurich" required placeholder="Europe/Zurich"></label>
-          </div>
-          <div class="solar-actions"><button type="button" id="solar-today" class="btn muted">Aujourd’hui</button><button type="submit" class="btn primary">Voir cette journée</button></div>
-        </form>
-        <div class="solar-results" id="solar-results" hidden>
-          <div class="solar-stats"><div><span>LEVER DU SOLEIL</span><strong id="solar-rise">—</strong></div><div><span>COUCHER DU SOLEIL</span><strong id="solar-set">—</strong></div><div><span>DURÉE DU JOUR</span><strong id="solar-duration">—</strong></div></div>
-          <div class="solar-timeline" role="img" id="solar-timeline" aria-label="Journée solaire"><div id="solar-daylight"></div><span id="solar-wake-marker" class="solar-marker">Réveil</span><span id="solar-bed-marker" class="solar-marker solar-bed">Coucher</span></div>
-          <div id="solar-scale" class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
-          <div class="solar-routine"><label>Mon réveil<input id="solar-wake" class="field" type="time" value="07:00" required></label><label>Mon coucher<input id="solar-bed" class="field" type="time" value="22:30" required></label></div>
-          <p id="solar-comparison"></p>
-          <div class="solar-routine"><label>Minimum (%)<input id="solar-low" class="field" type="number" min="1" max="99" value="10"></label><label>Maximum (%)<input id="solar-high" class="field" type="number" min="2" max="100" value="85"></label></div>
-          <button id="solar-generate" type="button" class="btn muted">Préparer un profil pour cette date</button>
-          <div id="solar-draft" hidden>
-            <h3>Profil proposé · <span id="solar-draft-date"></span></h3>
-            <p>Profil fixe : la date ne se recalculera pas chaque jour. Couleurs chaudes la nuit et le soir, plus neutres le jour. Sans météo.</p>
-            <svg id="solar-curve" viewBox="0 0 720 130" role="img" aria-label="Courbe de luminosité sur vingt-quatre heures" style="width:100%;height:auto"><polyline id="solar-curve-line" fill="none" stroke="#efbf6d" stroke-width="3"/></svg>
-            <label>Heure de l’aperçu<input id="solar-sample" type="range" min="0" max="96" value="48"></label>
-            <p id="solar-sample-label"></p><div id="solar-swatch" style="height:36px;border-radius:8px" aria-hidden="true"></div>
-            <p id="solar-draft-hours"></p>
-            <button id="solar-apply" class="btn primary" type="button">Appliquer à la lampe sélectionnée</button>
-            <p>Remplace le profil actif. Le mode Manuel/Auto reste inchangé ; une lampe déjà en Auto peut suivre ce profil immédiatement. Les lampes sans RGB reçoivent la luminosité seule.</p>
-          </div>
-        </div>
-        <p id="solar-status" class="solar-status" role="status" aria-live="polite">Choisis une date pour découvrir les horaires.</p>
-        <small>Horaires astronomiques approximatifs, sans météo ni relief. Ton réveil et ton coucher restent indépendants du soleil et des profils des lampes. Préférences d’aperçu mémorisées sur ce navigateur.</small>
-      </section>
-      </details>
+
     </section>
 
 

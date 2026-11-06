@@ -1009,6 +1009,7 @@ class HueServer:
                     "on": l.get("on", {}).get("on"),
                     "brightness": l.get("dimming", {}).get("brightness"),
                     "target": self._target_for(uid, m),
+                    "vacation_active": self.vacation["enabled"] and uid in self.vacation["light_ids"],
                     "profile_type": self.settings["profile_types"].get(uid, "custom"),
                     "rgb_auto": bool(self.settings["rgb_auto_enabled"].get(uid)),
                     "color_xy": copy.deepcopy(l.get("color", {}).get("xy")),
@@ -1072,6 +1073,7 @@ class HueServer:
         """Laisse la transition automatique rejoindre la nouvelle consigne en douceur."""
         self.last_sent.pop(uid, None)
         self.auto_transition_pending.add(uid)
+        self._event_wakeup.set()
 
     def copy_profile(self, source_uid, target_uid):
         """Copie uniquement les courbes et couleurs automatiques, sans activer Auto.

@@ -160,9 +160,6 @@
       const active = p.minute===selectedMinute;
       return `<circle class="v051-point-ring ${active?'is-selected':''}" cx="${x(p.minute)}" cy="${y(p.brightness)}" r="${active?10:7}" fill="none" stroke="${active?'#fff':'#efbf6d'}" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none"/><circle class="v051-point-hit" cx="${x(p.minute)}" cy="${y(p.brightness)}" r="24" fill="transparent" data-minute="${p.minute}" role="button" aria-label="Point ${format(p.minute)} à ${p.brightness} pour cent" tabindex="0"/>`;
     }).join(''));
-    if (profileDirty) {
-      document.querySelector('#profile-target').textContent=`Cible ${Math.round(interpolation(points,currentMinute()))} %`;
-    }
   };
   loadProfile = async function () {
     await originalLoad();

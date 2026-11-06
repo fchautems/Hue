@@ -4,7 +4,13 @@
   let draft = null, generation = 0, applying = false;
   const time = value => {const [h,m] = value.split(':').map(Number);return h*60+m;};
   const label = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-  function invalidate() { generation++; draft=null; $('draft').hidden=true; }
+  function invalidate() { generation++; draft=null; $('draft').hidden=true; $('apply-status').textContent=''; }
+  function applyLabel() {
+    const lamp=document.getElementById('profile-light');
+    const name=lamp.options[lamp.selectedIndex]?.textContent;
+    $('apply').textContent=name?`Appliquer à « ${name} »`:'Appliquer à la lampe sélectionnée';
+  }
+  document.getElementById('profile-light').addEventListener('change',applyLabel);
   for (const id of ['date','place','lat','lon','zone','wake','bed','low','high']) {
     $(id).addEventListener('input', invalidate);
     $(id).addEventListener('change', invalidate);
@@ -14,7 +20,7 @@
   function sample() {
     if (!draft) return;
     const s=draft.samples[Number($('sample').value)];
-    $('sample-label').textContent=`${label(s.minute)} · ${s.brightness} % · teinte ${Math.round(s.color.h)}°, saturation ${Math.round(s.color.s)} %`;
+    $('sample-label').textContent=`${label(s.minute)} · ${s.brightness} % · aperçu uniquement`;
     // HSV to HSL, matching the profile's hue/saturation at full value.
     const saturation=s.color.s/100, lightness=1-saturation/2;
     const hslS=lightness===1?0:(1-lightness)/Math.min(lightness,1-lightness);
@@ -34,22 +40,30 @@
       $('draft-date').textContent=data.day;
       $('curve-line').setAttribute('points',data.samples.map(s=>`${s.minute/2},${120-s.brightness}`).join(' '));
       const p=data.params;
-      $('draft-hours').textContent=`Montée ${label(p.wake)}–${label(p.morning_end)} · descente ${label(p.evening_start)}–${label(p.bed)}.${data.polar_fallback?' Soleil absent : horaires personnels utilisés.':''}`;
-      $('draft').hidden=false;sample();
+      $('draft-hours').textContent=`Montée ${label(p.wake)}–${label(p.morning_end)} · descente ${label(p.evening_start)}–${label(p.bed)}.${data.polar_fallback?' Soleil absent : horaires personnels utilisés.':''}${data.timing_note?' '+data.timing_note:''}`;
+      applyLabel();$('draft').hidden=false;sample();
     } catch(error){if(token===generation)$('status').textContent=error.message;}
   });
   $('apply').addEventListener('click',()=>safe(async()=>{
     if(!draft||applying)return;
+    const prepared=draft;
     const lamp=document.getElementById('profile-light'),uid=lamp.value;
-    if(!uid)throw Error('Sélectionne une lampe dans Horloge & lumières.');
+    if(!uid)throw Error('Sélectionne une lampe en haut de Profils & simulation.');
     if(window.HueProfiles?.hasUnsaved()||window.HueRGB?.hasChanges())throw Error('Enregistre ou annule les modifications de la lampe avant d’appliquer ce profil.');
     const name=lamp.options[lamp.selectedIndex]?.textContent||uid;
-    if(!window.confirm(`Remplacer le profil de « ${name} » par celui du ${draft.day} ? Luminosité et couleurs compatibles seront remplacées. Le mode reste inchangé ; si la lampe est en Auto, le profil peut s’appliquer immédiatement.`))return;
-    const payload={params:draft.params,colors:draft.colors};
+    if(!window.confirm(`Remplacer le profil de « ${name} » par celui du ${prepared.day} ? Luminosité et couleurs compatibles seront remplacées. Le mode reste inchangé ; si la lampe est en Auto, le profil peut s’appliquer immédiatement.`))return;
+    const payload={params:prepared.params,colors:prepared.colors};
     applying=true;$('apply').disabled=true;
     try{
       const result=await api('/api/profile/solar/'+encodeURIComponent(uid),'POST',payload);
+      $('apply-status').textContent=`Profil du ${prepared.day} enregistré pour « ${name} ». ${result.rgb_auto?'Luminosité et couleurs.':'Luminosité seule, lampe sans RGB.'}`;
       if(lamp.value===uid){await window.HueProfiles?.reload();window.HueRGB?.reloadIfClean(uid);}
+      await refresh();
+      const light=state?.lights.find(l=>l.id===uid);
+      if(light){
+        const reason=light.vacation_active?'Vacances a priorité sur ce profil.':light.control_mode!=='auto'?'Lampe en Manuel : passe en Auto pour suivre ce profil.':!light.on?'Lampe éteinte : le profil sera suivi après allumage.':light.status!=='connected'?'Lampe hors ligne : en attente de reconnexion.':`Auto actif · cible actuelle ${Math.round(light.target)} %. La luminosité lue sur le pont est affichée en haut.`;
+        $('apply-status').textContent+=' '+reason;
+      }
       showToast(result.rgb_auto?'Profil luminosité et couleurs enregistré.':'Profil de luminosité enregistré (lampe sans RGB).');
     }finally{applying=false;$('apply').disabled=false;}
   }));

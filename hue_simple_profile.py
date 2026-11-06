@@ -19,8 +19,11 @@ def validate_simple_profile(raw):
     On conserve pour le moment une journée sans transition traversant minuit.
     Le profil retourne toujours au niveau nocturne avant minuit.
     """
-    if not isinstance(raw, dict) or set(raw) != set(DEFAULT_SIMPLE_PROFILE):
+    if (not isinstance(raw, dict) or
+            set(raw) - {"transition_shape"} != set(DEFAULT_SIMPLE_PROFILE)):
         raise ValueError("La courbe simple nécessite quatre horaires et deux luminosités.")
+    if "transition_shape" in raw and raw["transition_shape"] != "asymmetric":
+        raise ValueError("Forme de transition inconnue.")
     for name in DEFAULT_SIMPLE_PROFILE:
         value = raw[name]
         if type(value) is not int:
@@ -44,6 +47,14 @@ def smootherstep(t):
     return t * t * t * (t * (6 * t - 15) + 10)
 
 
+def transition_progress(t, profile, *, evening=False):
+    """Solar profiles rise early and dim late; old profiles keep their shape."""
+    t = max(0.0, min(1.0, float(t)))
+    if profile.get("transition_shape") == "asymmetric":
+        t = t * t if evening else 1 - (1 - t) ** 2
+    return smootherstep(t)
+
+
 def simple_brightness_at(profile, minute):
     """Niveau continu sur 24 h : nuit, montée, plateau, descente, nuit."""
     p = validate_simple_profile(profile)
@@ -56,8 +67,8 @@ def simple_brightness_at(profile, minute):
         return float(low)
     if m < p["morning_end"]:
         t = (m - p["wake"]) / (p["morning_end"] - p["wake"])
-        return round(low + (high - low) * smootherstep(t), 2)
+        return round(low + (high - low) * transition_progress(t, p), 2)
     if m <= p["evening_start"]:
         return float(high)
     t = (m - p["evening_start"]) / (p["bed"] - p["evening_start"])
-    return round(high - (high - low) * smootherstep(t), 2)
+    return round(high - (high - low) * transition_progress(t, p, evening=True), 2)

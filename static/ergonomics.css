@@ -9,6 +9,12 @@
 .setup-result{padding:20px 5px;color:var(--muted);font-size:13px;line-height:1.6}
 .profile-workspace{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(0,1.5fr);gap:18px;align-items:start}
 .profile-workspace>div{min-width:0}
+.profile-live-status{margin:12px 0 6px;color:var(--mint);font-size:14px;font-variant-numeric:tabular-nums}
+.v061-lamp-bar>small{display:block;color:var(--muted);line-height:1.5}
+#solar-draft{border-top:1px solid var(--border);margin-top:20px;padding-top:12px}
+#solar-draft>label{margin-top:20px}
+#solar-apply-status:empty{display:none}
+#solar-apply-status{padding:12px;border-left:3px solid var(--mint);background:var(--panel-2)}
 #tab-profiles .profile-workspace .two-col.top-section{display:grid!important;grid-template-columns:minmax(0,1fr)}
 #tab-profiles #v061-advanced{margin-top:0}
 #tab-profiles .mode-control{display:block;margin:12px 0 20px;padding:12px;background:var(--panel-2)}
