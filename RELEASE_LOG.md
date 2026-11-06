@@ -1,5 +1,16 @@
 # Hue Lab — journal des cycles et des publications
 
+## 6 novembre 2026 — cycle de 04 h (Europe/Zurich)
+
+**v0.6.12 — PUBLIÉE sur `main` (commit c3eda0f).**
+
+- **Code concret :** `tests/test_solar.py` vérifie la reproductibilité des heures solaires à quatre dates (dont les deux changements d'heure suisses) et l'invariance des instants UTC entre fuseaux Europe/Zurich et UTC sur trois dates. Aucun changement du pilotage Hue, des profils, des réglages ou du Raspberry.
+- **Tests :** GitHub Actions PR #10 [42153467048](https://github.com/fchautems/Hue/actions/runs/42153467048) **completed/success** ; CI post-fusion [42153532541](https://github.com/fchautems/Hue/actions/runs/42153532541) **completed/success**. Aucun test matériel.
+- **Publication :** [PR #10](https://github.com/fchautems/Hue/pull/10) fusionnée ; [commit main c3eda0f](https://github.com/fchautems/Hue/commit/c3eda0f7b7bdbdf26ad48a9736b4df2b2347504a). Pas de GitHub Release dédiée.
+- **Blocages :** aucun pour la fusion ; précision astronomique approximative et absence de tests physiques demeurent.
+- **Plan du 6 novembre à 08 h (jour) :** commencer par `tests/test_solar.py` pour ajouter un test de progression des horaires solaires autour de l'équinoxe à Nyon ; corriger `hue_solar.py` seulement en cas d'écart. Critère : dates locales et suite CI verte, aucune commande de lampe. Ensuite préparer un aperçu ergonomique non pilotant des heures solaires.
+
+
 ## 6 novembre 2026 — cycle de 00 h (Europe/Zurich)
 
 **v0.6.11 — PUBLIÉE sur `main` (commit 81bc94f).**
