@@ -42,3 +42,13 @@ class SolarProfileTests(unittest.TestCase):
             with patch.object(server,'save',side_effect=OSError('disk')):
                 with self.assertRaises(OSError):server.apply_solar_draft('light-a',self.draft(day=date(2026,12,21)))
             self.assertEqual(server.settings,previous)
+
+    def test_draft_route_is_read_only_and_validates_rhythm(self):
+        from fastapi.testclient import TestClient
+        import hue_web
+        with patch.object(hue_web, 'controller', None):
+            http=TestClient(hue_web.app)
+            response=http.get('/api/solar/draft', params=dict(day='2026-06-21',wake=420,bed=1350))
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(len(response.json()['data']['samples']),97)
+            self.assertEqual(http.get('/api/solar/draft',params=dict(day='2026-06-21',wake=1350,bed=420)).status_code,400)
