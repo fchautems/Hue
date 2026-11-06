@@ -1,6 +1,6 @@
 # PROJECT_STATE — Philips Hue Web
 
-Mise à jour : 2026-10-23
+Mise à jour : 2026-11-06
 
 ## État vérifié
 - Prototype CLI antérieur (`hue.py`) validé par l'utilisateur : découverte du pont `10.0.0.2`, appairage et détection de 3 ampoules (`Couloir - entrée`, `Salon`, `Couloir - douche`). L'utilisateur a validé le proof of concept.
@@ -324,3 +324,18 @@ Mise à jour : 2026-10-23
 - **Contrôles :** GitHub Actions de PR run 42178779968 completed/success (tests Python, contrôles JS). CI main post-fusion pas encore vérifiée. Tests Raspberry et matériel : non réalisés.
 - **Documentation :** RELEASE_LOG.md contient désormais le résumé lisible, en plus du journal de cycles.
 - **Prochaine action :** vérifier la CI main et les informations d'installation sur le Raspberry lors de la prochaine mise à jour ; poursuivre l'aperçu solaire purement visuel, sans commandes Hue.
+
+## v0.7.0 — Aperçu solaire et rythme personnel — 2026-11-06
+- **État vérifié :** reprise sur main `64b9372` ; tâche automatique « Développement agile Hue Lab » mise en pause à la demande de Fréd (confirmation du service). Aucun prochain cycle demandé.
+- **Changements :** panneau visible dans Horloge & lumières : Le Muids/Arzier, Nyon, Lausanne ou coordonnées/fuseau personnalisés ; date, retour à aujourd’hui, heures de lever/coucher, durée du jour, frise jour/nuit et repères personnels réveil/coucher. Préférences d’aperçu dans le navigateur uniquement. API GET `/api/solar/preview`, calcul local, aucun accès au contrôleur ou aux réglages Hue. Gestion des erreurs, cas polaires et réponses asynchrones devenues obsolètes.
+- **Contrôles locaux :** 177 tests Python réussis ; suites Node existantes et nouveau test solaire réussis ; compilation Python et syntaxe solaire JS valides. Le lancement Chromium local est bloqué par les sockets système ; contrôle navigateur 320/390/1320 px préparé pour GitHub Actions, non exécuté.
+- **Limites :** événements solaires approximatifs, sans relief ni météo ; aperçu indépendant du pilotage. Aucun essai Raspberry/ampoules ni déploiement matériel. L’aperçu ne génère pas encore de profil automatique solaire.
+- **Prochaine action :** demander l’autorisation explicite de publication, puis exécuter la CI navigateur et publier après succès. Reprise ultérieure : proposer un brouillon de profil luminosité ET couleur issu du rythme personnel et du soleil, avec activation explicite. Automatisation laissée en pause.
+
+### Blocage de publication — 2026-11-06
+- Commit local de fonctionnalité créé ; l’envoi Git vers la branche de travail a été refusé par la revue automatique, qui juge l’autorisation de développement insuffisante pour une publication externe. Aucun contournement ni nouvelle tentative d’envoi.
+- Publication et CI navigateur non effectuées. Code et tests conservés localement ; aucun déploiement matériel.
+- Prochaine action : accord explicite de Fréd pour publier `fchautems/Hue`, puis branche/CI et fusion après succès. La tâche automatique reste en pause.
+
+### Publication autorisée — 2026-11-06
+- Fréd a explicitement donné carte blanche pour publier cette version. Le blocage d’autorisation précédent est résolu ; validation CI navigateur en cours de préparation, tâche automatique toujours en pause.

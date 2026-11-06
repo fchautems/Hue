@@ -1,0 +1,22 @@
+.solar-card{margin-bottom:20px;min-width:0;padding:24px}
+.solar-card [hidden]{display:none!important}
+.solar-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.solar-card p,.solar-card small{line-height:1.6;color:var(--muted,#a7bdcf)}
+.solar-form,.solar-routine{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0}
+.solar-card label{display:flex;flex:1 1 150px;flex-direction:column;gap:8px;min-width:0;font-size:14px}
+.solar-card .field{width:100%;min-width:0;min-height:48px;box-sizing:border-box}
+.solar-coordinates{display:flex;flex-basis:100%;gap:14px;flex-wrap:wrap}
+.solar-coordinates.hidden{display:none}
+.solar-actions{display:flex;gap:10px;flex-basis:100%;flex-wrap:wrap}
+.solar-card button{min-height:48px;white-space:normal}
+.solar-card :is(button,input,select):focus-visible{outline:3px solid #8dc8ff;outline-offset:3px}
+.solar-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
+.solar-stats span{display:block;font-size:10px;letter-spacing:.05em;color:#a7bdcf}
+.solar-stats strong{display:block;margin-top:8px;font-size:clamp(18px,3vw,28px);font-variant-numeric:tabular-nums}
+.solar-timeline{position:relative;height:58px;border:1px solid #53667c;border-radius:10px;background:#152436;overflow:hidden}
+#solar-daylight{position:absolute;height:100%;background:linear-gradient(90deg,#c6854c,#f6d586 35%,#f6d586 65%,#c6854c);opacity:.9}
+.solar-marker{position:absolute;top:0;height:100%;border-left:2px solid #fff;padding:4px 0 0 4px;font-size:10px;color:#fff;text-shadow:0 1px 3px #000;background:#17233370;max-width:60px}
+.solar-marker.solar-bed{padding-top:36px;transform:translateX(-100%);border-left:0;border-right:2px solid #fff;padding-right:4px}
+.solar-scale{display:flex;justify-content:space-between;margin-top:6px;color:#a7bdcf;font-size:11px}
+.solar-status{min-height:24px}
+@media(max-width:450px){.solar-card{padding:16px}.solar-stats{gap:8px}.solar-stats span{font-size:9px}.solar-actions button{flex:1}.solar-form>label{flex-basis:100%}}

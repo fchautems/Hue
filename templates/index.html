@@ -15,6 +15,8 @@
   <link rel="stylesheet" href="/static/v062.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/presence.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/vacation.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/solar.css?rev={{ asset_rev }}">
+  <script src="/static/solar.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/app.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v051.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v052.js?rev={{ asset_rev }}" defer></script>
@@ -113,6 +115,30 @@
     </section>
 
     <section id="tab-profiles" class="tab hidden">
+      <section class="card solar-card" aria-labelledby="solar-title">
+        <div class="solar-heading"><div><div class="eyebrow">SOLEIL · CALCUL LOCAL</div>
+          <h2 id="solar-title">La lumière au fil des saisons</h2></div><span class="chip">Aperçu</span></div>
+        <p>Compare le jour naturel à ton rythme. Cet aperçu ne commande aucune lampe.</p>
+        <form id="solar-form" class="solar-form">
+          <label>Lieu<select id="solar-place" class="field"><option value="muids">Le Muids / Arzier</option><option value="nyon">Nyon</option><option value="lausanne">Lausanne</option><option value="custom">Autre lieu</option></select></label>
+          <label>Date<input id="solar-date" class="field" type="date" required></label>
+          <div id="solar-coordinates" class="solar-coordinates hidden">
+            <label>Latitude<input id="solar-lat" class="field" type="number" min="-90" max="90" step="any" value="46.46" required></label>
+            <label>Longitude<input id="solar-lon" class="field" type="number" min="-180" max="180" step="any" value="6.22" required></label>
+            <label>Fuseau horaire<input id="solar-zone" class="field" value="Europe/Zurich" required placeholder="Europe/Zurich"></label>
+          </div>
+          <div class="solar-actions"><button type="button" id="solar-today" class="btn muted">Aujourd’hui</button><button type="submit" class="btn primary">Voir cette journée</button></div>
+        </form>
+        <div class="solar-results" id="solar-results" hidden>
+          <div class="solar-stats"><div><span>LEVER DU SOLEIL</span><strong id="solar-rise">—</strong></div><div><span>COUCHER DU SOLEIL</span><strong id="solar-set">—</strong></div><div><span>DURÉE DU JOUR</span><strong id="solar-duration">—</strong></div></div>
+          <div class="solar-timeline" role="img" id="solar-timeline" aria-label="Journée solaire"><div id="solar-daylight"></div><span id="solar-wake-marker" class="solar-marker">Réveil</span><span id="solar-bed-marker" class="solar-marker solar-bed">Coucher</span></div>
+          <div id="solar-scale" class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+          <div class="solar-routine"><label>Mon réveil<input id="solar-wake" class="field" type="time" value="07:00" required></label><label>Mon coucher<input id="solar-bed" class="field" type="time" value="22:30" required></label></div>
+          <p id="solar-comparison"></p>
+        </div>
+        <p id="solar-status" class="solar-status" role="status" aria-live="polite">Choisis une date pour découvrir les horaires.</p>
+        <small>Horaires astronomiques approximatifs, sans météo ni relief. Ton réveil et ton coucher restent indépendants du soleil et des profils des lampes. Préférences d’aperçu mémorisées sur ce navigateur.</small>
+      </section>
       <button id="v051-simulation-toggle" class="btn muted" type="button" aria-expanded="false" aria-controls="v061-sim-options">Afficher les commandes de simulation</button>
       <div class="two-col top-section" id="v051-simulator">
         <div class="card clock-card">

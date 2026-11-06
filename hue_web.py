@@ -4,7 +4,8 @@ from __future__ import annotations
 import argparse
 import copy
 import ipaddress
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json
 import os
 import logging
@@ -21,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 import requests
 import urllib3
 
+from hue_solar import solar_times
 import hue_update_api
 from hue_presence_log import PresenceLog
 from hue_vacation import build_schedule, desired_states, validate_selection, GRACE_SECONDS, LOCAL_TZ
@@ -1557,6 +1559,34 @@ def index(request: Request):
         request, "index.html", {"asset_rev": revision or "unversioned"})
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+@app.get("/api/solar/preview")
+def solar_preview(day: str | None = None, latitude: float = 46.46,
+                  longitude: float = 6.22, tz: str = "Europe/Zurich"):
+    """Offline, read-only preview: no controller or settings access."""
+    try:
+        zone = ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError("Fuseau horaire inconnu.") from None
+    try:
+        selected = date.fromisoformat(day) if day else datetime.now(zone).date()
+    except ValueError:
+        raise ValueError("Date invalide : utilise AAAA-MM-JJ.") from None
+    times = solar_times(selected, latitude, longitude, tz)
+    sunrise, sunset = times["sunrise"], times["sunset"]
+    minutes = lambda instant: instant.hour * 60 + instant.minute + instant.second / 60
+    return ok({
+        "day": selected.isoformat(), "timezone": tz,
+        "latitude": latitude, "longitude": longitude,
+        "sunrise": sunrise.isoformat() if sunrise else None,
+        "sunset": sunset.isoformat() if sunset else None,
+        "sunrise_minute": minutes(sunrise) if sunrise else None,
+        "sunset_minute": minutes(sunset) if sunset else None,
+        "daylight_minutes": round((sunset.timestamp() - sunrise.timestamp()) / 60)
+                            if sunrise and sunset else None,
+        "approximate": True,
+    })
 
 
 @app.get("/api/state")
