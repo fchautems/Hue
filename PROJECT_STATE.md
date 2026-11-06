@@ -318,3 +318,9 @@ Mise à jour : 2026-10-23
 - **Contrôles :** tests Python tests/test_update_visibility.py et Node tests/test_update_ui.cjs ; node --check static/app.js dans GitHub Actions. Verdict CI requis avant fusion ; aucun essai Raspberry/ampoules.
 - **Contraintes :** aucun changement de commandes Hue, réglages, ou mode Manuel/Auto. Première mise à jour depuis l'ancien worker : seulement le dernier cycle du journal comme repli, pas de comparaison de commits.
 - **Prochaine action :** valider la PR et la suite CI ; fusionner dans main seulement après succès. Vérifier CI main et compléter RELEASE_LOG.md ; reprise de l'aperçu solaire non pilotant au cycle de 12 h.
+ 
+## Validation du correctif mises à jour — 2026-11-06
+- **État vérifié :** PR #12 fusionnée sur main, commit bb36b475a80c5323c63ddb3abb3b313bfe49b3c8.
+- **Contrôles :** GitHub Actions de PR run 42178779968 completed/success (tests Python, contrôles JS). CI main post-fusion pas encore vérifiée. Tests Raspberry et matériel : non réalisés.
+- **Documentation :** RELEASE_LOG.md contient désormais le résumé lisible, en plus du journal de cycles.
+- **Prochaine action :** vérifier la CI main et les informations d'installation sur le Raspberry lors de la prochaine mise à jour ; poursuivre l'aperçu solaire purement visuel, sans commandes Hue.
