@@ -346,3 +346,10 @@ Mise à jour : 2026-11-06
 - **Livré :** aperçu solaire hors ligne dans Horloge & lumières (lieu, date, lever/coucher, durée du jour, frise, réveil/coucher personnel). Aucun changement aux commandes des lampes ni aux profils persistants. Pas de déploiement ni d’essai physique Raspberry/Hue.
 - **Blocages :** aucun pour la publication GitHub. Le nouvel aperçu ne génère pas encore de profil automatique solaire.
 - **Prochaine action :** installer via Mises à jour sur le Raspberry et vérifier l’aperçu ; développement futur du brouillon de profil solaire luminosité/couleur à activation explicite. Tâche toutes les quatre heures maintenue en pause, aucune reprise automatique.
+
+## v0.7.1 — Brouillon solaire luminosité et couleur — 2026-11-06
+- Générateur borné par réveil/coucher personnels ; montée de 30 à 120 minutes, descente de 30 à 180 minutes modulées par les heures solaires. Repli rythme personnel pour les cas polaires ; journée sans passage de minuit, durée minimale trois heures.
+- Aperçu graphique, couleur et luminosité par pas de quinze minutes ; minimum/maximum réglables. Profil fixe pour la date choisie, aucune adaptation quotidienne ou météo revendiquée.
+- Application explicite atomique luminosité/couleurs compatibles à une lampe ; modes, état ON/OFF, Vacances et anciennes courbes personnalisées conservés. Aucune commande de pont dans la route d’application ; le worker normal applique ensuite si Auto. Restauration mémoire si sauvegarde échoue.
+- Contrôles locaux : suite Python et Node ; CI et navigateur à vérifier avant publication. Aucun essai matériel.
+- Prochaine action : terminer CI et publier ; tâche automatique maintenue en pause.

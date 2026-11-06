@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 import requests
 import urllib3
 
+from hue_solar_profile import draft_profile
 from hue_solar import solar_times
 import hue_update_api
 from hue_presence_log import PresenceLog
@@ -1106,6 +1107,29 @@ class HueServer:
         return {"source": source_uid, "target": target_uid, "type": kind,
                 "rgb_auto": source_rgb and can_rgb}
 
+    def apply_solar_draft(self, uid, data):
+        """Save brightness and compatible RGB together; preserve modes and on/off."""
+        params = validate_simple_profile(data.get("params"))
+        colors = validate_rgb_phases(data.get("colors"))
+        with self._automation_lock:
+            with self.lock:
+                light = self.require_light(uid)
+                if "dimming" not in light:
+                    raise ValueError("Cette lampe ne permet pas la variation de luminosité.")
+                can_rgb = "color" in light
+                previous = copy.deepcopy(self.settings)
+                self.settings["simple_profiles"][uid] = params
+                self.settings["profile_types"][uid] = "simple"
+                self.settings["rgb_profiles"][uid] = colors
+                self.settings["rgb_auto_enabled"][uid] = can_rgb
+                try:
+                    self.save()
+                except Exception:
+                    self.settings = previous
+                    raise
+                self._profile_changed(uid)
+        return {"type": "simple", "rgb_auto": can_rgb}
+
     def set_simple_profile(self, uid, params):
         cleaned = validate_simple_profile(params)
         with self.lock:
@@ -1587,6 +1611,22 @@ def solar_preview(day: str | None = None, latitude: float = 46.46,
                             if sunrise and sunset else None,
         "approximate": True,
     })
+
+
+@app.get("/api/solar/draft")
+def solar_draft(day: str, wake: int, bed: int, latitude: float = 46.46,
+                longitude: float = 6.22, tz: str = "Europe/Zurich", low: int = 10, high: int = 85):
+    try:
+        ZoneInfo(tz)
+        selected = date.fromisoformat(day)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError("Date ou fuseau horaire invalide.") from None
+    return ok(draft_profile(selected, latitude, longitude, tz, wake, bed, low, high))
+
+
+@app.post("/api/profile/solar/{uid}")
+def apply_solar_draft(uid: str, data: dict = Body(...)):
+    return ok(controller.apply_solar_draft(uid, data))
 
 
 @app.get("/api/state")

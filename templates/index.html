@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="/static/vacation.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/solar.css?rev={{ asset_rev }}">
   <script src="/static/solar.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/solar_draft.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/app.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v051.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v052.js?rev={{ asset_rev }}" defer></script>
@@ -135,6 +136,18 @@
           <div id="solar-scale" class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
           <div class="solar-routine"><label>Mon réveil<input id="solar-wake" class="field" type="time" value="07:00" required></label><label>Mon coucher<input id="solar-bed" class="field" type="time" value="22:30" required></label></div>
           <p id="solar-comparison"></p>
+          <div class="solar-routine"><label>Minimum (%)<input id="solar-low" class="field" type="number" min="1" max="99" value="10"></label><label>Maximum (%)<input id="solar-high" class="field" type="number" min="2" max="100" value="85"></label></div>
+          <button id="solar-generate" type="button" class="btn muted">Préparer un profil pour cette date</button>
+          <div id="solar-draft" hidden>
+            <h3>Profil proposé · <span id="solar-draft-date"></span></h3>
+            <p>Profil fixe : la date ne se recalculera pas chaque jour. Couleurs chaudes la nuit et le soir, plus neutres le jour. Sans météo.</p>
+            <svg id="solar-curve" viewBox="0 0 720 130" role="img" aria-label="Courbe de luminosité sur vingt-quatre heures" style="width:100%;height:auto"><polyline id="solar-curve-line" fill="none" stroke="#efbf6d" stroke-width="3"/></svg>
+            <label>Heure de l’aperçu<input id="solar-sample" type="range" min="0" max="96" value="48"></label>
+            <p id="solar-sample-label"></p><div id="solar-swatch" style="height:36px;border-radius:8px" aria-hidden="true"></div>
+            <p id="solar-draft-hours"></p>
+            <button id="solar-apply" class="btn primary" type="button">Appliquer à la lampe sélectionnée</button>
+            <p>Remplace le profil actif. Le mode Manuel/Auto reste inchangé ; une lampe déjà en Auto peut suivre ce profil immédiatement. Les lampes sans RGB reçoivent la luminosité seule.</p>
+          </div>
         </div>
         <p id="solar-status" class="solar-status" role="status" aria-live="polite">Choisis une date pour découvrir les horaires.</p>
         <small>Horaires astronomiques approximatifs, sans météo ni relief. Ton réveil et ton coucher restent indépendants du soleil et des profils des lampes. Préférences d’aperçu mémorisées sur ce navigateur.</small>
