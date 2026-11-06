@@ -40,6 +40,8 @@ jobs:
 
       - name: Frontend syntax and copy regression
         run: |
+          node --check static/app.js
+          node tests/test_update_ui.cjs
           node --check static/v062.js
           node --check static/v063.js
           node tests/test_v062_ui.cjs

@@ -1551,7 +1551,12 @@ async def unavailable(_request: Request, e: HueError):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse(request, "index.html")
+    # Read-only SHA; changing assets after a successful update invalidates browser caches.
+    revision = hue_update_api.local_revision()
+    response = templates.TemplateResponse(
+        request, "index.html", {"asset_rev": revision or "unversioned"})
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/api/state")
