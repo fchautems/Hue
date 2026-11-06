@@ -16,11 +16,11 @@ DEFAULT_SIMPLE_PROFILE = {
 def validate_simple_profile(raw):
     """Accepte uniquement 4 horaires dans l'ordre et deux niveaux lumineux.
 
-    On conserve pour le moment une journée sans transition traversant minuit.
-    Le profil retourne toujours au niveau nocturne avant minuit.
+    Les quatre ancres de base restent ordonnées dans la journée.
+    Une copie solaire peut porter des transitions nocturnes cycliques supplémentaires.
     """
     if (not isinstance(raw, dict) or
-            set(raw) - {"transition_shape"} != set(DEFAULT_SIMPLE_PROFILE)):
+            set(raw) - {"transition_shape", "solar_rhythm", "solar_colors"} != set(DEFAULT_SIMPLE_PROFILE)):
         raise ValueError("La courbe simple nécessite quatre horaires et deux luminosités.")
     if "transition_shape" in raw and raw["transition_shape"] != "asymmetric":
         raise ValueError("Forme de transition inconnue.")
@@ -38,6 +38,19 @@ def validate_simple_profile(raw):
     low, high = raw["min_brightness"], raw["max_brightness"]
     if not (1 <= low < high <= 100):
         raise ValueError("Le minimum doit être inférieur au maximum (entre 1 et 100 %).")
+    if "solar_colors" in raw and (raw["solar_colors"] is not False or "solar_rhythm" not in raw):
+        raise ValueError("Options de couleur solaire invalides.")
+    if "solar_rhythm" in raw:
+        from hue_solar_rhythm import validate_rhythm
+        rhythm = raw['solar_rhythm']
+        if not isinstance(rhythm, dict) or set(rhythm) != {'wake', 'bed', 'transition', 'comfort', 'saturation', 'morning_hue', 'evening_hue', 'night_hue', 'day_kelvin'}:
+            raise ValueError("Rythme solaire incomplet.")
+        wake, bed = rhythm['wake'], rhythm['bed']
+        if type(wake) is not int or type(bed) is not int or not 0 <= wake < bed < 1440 or bed-wake < 180:
+            raise ValueError("Réveil et coucher invalides.")
+        validate_rhythm({k:v for k,v in rhythm.items() if k not in ('wake','bed')}, wake, bed, low, high)
+        if not wake < raw['morning_end'] <= raw['evening_start'] < bed:
+            raise ValueError("Horaires solaires hors du rythme personnel.")
     return dict(raw)
 
 
@@ -58,6 +71,9 @@ def transition_progress(t, profile, *, evening=False):
 def simple_brightness_at(profile, minute):
     """Niveau continu sur 24 h : nuit, montée, plateau, descente, nuit."""
     p = validate_simple_profile(profile)
+    if 'solar_rhythm' in p:
+        from hue_solar_rhythm import rhythm_brightness
+        return rhythm_brightness(p, minute)
     m = float(minute)
     if not math.isfinite(m):
         raise ValueError("Heure invalide.")

@@ -49,6 +49,7 @@
     return '';
   }
   function level(p, minute) {
+    if(p.solar_rhythm)return window.HueRhythm.brightness(p,minute);
     const m = ((minute%1440)+1440)%1440;
     const lo=p.min_brightness, hi=p.max_brightness;
     if(m<=p.wake || m>=p.bed)return lo;
@@ -121,6 +122,7 @@
   for(const [key,field] of Object.entries(fields)) {
     field.addEventListener(clockKeys.includes(key)?'change':'input',()=>{
       const value=clockKeys.includes(key)?parseTime(field.value):Number(field.value);
+      delete params.solar_rhythm;delete params.solar_colors;
       params[key]=value;
       if(!clockKeys.includes(key))document.querySelector(`#v052-${key}-value`).textContent=`${value} %`;
       draw();

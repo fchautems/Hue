@@ -34,6 +34,7 @@
   }
   function brightnessAt(m) {
     const p=draft.simple_params,low=p.min_brightness,high=p.max_brightness;
+    if(p.solar_rhythm)return window.HueRhythm.brightness(p,m);
     const progress=(t,evening=false)=>ease(p.transition_shape==='asymmetric'?(evening?t*t:1-(1-t)**2):t);
     if(m<=p.wake||m>=p.bed)return low;
     if(m<p.morning_end)return low+(high-low)*progress((m-p.wake)/(p.morning_end-p.wake));
@@ -98,9 +99,15 @@
     $('#rgb-auto-phases').hidden=draft.mode==='manuel';
     $('#rgb-auto-settings').hidden=draft.mode==='manuel';
     const solar=profileType==='solar';
+    const rhythmSolar=solar&&!!draft.simple_params.solar_rhythm&&draft.mode==='auto';
+    $('#rgb-auto-phases').hidden=draft.mode==='manuel'||rhythmSolar;
+    $('#rgb-auto-settings').hidden=draft.mode==='manuel'||rhythmSolar;
+    $('.rgb-wheel-layout').hidden=rhythmSolar;
+    $('#rgb-presets').hidden=rhythmSolar;
+    $('#rgb-presets-title').hidden=rhythmSolar;
     $('#rgb-schedule-toggle').parentElement.hidden=solar&&draft.mode==='auto';
     $('#rgb-bright').parentElement.hidden=solar&&draft.mode==='auto';
-    $('#rgb-mode-advisory').textContent=solar&&draft.mode==='auto'?'Les horaires et la luminosité suivent Soleil ; tu peux ajuster les couleurs ici.':draft.mode==='auto'
+    $('#rgb-mode-advisory').textContent=rhythmSolar?'Les couleurs, le blanc de journée et les courbes se règlent directement dans le profil Soleil.':solar&&draft.mode==='auto'?'Les horaires et la luminosité suivent Soleil ; tu peux ajuster les couleurs ici.':draft.mode==='auto'
       ? 'Enregistrer active la courbe Simple et les couleurs automatiques ; l’ancienne courbe personnalisée reste conservée.'
       : 'Enregistrer applique la couleur seulement si la lampe est déjà allumée ; sinon elle sera mémorisée pour le prochain allumage via Hue Lab.';
     const e=errorMessage();const err=$('#rgb-validation');err.textContent=e;err.hidden=!e;

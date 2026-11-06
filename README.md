@@ -134,3 +134,36 @@ Dans **Profils & simulation**, choisis la lampe, puis **Soleil** dans le choix d
 La **date de l’aperçu** sert seulement à explorer une journée : elle n’est jamais enregistrée dans le profil. La simulation accélérée utilise les horaires solaires d’aujourd’hui. Les heures astronomiques restent approximatives, sans météo ni relief ; si un lever/coucher est absent, le rythme personnel sert de repli. Les transitions restent bornées par le réveil/coucher et durent au moins 30 minutes.
 
 Pour quitter Soleil, enregistre un profil Simple ou active Personnalisée ; les options solaires sont conservées. Les anciens profils solaires fixes ne sont pas convertis automatiquement. La copie du **profil complet** inclut les options solaires et les couleurs ; la copie de **luminosité seule** fige la courbe solaire du jour en profil Simple.
+
+
+## Rythme Soleil — v0.10.0
+
+Dans le profil Soleil, règle une fois par lampe :
+- tes heures de réveil et de coucher ;
+- la luminosité de confort et la saturation à atteindre à ces deux heures ;
+- une durée commune de transition, avant le réveil et après le coucher ;
+- la luminosité nocturne et celle de journée ;
+- les trois teintes pleines matin/soir/nuit et le blanc de journée.
+
+Exemple de départ ajustable : réveil 05:15, coucher 22:30, durée 30 minutes,
+confort 55 % / saturation 45 %, nuit 10 % / saturation 100 %, journée 85 %.
+La montée commence à 04:45 et atteint le confort à 05:15 ; elle rejoint ensuite
+le niveau de journée au lever solaire (ajusté si nécessaire pour conserver l’ordre).
+La soirée part du coucher solaire et rejoint les niveaux de confort à 22:30.
+Le minimum nocturne et la saturation 100 % sont atteints à 23:00.
+Les transitions suivent des courbes en S asymétriques : montée avancée, baisse retardée.
+Les transitions de nuit peuvent traverser minuit ; elles ne peuvent pas se chevaucher.
+Le rythme personnel reste limité à un réveil précédant le coucher dans la même journée.
+
+Le blanc de journée utilise une référence CIE D à 5’000 K par défaut,
+réglable entre 4’000 et 6’500 K, convertie en xy et limitée au gamut annoncé par la lampe.
+C’est une référence de chromaticité : une ampoule ne reproduit pas le spectre du soleil.
+L’aperçu écran est indicatif. Les lampes sans RGB suivent seulement la luminosité.
+Référence de calcul : https://colour.readthedocs.io/en/master/generated/colour.temperature.CCT_to_xy_CIE_D.html
+
+L’aperçu date/heure reste sans effet sur les lampes. Les deux courbes affichent
+luminosité et saturation ; l’enregistrement conserve le recalcul quotidien,
+Manuel/OFF/Vacances prioritaires et les réglages après redémarrage.
+Les anciens profils Soleil restent inchangés jusqu’au bouton « Adopter ce rythme Soleil ».
+Les profils Simple/Personnalisé restent disponibles ; la copie de luminosité seule
+reste fixe et conserve les couleurs de destination.

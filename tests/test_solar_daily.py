@@ -109,3 +109,46 @@ class DailySolarTests(TestCase):
             self.assertEqual(r.status_code,200)
             self.assertEqual(self.path.read_bytes(),before);self.assertEqual(self.bridge.calls,[])
             self.assertEqual(http.put('/api/profile/solar/light-0',json={'config':self.config,'day':'2027-06-21'}).status_code,400)
+
+    def test_rhythm_commands_at_bed_night_and_wake_survive_restart(self):
+        from hue_simple_profile import simple_brightness_at
+        s=self.server;s.set_solar_profile('light-0',dict(self.config,comfort=62,saturation=58,transition=45,night_hue=0,day_kelvin=4500))
+        s.set_light_mode('light-0','auto');persisted=self.path.read_bytes()
+        for hour,minute,brightness,saturation in [(4,30,10,100),(5,15,62,58),(22,30,62,58),(23,15,10,100)]:
+            self.instant=self.instant.replace(hour=hour,minute=minute)
+            s.last_sent.clear();self.bridge.calls.clear();s.automate()
+            payload=self.bridge.calls[-1][1];p=s._effective_simple('light-0')
+            color=rgb_at(s.settings['rgb_profiles']['light-0'],p,hour*60+minute)
+            self.assertEqual(payload['dimming']['brightness'],brightness)
+            self.assertEqual(payload['color']['xy'],hsv_to_xy(color))
+            self.assertEqual(color['s'],saturation)
+            self.assertEqual(s.state()['lights'][0]['target'],brightness)
+        rebooted=HueServer(self.bridge,self.path,logging.getLogger('rhythm-restart'))
+        with patch.object(rebooted,'_solar_now',return_value=self.instant):
+            self.assertEqual(simple_brightness_at(rebooted._effective_simple('light-0'),1395),10)
+        self.assertEqual(self.path.read_bytes(),persisted)
+        self.assertEqual(rebooted.settings['solar_profiles']['light-0']['night_hue'],0)
+
+    def test_fixed_brightness_copy_never_changes_destination_color_schedule(self):
+        s=self.server;s.set_solar_profile('light-0',self.config)
+        before=copy.deepcopy(s.settings['rgb_profiles'].get('light-1'))
+        p=s._effective_simple('light-0');s.set_simple_profile('light-1',p)
+        copied=s.settings['simple_profiles']['light-1']
+        self.assertEqual(copied['solar_colors'],False)
+        self.assertEqual(s.settings['rgb_profiles'].get('light-1'),before)
+        from hue_rgb import DEFAULT_RGB_PHASES
+        plain={k:v for k,v in copied.items() if k not in ('solar_rhythm','solar_colors')}
+        self.assertEqual(rgb_at(DEFAULT_RGB_PHASES,copied,1200),rgb_at(DEFAULT_RGB_PHASES,plain,1200))
+        from hue_simple_profile import simple_brightness_at
+        self.assertEqual(simple_brightness_at(copied,1350),self.config['comfort'])
+
+    def test_legacy_solar_restart_keeps_original_curve_without_writes(self):
+        from hue_solar_profile import LEGACY_SOLAR_CONFIG
+        s=self.server;s.set_solar_profile('light-0',LEGACY_SOLAR_CONFIG)
+        persisted=self.path.read_bytes()
+        rebooted=HueServer(self.bridge,self.path,logging.getLogger('legacy-restart'));rebooted.poll()
+        with patch.object(rebooted,'_solar_now',return_value=self.instant):
+            p=rebooted._effective_simple('light-0')
+            self.assertNotIn('solar_rhythm',p)
+        self.assertEqual(rebooted.solar_profile('light-0')['config'],LEGACY_SOLAR_CONFIG)
+        self.assertEqual(self.path.read_bytes(),persisted)

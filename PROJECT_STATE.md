@@ -2,6 +2,13 @@
 
 Mise à jour : 2026-11-06
 
+## Rythme solaire v0.10.0 en cours — 2026-11-06
+- Demande : confort au réveil/coucher, transition commune avant/après ces heures, minimum nocturne avec saturation 100 %, paliers réglables ; courbes en S asymétriques, teintes matin/soir/nuit et blanc de journée ajustable.
+- Base vérifiée : main 9823346 propre, v0.9.0 publiée. Brain et MODEL_GUIDE lus ; aucune reprise d’automatisation ni accès matériel.
+- Implémentation : options nouvelles séparées du schéma solaire historique ; les profils existants gardent leur comportement jusqu’au nouvel enregistrement. Moteur cyclique pour les transitions passant minuit, interpolation du blanc CIE D (5000 K proposé, 4000–6500 K réglable) vers les teintes saturées.
+- Contrôles locaux : 207 tests Python et six suites Node réussis ; syntaxe/compilation et diff valides. Tests des paliers exacts, continuité, monotonie, passage minuit, CIE D50/gamut, parité Python/JS chaque minute, commandes simulées/persistance, copies et compatibilité. Chromium local interdit de créer son socket ; validation des parcours par CI requise. Aucune publication de cette version à ce stade.
+- Prochaine action : publier sur branche, vérifier CI/parcours et captures 320/390/1320 px, corriger si nécessaire puis fusionner si vert. Aucun déploiement matériel, automatisation toujours en pause.
+
 ## État actuel — v0.9.0 publiée — 2026-11-06
 - PR #17 fusionnée sur main au commit ba02d8f86c8a2b135e81276f2b49cd45d2ba1b2c, après validation complète du commit ea9874d.
 - Livré : choix permanent Simple/Personnalisé/Soleil par lampe ; réveil/coucher, niveaux et lieu enregistrés une fois. Horaires et couleurs évalués selon chaque date locale, cache journalier en mémoire, reprise après redémarrage. L’aperçu daté ne modifie jamais le suivi.

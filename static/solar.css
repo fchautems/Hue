@@ -30,3 +30,10 @@
 #solar-today{margin-bottom:0}
 #solar-save-status{font-size:13px}
 #solar-save-status.unsaved{color:var(--gold)}
+.solar-group{border:1px solid var(--border,#384d60);border-radius:12px;padding:14px;margin:18px 0;min-width:0}
+.solar-group legend{font-weight:650;padding:0 8px;font-size:14px}
+.solar-group .solar-routine{margin:8px 0 12px}
+.solar-hue{width:100%;min-height:44px;accent-color:#efbf6d;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red);border-radius:10px}
+.solar-hue-swatch{display:block;height:28px;border-radius:7px;border:1px solid #ffffff50}
+.solar-legend{display:flex;gap:20px;font-size:12px}
+.solar-legend span:first-child{color:#efbf6d}.solar-legend span:last-child{color:#85d5c0}

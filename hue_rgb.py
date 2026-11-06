@@ -51,6 +51,9 @@ def rgb_at(phases, profile, minute):
     """
     # Les validateurs garantissent l'ordre temporel et une durée non nulle.
     p = validate_simple_profile(profile)
+    if 'solar_rhythm' in p and p.get('solar_colors') is not False:
+        from hue_solar_rhythm import rhythm_color
+        return rhythm_color(p, minute)
     phases = validate_rgb_phases(phases)
     m = float(minute)
     if not math.isfinite(m):
@@ -94,6 +97,11 @@ def hsv_to_xy(hs, gamut=None):
     Z = 0.0193339*r + 0.1191920*g + 0.9503041*b
     scale = X + Y + Z
     xy = (X/scale, Y/scale)
+    # Runtime solar colours carry their daylight-relative chromaticity.
+    if 'xy' in hs:
+        xy = (float(hs['xy']['x']), float(hs['xy']['y']))
+        if any(not math.isfinite(v) or not 0 < v < 1 for v in xy) or sum(xy) > 1:
+            raise ValueError("Chromaticité invalide.")
     triangle = gamut_vertices(gamut)
     if triangle and not point_inside_triangle(xy, triangle):
         # Closest point on any edge: safe even for restricted gamut A/B/C.

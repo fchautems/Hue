@@ -1210,6 +1210,8 @@ class HueServer:
 
     def set_simple_profile(self, uid, params):
         cleaned = validate_simple_profile(params)
+        if "solar_rhythm" in cleaned:
+            cleaned["solar_colors"] = False  # fixed brightness copy never copies colours
         with self.lock:
             self.require_light(uid)
             self.settings["simple_profiles"][uid] = cleaned
@@ -1702,13 +1704,17 @@ def solar_preview(day: str | None = None, latitude: float = 46.46,
 
 @app.get("/api/solar/draft")
 def solar_draft(day: str, wake: int, bed: int, latitude: float = 46.46,
-                longitude: float = 6.22, tz: str = "Europe/Zurich", low: int = 10, high: int = 85, uid: str | None = None):
+                longitude: float = 6.22, tz: str = "Europe/Zurich", low: int = 10, high: int = 85, uid: str | None = None,
+                transition: int | None = None, comfort: int = 55, saturation: int = 45,
+                morning_hue: int = 34, evening_hue: int = 28, night_hue: int = 16, day_kelvin: int = 5000):
     try:
         ZoneInfo(tz)
         selected = date.fromisoformat(day)
     except (ZoneInfoNotFoundError, ValueError):
         raise ValueError("Date ou fuseau horaire invalide.") from None
-    draft = draft_profile(selected, latitude, longitude, tz, wake, bed, low, high)
+    rhythm = {} if transition is None else dict(transition=transition, comfort=comfort, saturation=saturation,
+        morning_hue=morning_hue, evening_hue=evening_hue, night_hue=night_hue, day_kelvin=day_kelvin)
+    draft = draft_profile(selected, latitude, longitude, tz, wake, bed, low, high, **rhythm)
     if uid:
         with controller.lock:
             controller.require_light(uid)
