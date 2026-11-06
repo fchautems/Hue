@@ -19,7 +19,6 @@
   const cancel = document.querySelector('#v052-cancel');
   const activateCustom = document.querySelector('#v052-activate-custom');
   const originalLoad = loadProfile;
-  const originalRender = renderChart;
   let activeType = 'custom';
   let viewType = 'custom';
   let params = {...DEFAULT};
@@ -117,11 +116,6 @@
     await originalLoad();
     await fetchProfile();
   };
-  // v0.5.1 garde le graphique de la courbe personnalisée ; masquer seulement sa présentation.
-  renderChart = function() {
-    originalRender();
-  };
-
   for(const [key,field] of Object.entries(fields)) {
     field.addEventListener(clockKeys.includes(key)?'change':'input',()=>{
       const value=clockKeys.includes(key)?parseTime(field.value):Number(field.value);
