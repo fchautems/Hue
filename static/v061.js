@@ -52,14 +52,15 @@
 
   window.HueMerged = {
     openCurve(id) {
-      setTab('profiles');
+      if(setTab('profiles')===false)return;
       if (!selectLamp(id)) return;
       advanced.open = true;
       reveal(advanced);
     },
     openColors(id) {
-      setTab('profiles');
+      if(setTab('profiles')===false)return;
       if (!selectLamp(id)) return;
+      document.querySelector('#profile-colors').open=true;
       window.HueRGB?.open(id, true);
       reveal(rgbSection);
     },

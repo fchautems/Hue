@@ -1,13 +1,27 @@
-# Hue Lab — Interface Web Philips Hue (v0.3)
+# Hue Lab — Interface Web Philips Hue (v0.8.0)
 
 Application locale Python + HTML permettant de piloter des ampoules Hue, simuler 24 h en accéléré, adapter leur luminosité et diagnostiquer leur comportement après une coupure de courant.
+
+## Navigation actuelle
+
+- **Lampes & vacances** : marche/arrêt, luminosité, Manuel/Auto par lampe, raccourcis courbe/couleur, Vacances avec planning et test 60 s.
+- **Profils & simulation** : lampe choisie en premier ; horloge et courbe rapprochées ; source réel/accéléré unique ; commandes repliables. Couleurs et profil solaire restent accessibles dans deux sections repliables. Les copies « courbe seule » et « profil complet » sont regroupées sous le sélecteur de lampe.
+- **Historique** : allumages/extinctions et observations Zigbee, pagination conservée.
+- **Paramètres** : Pont Hue, Avancé (démarrage après coupure, capacités, latences, tests secteur, export et logs), Mises à jour.
+- **Mises à jour** : raccourci permanent avec badge si une nouvelle version est disponible ; statut local relu chaque minute, sans installation automatique.
+
+Les profils, couleurs, modes par lampe, données Vacances et clés locales sont conservés sans migration. La découverte utilise le service Hue puis une recherche SSDP locale bornée si nécessaire. Le multicast peut être filtré : l’IP manuelle reste disponible et n’est jamais écrasée par une recherche. Les données enregistrées sont prioritaires au démarrage.
+
+Le test Vacances de 60 s et la simulation des profils sont distincts : le premier teste les allumages de présence puis reprend le programme ; la seconde accélère les courbes des lampes en Auto.
+
+Les sections v0.3–v0.7 ci-dessous décrivent l’historique ; les emplacements actuels sont ceux de cette section.
 
 ## Installation Windows — tout depuis l'interface
 
 1. Récupérer la dernière version du dépôt dans `F:\_Projets\Hue` et conserver les fichiers existants du dossier, notamment `hue.py` (prototype CLI). Si le dossier est déjà un clone Git, `git pull` récupère les mises à jour du code ; cette commande **n'est pas nécessaire pour l'appairage**.
 2. Double-cliquer sur `demarrer_hue.bat` : les dépendances manquantes sont installées automatiquement, puis le serveur est lancé.
-3. Ouvrir `http://127.0.0.1:8765` dans le navigateur. Au premier lancement, l'onglet **Connexion au pont** s'affiche automatiquement :
-   - Cliquer sur **Rechercher le pont** (ou utiliser l'adresse IP proposée `10.0.0.2` si la découverte Internet n'aboutit pas).
+3. Ouvrir `http://127.0.0.1:8765` dans le navigateur. Au premier lancement, **Paramètres → Pont Hue** s'affiche automatiquement :
+   - Cliquer sur **Rechercher le pont**, ou saisir son IP locale (par exemple `10.0.0.12`). Aucune adresse fictive n’est proposée. La recherche conserve toute IP saisie ; un choix ne s’affiche que si plusieurs ponts sont détectés.
    - Cliquer sur **Démarrer l'association** et appuyer sur le gros bouton du pont Hue.
    - Le programme retente automatiquement pendant 45 secondes, vérifie la clé, crée la configuration locale et affiche les ampoules.
 
@@ -15,9 +29,9 @@ Application locale Python + HTML permettant de piloter des ampoules Hue, simuler
 
 ## Configuration et sécurité
 
-- `hue_config.example.json` est **versionné sur GitHub**. Il contient l'adresse IP déjà connue du pont, sans clé secrète. Il sert de modèle au premier démarrage.
+- `hue_config.example.json` est **versionné sur GitHub**. Il contient une adresse vide, sans clé secrète. Une installation existante conserve son adresse et sa clé. Il sert de modèle au premier démarrage.
 - `.hue_config.json` est **créé automatiquement sur le PC** et contient ensuite la clé d'application fournie par le pont. **Il est exclu de GitHub** via `.gitignore` pour ne pas rendre publiques les commandes de tes lampes.
-- Quand une clé est absente, vide ou refusée, ouvrir l'onglet **Connexion au pont** et refaire l'association directement dans la page.
+- Quand une clé est absente, vide ou refusée, ouvrir **Paramètres → Pont Hue** et refaire l'association directement dans la page.
 - `hue_settings.json` (courbes personnalisées) et `logs/hue.log` (journal) restent aussi locaux.
 - Le serveur écoute par défaut uniquement sur `127.0.0.1` et refuse les adresses externes pour l'association. Les requêtes vers le pont utilisent son HTTPS local sans validation du certificat pour ce prototype.
 
@@ -25,7 +39,7 @@ Application locale Python + HTML permettant de piloter des ampoules Hue, simuler
 
 - Tableau de bord : on/off, luminosité et connexion Zigbee déclarée par le pont.
 - Courbes individuelles avec interpolation douce et continuité à minuit.
-- Sélecteur unique : Manuel, Temps réel ou Accéléré (ce dernier pilote les ampoules physiques). Horloge 24 h, vitesses, pause et curseur de temps.
+- Manuel/Auto par lampe. Dans **Profils & simulation**, une seule référence horaire réelle/accélérée, horloge 24 h, vitesse, pause et curseur. La simulation agit sur les vraies lampes en Auto.
 - Temps réel : suivi continu de la courbe locale, sans rallumer les ampoules volontairement éteintes par logiciel.
 - Démarrage sur valeur fixe 10 % proposé pour chaque ampoule compatible via `powerup.custom` : écriture uniquement sur clic, puis relecture du réglage.
 - Reconnexion : SSE Hue v2 et secours par sondage 2 s, transition adaptative 500–2 000 ms ; animation quotidienne par `dynamics.duration` si disponible.
@@ -38,7 +52,7 @@ Un interrupteur classique coupe totalement l'alimentation de l'ampoule. Elle ne 
 
 ## Dépannage
 
-- Si aucun pont n'est détecté, saisir une adresse locale valide (par exemple `10.0.0.2`) sur la page de connexion.
+- Si aucun pont n'est détecté, saisir une adresse locale valide (par exemple `10.0.0.12`) sur la page de connexion.
 - Si le pont refuse l'association, appuyer sur son bouton pendant la phase d'attente, puis relancer si nécessaire.
 - Le lanceur Windows indique les erreurs d'installation éventuelles et conserve la fenêtre ouverte en cas d'échec.
 - Les logs sont dans `logs/hue.log` ; ne pas publier les logs sans les relire.

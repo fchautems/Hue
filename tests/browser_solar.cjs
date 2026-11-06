@@ -6,6 +6,7 @@ const {chromium}=require('playwright');
  await page.goto('http://127.0.0.1:8765');
  await page.waitForTimeout(700);
  await page.locator('[data-tab="profiles"]').click();
+ await page.locator('#profile-solar > summary').click();
  await page.locator('#solar-results').waitFor({state:'visible'});
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:950});

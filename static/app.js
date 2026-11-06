@@ -17,6 +17,8 @@ let setupFirstShown = false;
 let setupCancelled = false;
 let setupInitDone = false;
 let updaterWasBusy = false;
+let settingsPanel = "setup";
+let setupIpEdited = false;
 
 function escapeHtml(text) { return String(text ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function mm(minute) { const m = ((Math.floor(minute) % 1440) + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`; }
@@ -124,17 +126,28 @@ function updateLights(lights) {
 }
 function setTab(tab) {
   if(tab==="colors")tab="profiles";
+  const panels=['setup','diagnostics','updates'];
+  if(tab==='settings')tab=settingsPanel;
+  const inSettings=panels.includes(tab);
+  if(inSettings)settingsPanel=tab;
   activeTab=tab;
-  $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${tab}`));
-  $$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
-  const titles={dashboard:['Tableau de bord','Éclairage, simulation et suivi en temps réel.'],profiles:['Horloge & lumières','Horloge 24 h, courbes et couleurs réunies au même endroit.'],presence:['Historique','Allumages, extinctions et connexions observés.'],diagnostics:['Diagnostics','Ce que chaque ampoule déclare réellement au pont Hue.'],setup:['Connexion au pont','Découverte et association Philips Hue sans configuration manuelle.'],updates:['Mises à jour','Télécharger les nouvelles versions depuis GitHub, sans PC.']};
+  $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${inSettings?'settings':tab}`));
+  $$('.settings-panel').forEach(x=>x.classList.toggle('hidden',x.id!==`tab-${tab}`));
+  $$('[data-tab]').forEach(x=>{
+    const chosen=x.dataset.tab===tab || (x.dataset.tab==='settings'&&inSettings);
+    x.classList.toggle('active',chosen);
+    x.setAttribute('aria-current',chosen?'page':'false');
+  });
+  const titles={dashboard:['Lampes & vacances','Tes lampes au quotidien et ton programme de présence.'],profiles:['Profils & simulation','Horloge & lumières : courbes, couleurs et simulation pour chaque lampe.'],presence:['Historique','Allumages, extinctions et connexions observés.'],diagnostics:['Paramètres avancés','Capacités des lampes, démarrage, diagnostics et logs.'],setup:['Paramètres · Pont Hue','Adresse et association locale ; à utiliser lors de l’installation ou d’un changement de pont.'],updates:['Mises à jour','Vérifier et installer les nouvelles versions depuis GitHub.']};
   $('#page-title').textContent=titles[tab][0]; $('#page-subtitle').textContent=titles[tab][1];
-  $('.mode-control').classList.toggle('hidden',tab==='presence');
   if(tab==='presence')window.HuePresence?.refresh();
   if(tab==='profiles' && state?.lights?.length)window.HueRGB?.open(selectedId,false,true);
-  if(tab==='diagnostics')safe(refreshDiagnostics);
+  if(tab==='setup')safe(initializeSetup);
+  if(tab==='diagnostics'){safe(refreshDiagnostics);safe(refreshLogs);}
   if(tab==='updates')safe(refreshUpdater);
+  return true;
 }
+
 async function refresh() {
   if(refreshBusy)return; refreshBusy=true;
   try{
@@ -142,7 +155,7 @@ async function refresh() {
     $('#bridge-dot').classList.toggle('online',s.connected);
     $('#bridge-label').textContent=s.connected?'Pont connecté':'Pont non connecté';
     $('#bridge-ip').textContent=s.bridge_ip??'Association requise';
-    if(s.needs_setup && !setupFirstShown) {setupFirstShown=true;setTab('setup');initializeSetup();}
+    if(s.needs_setup && !setupFirstShown) {setupFirstShown=true;setTab('setup');}
     $('#error-banner').classList.toggle('hidden', !s.error || s.needs_setup);
     $('#error-banner').textContent=s.error||'';
     $('#stat-count').textContent=s.lights.length;
@@ -223,15 +236,21 @@ function setupSelection() {
   return input.value.trim() || $('#setup-bridges').value;
 }
 async function discoverHue() {
+  const input=$('#setup-ip');
   setSetupStatus('Recherche du pont sur le réseau…');
   const button=$('#setup-discover');button.disabled=true;
   try {
     const info=await api('/api/setup/discover');
     const ips=info.bridges||[];
     const select=$('#setup-bridges');
-    select.innerHTML=ips.length?ips.map(ip=>`<option value="${escapeHtml(ip)}">${escapeHtml(ip)}</option>`).join(''):'<option value="">Aucun pont détecté</option>';
-    if(ips.length){$('#setup-ip').value=ips[0];setSetupStatus(`${ips.length} pont(s) trouvé(s). Démarre l'association.`);}
-    else setSetupStatus('Aucun pont trouvé. Tu peux saisir directement son adresse IP.',true);
+    select.replaceChildren(new Option('Choisir un pont détecté…',''), ...ips.map(ip=>new Option(ip,ip)));
+    select.hidden=ips.length<2;
+    // Never overwrite a saved address or typing, including edits made while fetching.
+    if(ips.length===1 && !input.value.trim() && !setupIpEdited)input.value=ips[0];
+    if(ips.length)setSetupStatus(ips.length===1
+      ? `Pont détecté : ${ips[0]}. ${input.value.trim()!==ips[0]?'Adresse saisie conservée ; tu peux la remplacer manuellement.':'Tu peux démarrer l’association si nécessaire.'}`
+      : `${ips.length} ponts détectés. Choisis un pont ou conserve l’adresse saisie.`);
+    else setSetupStatus('Aucun pont trouvé. Adresse saisie conservée. Vérifie le réseau ou saisis l’IP de ton pont.',true);
   } catch(e) {setSetupStatus(e.message,true);}
   finally {button.disabled=false;}
 }
@@ -240,17 +259,18 @@ async function initializeSetup() {
   setupInitDone=true;
   try {
     const cfg=await api('/api/setup/status');
-    if(cfg.ip)$('#setup-ip').value=cfg.ip;
+    if(cfg.ip && !setupIpEdited && !$('#setup-ip').value.trim())$('#setup-ip').value=cfg.ip;
     if(cfg.paired){setSetupStatus('Une configuration existe. Si elle ne fonctionne plus, tu peux refaire l’association.');}
   } catch(e){setSetupStatus(e.message,true);}
-  await discoverHue();
+  // A working stored configuration does not require a discovery or pairing.
+  if(!$('#setup-ip').value.trim() && !setupIpEdited)await discoverHue();
 }
 async function pairHue() {
   if(setupInProgress)return;
   const ip=setupSelection();
   if(!ip){setSetupStatus('Sélectionne un pont ou saisis son adresse IP.',true);return;}
   setupInProgress=true;setupCancelled=false;
-  $('#setup-pair').disabled=true;$('#setup-cancel').classList.remove('hidden');
+  $('#setup-pair').disabled=true;$('#setup-ip').disabled=true;$('#setup-discover').disabled=true;$('#setup-bridges').disabled=true;$('#setup-cancel').classList.remove('hidden');
   const stopAt=Date.now()+45000;
   try{
     while(Date.now()<stopAt && !setupCancelled){
@@ -271,7 +291,7 @@ async function pairHue() {
       if(!setupCancelled) await new Promise(resolve=>setTimeout(resolve,1500));
     }
     setSetupStatus(setupCancelled?'Association annulée.':'Délai écoulé. Relance l’association et appuie sur le bouton du pont.',!setupCancelled);
-  }finally{setupInProgress=false;$('#setup-pair').disabled=false;$('#setup-cancel').classList.add('hidden');}
+  }finally{setupInProgress=false;$('#setup-pair').disabled=false;$('#setup-ip').disabled=false;$('#setup-discover').disabled=false;$('#setup-bridges').disabled=false;$('#setup-cancel').classList.add('hidden');}
 }
 
 function renderUpdateChanges(status){
@@ -311,6 +331,10 @@ async function refreshUpdater(){
   $('#footer-version').textContent=revision?'Hue Lab · révision '+revision.slice(0,8):'Hue Lab · révision inconnue';
   label.textContent=status.message||(status.configured?'Prêt pour la vérification GitHub.':'Migration initiale requise via Termux.');
   renderUpdateChanges(status);
+  const badge=$('#update-badge');
+  badge.hidden=!status.available&&!status.busy;
+  badge.textContent=status.busy?'En cours…':'Disponible';
+  $('.update-shortcut').setAttribute('aria-label',status.available?'Mises à jour : une version est disponible':'Mises à jour');
   const blocked=!status.configured||!!status.busy;
   $('#update-check').disabled=blocked;
   $('#update-apply').disabled=blocked||!status.available;
@@ -334,10 +358,11 @@ function bindEvents(){
   $('#update-check').onclick=()=>safe(()=>runUpdater('check'));
   $('#update-apply').onclick=()=>safe(()=>runUpdater('apply'));
   $('#setup-discover').onclick=()=>safe(discoverHue);
-  $('#setup-bridges').onchange=e=>{if(e.target.value)$('#setup-ip').value=e.target.value;};
+  $('#setup-ip').addEventListener('input',()=>{setupIpEdited=true;});
+  $('#setup-bridges').onchange=e=>{if(e.target.value){$('#setup-ip').value=e.target.value;setupIpEdited=true;}};
   $('#setup-pair').onclick=()=>safe(pairHue);
   $('#setup-cancel').onclick=()=>{setupCancelled=true;setSetupStatus('Annulation demandée…');};
-  $$('.nav-item').forEach(btn=>btn.onclick=()=>{setTab(btn.dataset.tab);if(btn.dataset.tab==='setup')safe(initializeSetup);});
+  $$('[data-tab]').forEach(btn=>btn.onclick=()=>setTab(btn.dataset.tab));
   $('#clock-source').onchange=e=>safe(async()=>{await api('/api/clock-mode','POST',{mode:e.target.value});showToast('Horloge '+(e.target.value==='reel'?'réelle':'accélérée')+' sélectionnée pour les lampes Auto.');await refresh();});
   $('#go-diagnostics').onclick=()=>setTab('diagnostics');
   $('#sim-play').onclick=()=>safe(async()=>{await api('/api/simulation','POST',{running:!state.simulation.running});await refresh();});
@@ -355,3 +380,6 @@ function bindEvents(){
   $('#save-powerup').onclick=()=>safe(async()=>{const preset=$('#powerup-preset').value;const brightness=Number($('#powerup-brightness').value);const result=await api(`/api/light/${encodeURIComponent(powerupId)}/powerup`,'POST',{preset,brightness});$('#powerup-dialog').close();showToast(result.verified_readback?'Réglage confirmé par lecture du pont. Teste le retour secteur.':'Écriture envoyée mais valeur non confirmée. Consulte Diagnostics.',!result.verified_readback);await refresh();await refreshDiagnostics();});
 }
 initClockFace();bindEvents();tickClock();setInterval(tickClock,250);refresh();safe(refreshUpdater);setInterval(()=>{refresh();if(activeTab==='profiles'&&!profileDirty)renderChart();if(activeTab==='updates')refreshUpdater().catch(()=>{$('#update-status').textContent='Connexion interrompue : redémarrage ou serveur indisponible…';});},2000);
+
+// Local updater status only: the worker retains responsibility for contacting GitHub.
+setInterval(()=>{if(activeTab!=='updates')refreshUpdater().catch(()=>{});},60000);

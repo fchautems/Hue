@@ -11,7 +11,12 @@
     <select id="v062-copy-source" class="field" aria-label="Lampe source"></select>
     <button id="v062-copy" type="button" class="btn muted">Copier vers cette lampe</button>
     <small>Copie la courbe de luminosité active. Les couleurs, le mode Manuel/Auto et Vacances ne changent pas.</small>`;
-  bar.appendChild(row);
+  const details=document.createElement('details');
+  details.className='profile-copy';
+  const summary=document.createElement('summary');
+  summary.textContent='Copier depuis une autre lampe';
+  details.append(summary,row);
+  bar.appendChild(details);
   const source = row.querySelector('#v062-copy-source');
   const button = row.querySelector('#v062-copy');
   let busy = false;

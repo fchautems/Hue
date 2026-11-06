@@ -1,5 +1,13 @@
 # v0.7.1 — 6 novembre 2026 — PUBLIÉE SUR MAIN
 
+## v0.8.0 — Navigation par activités — 2026-11-06
+- Trois activités : Lampes & vacances, Profils & simulation, Historique. Pont, diagnostics, powerup, logs et maintenance regroupés dans Paramètres.
+- Mises à jour en accès permanent, badge de disponibilité et statut local rafraîchi chaque minute.
+- Sélecteur de lampe en premier, courbe et horloge rapprochées, couleurs/soleil/copies repliables ; référence réelle/accélérée unique dans le simulateur.
+- IP initiale vide, configuration existante conservée, recherche sans écrasement des saisies ; liste réservée aux résultats multiples et repli réseau local SSDP.
+- Contrats de stockage et moteurs de pilotage inchangés. Tests Python/Node et parcours navigateur avec pont simulé ; aucun déploiement Raspberry ni test physique.
+
+
 - **Code concret :** générateur de profil luminosité/couleurs à partir du réveil/coucher et du soleil, niveaux mini/maxi réglables, courbe et aperçu couleur par curseur. Application explicite à la lampe choisie, avec confirmation.
 - **Limite claire :** profil fixe pour la date sélectionnée. Aucune adaptation quotidienne ou météo. Modes Manuel/Auto, ON/OFF et Vacances préservés ; une lampe déjà en Auto peut appliquer le nouveau profil immédiatement. Luminosité seule sur lampe non RGB.
 - **Publication :** [PR #14](https://github.com/fchautems/Hue/pull/14), [commit dc454a1](https://github.com/fchautems/Hue/commit/dc454a1047c98e6e0c39134df71cc137e4c5ca75).

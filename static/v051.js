@@ -262,12 +262,16 @@
     if(!mayLeave()){e.target.value=selectedId;return;}
     discard();selectedId=e.target.value;loadProfile();
   };
-  document.querySelector('.nav')?.addEventListener('click',e=>{
-    const btn=e.target.closest?.('.nav-item');
-    if(!btn || btn.dataset.tab==='profiles' || activeTab!=='profiles')return;
-    if(!mayLeave()){e.stopImmediatePropagation();e.preventDefault();return;}
-    discard();
-  },true);
+  const previousSetTab=setTab;
+  setTab=function(tab){
+    if(activeTab==='profiles' && tab!=='profiles' && tab!=='colors'){
+      if(!mayLeave())return false;
+      const result=previousSetTab(tab);
+      if(result!==false)discard();
+      return result;
+    }
+    return previousSetTab(tab);
+  };
   window.addEventListener('beforeunload',e=>{if(profileDirty){e.preventDefault();e.returnValue='';}});
 
   const simToggle=document.querySelector('#v051-simulation-toggle');
