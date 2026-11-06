@@ -78,6 +78,30 @@ def fetch_versions() -> tuple[str, str]:
     return installed, remote
 
 
+def update_changes(installed: str, remote: str) -> tuple[list[str], str]:
+    """Summarize the public commits being installed, with no lamp or config access."""
+    if installed == remote:
+        return [], "none"
+    subjects = git("log", "-n", "8", "--no-merges", "--format=%s",
+                   f"{installed}..{remote}").splitlines()
+    paths = git("diff", "--name-only", installed, remote).splitlines()
+    interface = any(path.startswith(("templates/", "static/")) and
+                    path.endswith((".html", ".css", ".js")) for path in paths)
+    return [line[:160] for line in subjects if line.strip()], ("interface" if interface else "internal")
+
+
+def previous_changes() -> tuple[list[str], str]:
+    try:
+        raw = json.loads((STATE / "status.json").read_text(encoding="utf-8"))
+        notes = raw.get("last_changes", [])
+        kind = raw.get("last_change_kind", "none")
+        if isinstance(notes, list) and all(isinstance(s, str) for s in notes):
+            return notes[:8], kind if kind in ("interface", "internal", "none") else "none"
+    except (OSError, ValueError, TypeError):
+        pass
+    return [], "none"
+
+
 def backup_config(installed: str) -> Path:
     BACKUPS.mkdir(parents=True, exist_ok=True, mode=0o700)
     directory = BACKUPS / (dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + installed[:9] + "-" + uuid.uuid4().hex[:6])
@@ -131,16 +155,23 @@ def install_worker_for_next_run() -> None:
 
 
 def update(action: str) -> None:
-    write_status("checking", "Vérification du dépôt GitHub…")
+    last_changes, last_kind = previous_changes()
+    write_status("checking", "Vérification du dépôt GitHub…",
+                 last_changes=last_changes, last_change_kind=last_kind)
     installed, remote = fetch_versions()
+    changes, change_kind = update_changes(installed, remote)
     if action == "check":
         write_status("ready", "Une mise à jour est disponible." if installed != remote else "Hue Lab est à jour.",
-                     installed=installed[:12], remote=remote[:12], available=installed != remote)
+                     installed=installed[:12], remote=remote[:12], available=installed != remote,
+                     changes=changes, change_kind=change_kind,
+                     last_changes=last_changes, last_change_kind=last_kind)
         return
     if installed == remote:
-        write_status("success", "Hue Lab est déjà à jour.", installed=installed[:12], remote=remote[:12], available=False)
+        write_status("success", "Hue Lab est déjà à jour.", installed=installed[:12], remote=remote[:12], available=False,
+                     last_changes=last_changes, last_change_kind=last_kind)
         return
-    write_status("preparing", "Sauvegarde des réglages et préparation de la mise à jour…", installed=installed[:12], remote=remote[:12])
+    write_status("preparing", "Sauvegarde des réglages et préparation de la mise à jour…", installed=installed[:12], remote=remote[:12],
+                 changes=changes, change_kind=change_kind, last_changes=last_changes, last_change_kind=last_kind)
     backup = backup_config(installed)
     # Le code cible est contrôlé sans l'installer dans le répertoire actif.
     current_req = git("show", "HEAD:requirements.txt")
@@ -168,7 +199,8 @@ def update(action: str) -> None:
                                 cwd=staging, env=test_env, capture_output=True, timeout=180)
         if tested.returncode:
             raise RuntimeError("Les tests de la nouvelle version ont échoué avant déploiement.")
-    write_status("installing", "Installation de la nouvelle version…", installed=installed[:12], remote=remote[:12])
+    write_status("installing", "Installation de la nouvelle version…", installed=installed[:12], remote=remote[:12],
+                 changes=changes, change_kind=change_kind, last_changes=last_changes, last_change_kind=last_kind)
     stopped = False
     try:
         cmd("systemctl", "--user", "stop", SERVICE, timeout=30)
@@ -180,7 +212,8 @@ def update(action: str) -> None:
             raise RuntimeError("Le nouveau serveur ne répond pas après redémarrage.")
         install_worker_for_next_run()
         write_status("success", "Mise à jour installée et serveur opérationnel.",
-                     installed=remote[:12], remote=remote[:12], available=False, rollback=False)
+                     installed=remote[:12], remote=remote[:12], available=False, rollback=False,
+                     last_changes=changes, last_change_kind=change_kind)
     except Exception as exc:
         if stopped:
             write_status("rolling_back", "Échec du déploiement : restauration de l'ancienne version…",
