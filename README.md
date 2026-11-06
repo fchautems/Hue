@@ -98,3 +98,9 @@ Depuis **Couleurs RGB** ou le raccourci sur chaque carte, on choisit une lampe, 
 ## v0.6.1 — Interface unifiée avec horloge
 
 Les anciens onglets **Courbes horaires** et **Couleurs RGB** ne font plus qu'un : **Horloge & lumières**. L'horloge 24 h est visible sur téléphone ; la roue RGB est en accès direct ; l'éditeur de courbe historique est replié sous « Éditeur de courbe avancé ». Un seul sélecteur choisit l'ampoule pour les deux éditeurs. Aucun changement du pilotage ni des paramètres privés. [Documentation](README_V061.md).
+
+## Aperçu solaire (v0.7.0)
+
+Dans **Horloge & lumières**, le panneau « La lumière au fil des saisons » affiche le lever et le coucher du soleil, la durée du jour et une frise. Choisir Le Muids/Arzier, Nyon, Lausanne, ou saisir les coordonnées et un fuseau IANA dans « Autre lieu ». La date est libre ; « Aujourd’hui » utilise le fuseau choisi.
+
+Les repères « Mon réveil » et « Mon coucher » comparent ton rythme aux heures solaires. Les préférences d’aperçu sont mémorisées dans ce navigateur. Cet aperçu fonctionne sans Internet ni pont associé, ne sauvegarde aucun profil de lampe et n’envoie aucune commande Hue. Les horaires sont approximatifs (sans relief/météo) ; aux latitudes polaires, un événement peut être absent.

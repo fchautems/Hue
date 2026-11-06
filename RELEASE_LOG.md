@@ -1,3 +1,11 @@
+# v0.7.0 — 6 novembre 2026 — NON PUBLIÉE — PRÊTE LOCALEMENT
+
+- **Code concret :** nouvel aperçu solaire dans Horloge & lumières : lieu/date, lever et coucher du soleil, durée du jour, frise et comparaison à tes heures de réveil/coucher. Calcul hors ligne ; préférences d’aperçu mémorisées dans le navigateur.
+- **Tests :** 177 tests Python et contrôles JavaScript locaux réussis. CI distante et navigateur mobile/PC non exécutés : publication refusée par la revue automatique faute d’accord explicite pour l’envoi externe.
+- **Matériel :** aucun déploiement Raspberry ni essai physique. Le panneau est un aperçu sans commande de lampe.
+- **Décision :** tâche de développement toutes les quatre heures mise en pause à la demande de Fréd. Pas de reprise automatique prévue.
+- **Suite :** obtenir l’accord de publication, valider/publier ce panneau, puis lors d’une prochaine session proposer un profil solaire luminosité et couleur avec activation explicite.
+
 # Hue Lab — journal des cycles et des publications
 
 ## 6 novembre 2026 — correction visible des mises à jour (Europe/Zurich)

@@ -40,6 +40,8 @@ jobs:
 
       - name: Frontend syntax and copy regression
         run: |
+          node --check static/solar.js
+          node tests/test_solar_ui.cjs
           node --check static/app.js
           node tests/test_update_ui.cjs
           node --check static/v062.js
@@ -49,3 +51,24 @@ jobs:
           node tests/test_v063_ui.cjs
           node --check static/presence.js
           node tests/test_v064_presence.cjs
+
+      - name: Browser dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Solar preview mobile and desktop
+        run: |
+          python -m uvicorn hue_web:app --host 127.0.0.1 --port 8765 > /tmp/hue-web.log 2>&1 &
+          trap 'kill $!' EXIT
+          for attempt in $(seq 1 30); do
+            curl --silent --fail http://127.0.0.1:8765/api/solar/preview > /dev/null && break
+            sleep 1
+          done
+          node tests/browser_solar.cjs
+      - name: Solar preview screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solar-preview-screenshots
+          path: /tmp/hue-solar-*.png
+          if-no-files-found: ignore

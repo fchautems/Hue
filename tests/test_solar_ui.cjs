@@ -1,0 +1,22 @@
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const code = fs.readFileSync('static/solar.js', 'utf8');
+const ids = ['form','place','lat','lon','zone','wake','bed','date','coordinates','results','status','rise','set','duration','timeline','scale','daylight','wake-marker','bed-marker','comparison','today'];
+const elements = Object.fromEntries(ids.map(id => [id, {value:'',hidden:false,style:{},textContent:'',events:{},classList:{toggle(){}},addEventListener(event, fn){this.events[event]=fn},setAttribute(){}}]));
+for(const [id,value] of Object.entries({place:'muids',lat:'46.46',lon:'6.22',zone:'Europe/Zurich',wake:'07:00',bed:'22:30'}))elements[id].value=value;
+const pending=[];let stored;
+const data={day:'2026-11-06',timezone:'Europe/Zurich',sunrise:'2026-11-06T07:20:00+01:00',sunset:'2026-11-06T17:10:00+01:00',sunrise_minute:440,sunset_minute:1030,daylight_minutes:590};
+const ctx={document:{getElementById:id=>elements[id.replace('solar-','')]},localStorage:{getItem:()=>null,setItem:(k,v)=>stored=v},URLSearchParams,Intl,Date,fetch:url=>{assert.match(url,/^\/api\/solar\/preview\?/);return new Promise(resolve=>pending.push(resolve))}};
+vm.runInNewContext(code,ctx);
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+const answer=async(index,payload=data,ok=true)=>{pending[index]({ok,json:async()=>({ok,data:payload,error:'Erreur de test'})});await tick()};
+(async()=>{
+ await answer(0);assert.equal(elements.lat.disabled,true);assert.equal(elements.results.hidden,false);assert.equal(elements.rise.textContent,'07:20');assert.match(elements.comparison.textContent,/avant/);assert.ok(stored);
+ elements.date.events.input();assert.equal(elements.results.hidden,true);
+ elements.form.events.submit({preventDefault(){}});elements.date.events.input();await answer(1);assert.equal(elements.results.hidden,true,'stale response ignored');
+ elements.form.events.submit({preventDefault(){}});await answer(2,data,false);assert.equal(elements.results.hidden,true);assert.match(elements.status.textContent,/indisponible/);
+ elements.form.events.submit({preventDefault(){}});await answer(3,{...data,sunrise:null,sunset:null,sunrise_minute:null,sunset_minute:null,daylight_minutes:null});assert.equal(elements.daylight.hidden,true);assert.equal(elements.timeline.hidden,true);assert.equal(elements.scale.hidden,true);assert.match(elements.status.textContent,/polaire/);
+ elements.form.events.submit({preventDefault(){}});await answer(4);elements.wake.value='';elements.wake.events.input();assert.equal(elements['wake-marker'].hidden,true);
+ console.log('Solar UI: read-only calls, local storage, stale response, failure, polar fallback and empty routine OK');
+})().catch(error=>{console.error(error);process.exit(1)});
