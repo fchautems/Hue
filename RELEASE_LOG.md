@@ -1,5 +1,16 @@
 # Hue Lab — journal des cycles et des publications
 
+## 6 novembre 2026 — correction visible des mises à jour (Europe/Zurich)
+
+**Correctif PUBLIÉ sur main — commit bb36b475.** Il ne modifie pas les commandes des lampes.
+
+- **Problème corrigé :** bandeau affichant toujours v0.6.4, même après une mise à jour réelle ; différences non expliquées ; ressources CSS/JS pouvant rester en cache.
+- **Code concret :** affichage de la véritable révision Git installée, ressources CSS/JS versionnées automatiquement par commit et HTML non mis en cache ; nouveau bloc « Quoi de neuf ? » indiquant les commits d'une mise à jour et distinguant les changements visuels des changements internes. Dernier journal de release affiché en secours après la première installation depuis l'ancien moteur de mise à jour.
+- **Tests :** PR [#12](https://github.com/fchautems/Hue/pull/12) : GitHub Actions [42178779968](https://github.com/fchautems/Hue/actions/runs/42178779968), **completed/success** (suite Python complète et vérification JavaScript). Contrôle post-fusion de main non confirmé au moment de cette note.
+- **Publication :** [commit bb36b475](https://github.com/fchautems/Hue/commit/bb36b475a80c5323c63ddb3abb3b313bfe49b3c8). Aucune installation ni vérification sur le Raspberry, aucun test Hue physique.
+- **Limites :** la première installation avec l'ancien worker ne dispose pas de liste comparative rétroactive ; la page affiche alors le dernier cycle du journal. Par la suite, les titres des commits installés sont conservés pour consultation.
+- **Suite :** vérifier après mise à jour Raspberry que la révision affichée correspond au commit Git ; tester l'affichage « Quoi de neuf ? » pour une version interne puis une version d'interface. Reprendre la prévisualisation solaire non pilotante dans la session de développement suivante.
+
 ## 6 novembre 2026 — cycle de 08 h (Europe/Zurich ; démarré avant 08 h)
 
 **v0.6.13 — PUBLIÉE sur main (commit 0aa089d).**
