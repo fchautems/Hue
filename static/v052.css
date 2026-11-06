@@ -29,4 +29,4 @@
 
 #v052-solar-editor[hidden]{display:none!important}
 .profile-card[data-v052-view="solar"]>:is(#profile-chart,.profile-foot,.profile-help,#point-rows,.profile-actions){display:none!important}
-@media(max-width:700px){.v052-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}.v052-mode{font-size:13px;padding:10px 4px}}
+@media(max-width:700px){.v052-tabs{grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,.9fr))}.v052-mode{font-size:13px;padding:10px 4px}}

@@ -52,6 +52,7 @@ const assert=require('node:assert/strict');
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  assert.equal(await page.locator('.v052-mode').evaluateAll(buttons=>buttons.some(b=>b.scrollWidth>b.clientWidth)),false,'profile labels fit at '+width);
   await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
   await page.screenshot({path:`/tmp/hue-solar-${width}.png`,fullPage:true});
  }
