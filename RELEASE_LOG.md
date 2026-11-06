@@ -1,3 +1,10 @@
+# v0.7.1 — 6 novembre 2026 — EN VALIDATION
+
+- **Code concret :** préparation d’un profil luminosité/couleurs depuis ton rythme et le soleil ; aperçu graphique et curseur horaire ; application explicite à la lampe choisie. Profil fixe pour la date, sans recalcul quotidien ni météo.
+- **Préservation :** mode Manuel/Auto, ON/OFF, Vacances et anciennes courbes personnalisées. Couleur activée seulement sur une lampe RGB.
+- **Contrôles :** tests locaux puis CI Python/Node/Chromium à confirmer avant fusion. Aucun déploiement Raspberry.
+- **Suite :** valider/publier cet incrément. Automatisation toujours en pause.
+
 # v0.7.0 — 6 novembre 2026 — PUBLIÉE SUR MAIN
 
 - **Code concret :** aperçu solaire visible dans Horloge & lumières : lieu/date, lever et coucher du soleil, durée du jour, frise jour/nuit et comparaison avec tes heures de réveil/coucher. Calcul hors ligne ; préférences d’aperçu locales au navigateur.

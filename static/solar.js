@@ -111,5 +111,6 @@
   });
   try { $('date').value = localDay(location().tz); }
   catch (_) { $('date').value = localDay('Europe/Zurich'); }
+  globalThis.HueSolarPreview = {context: () => result ? {...location(), day: result.day} : null};
   load();
 })();

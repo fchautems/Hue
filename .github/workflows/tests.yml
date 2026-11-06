@@ -40,6 +40,7 @@ jobs:
 
       - name: Frontend syntax and copy regression
         run: |
+          node --check static/solar_draft.js
           node --check static/solar.js
           node tests/test_solar_ui.cjs
           node --check static/app.js
