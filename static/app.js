@@ -274,12 +274,43 @@ async function pairHue() {
   }finally{setupInProgress=false;$('#setup-pair').disabled=false;$('#setup-cancel').classList.add('hidden');}
 }
 
+function renderUpdateChanges(status){
+  const title=$('#update-changes-title');
+  const kind=$('#update-changes-type');
+  const list=$('#update-changes-list');
+  const pending=!!status.available;
+  title.textContent=pending?'Dans la prochaine mise à jour':'Quoi de neuf dans la dernière installation ?';
+  const changes=pending?status.changes:status.last_changes;
+  const scope=pending?status.change_kind:status.last_change_kind;
+  list.replaceChildren();
+  if(scope==='internal'){
+    kind.textContent='Mise à jour interne (calculs, tests ou documentation) : aucune différence visuelle attendue.';
+  }else if(scope==='interface'){
+    kind.textContent='Des fichiers de l’interface ont changé : des différences visuelles sont possibles.';
+  }else{
+    kind.textContent='Consulte les changements ci-dessous ou le journal complet.';
+  }
+  const notes=Array.isArray(changes)?changes.filter(s=>typeof s==='string').slice(0,8):[];
+  if(!notes.length && !pending && status.latest_note){
+    notes.push('Dernier cycle du journal : '+status.latest_note.replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g,'$1').replace(/[\`*]/g,''));
+  }
+  if(!notes.length) notes.push(pending?'Détail indisponible pour cette version.':'Aucun historique d’installation disponible pour le moment.');
+  for(const note of notes){
+    const item=document.createElement('li');
+    item.textContent=note;
+    list.appendChild(item);
+  }
+}
 async function refreshUpdater(){
   const status=await api('/api/update/status');
   const installed=$('#update-installed'),remote=$('#update-remote'),label=$('#update-status');
   installed.textContent=status.installed||'Archive / inconnue';
   remote.textContent=status.remote||'Pas encore vérifiée';
+  const revision=status.installed;
+  $('#brand-version').textContent=revision?'Commande locale · révision '+revision.slice(0,8):'Commande locale · révision inconnue';
+  $('#footer-version').textContent=revision?'Hue Lab · révision '+revision.slice(0,8):'Hue Lab · révision inconnue';
   label.textContent=status.message||(status.configured?'Prêt pour la vérification GitHub.':'Migration initiale requise via Termux.');
+  renderUpdateChanges(status);
   const blocked=!status.configured||!!status.busy;
   $('#update-check').disabled=blocked;
   $('#update-apply').disabled=blocked||!status.available;
@@ -323,4 +354,4 @@ function bindEvents(){
   $('#cancel-powerup').onclick=()=>$('#powerup-dialog').close();
   $('#save-powerup').onclick=()=>safe(async()=>{const preset=$('#powerup-preset').value;const brightness=Number($('#powerup-brightness').value);const result=await api(`/api/light/${encodeURIComponent(powerupId)}/powerup`,'POST',{preset,brightness});$('#powerup-dialog').close();showToast(result.verified_readback?'Réglage confirmé par lecture du pont. Teste le retour secteur.':'Écriture envoyée mais valeur non confirmée. Consulte Diagnostics.',!result.verified_readback);await refresh();await refreshDiagnostics();});
 }
-initClockFace();bindEvents();tickClock();setInterval(tickClock,250);refresh();setInterval(()=>{refresh();if(activeTab==='profiles'&&!profileDirty)renderChart();if(activeTab==='updates')refreshUpdater().catch(()=>{$('#update-status').textContent='Connexion interrompue : redémarrage ou serveur indisponible…';});},2000);
+initClockFace();bindEvents();tickClock();setInterval(tickClock,250);refresh();safe(refreshUpdater);setInterval(()=>{refresh();if(activeTab==='profiles'&&!profileDirty)renderChart();if(activeTab==='updates')refreshUpdater().catch(()=>{$('#update-status').textContent='Connexion interrompue : redémarrage ou serveur indisponible…';});},2000);
