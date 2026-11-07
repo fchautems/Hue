@@ -2,12 +2,14 @@
 
 Mise à jour : 2026-11-07
 
-## Ergonomie v0.11.0 et prototype Android — 2026-11-07
+## État actuel — v0.11.0 et prototype Android publiés — 2026-11-07
 - Base publiée v0.10.1 vérifiée au commit 27e2b6e. Reprise des demandes vocales, fiche Brain et guide modèle lus.
 - Simulation : Pause/Reprendre près du curseur et saisie d’une heure exacte. Le déplacement fixe cette heure et met la lecture en pause. Les vitesses restent dans les commandes repliables. Les lampes Auto suivent toujours la référence choisie.
 - Navigation : Mises à jour et Paramètres ont des pages distinctes. Pont Hue et diagnostics restent dans Paramètres. Champs des trois rangées Soleil alignés sous les libellés longs.
 - Android : prototype WebView du serveur local, adresse initiale 10.0.0.12:8765 et IPv4 privée/port modifiables. Écran de récupération réseau. Compilation et signature de test par CI. Source dans android/.
-- Prochaine action : valider les parcours navigateur, compiler et vérifier l’APK, puis publier. Vérification sur téléphone et Raspberry à faire. Automatisation en pause.
+- Validation : 206 tests Python, parité Python/JS, six suites Node et deux parcours Chromium réussis. CI PR 42354228352 et main 42354367556 vertes. APK 0.1 compilé en CI 42354228366 avec signatures v2/v3 vérifiées. Onze cas de validation d’adresse testés localement.
+- Publication : PR #20 fusionnée au commit 7f96d2e8153978818baa5a50f1b9a9b9e7501ed5. Arbre de code identique au code testé. APK 0.1 livré séparément, signature de prototype. Brain mis à jour.
+- Prochaine action : mise à jour web depuis le Raspberry et installation de l’APK sur le téléphone pour valider la connexion réelle. Automatisation en pause.
 
 ## État actuel — v0.10.1 publiée — 2026-11-07
 - Signalement sur Raspberry : mise à jour de 98233468 vers e1c5b09b interrompue pendant les tests avant installation. La révision installée reste 98233468.
