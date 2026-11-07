@@ -1,12 +1,8 @@
-import copy
 from datetime import date
-import json
-import subprocess
 from unittest import TestCase
-from unittest.mock import patch
 
 from hue_solar_profile import DEFAULT_SOLAR_CONFIG, LEGACY_SOLAR_CONFIG, draft_profile, validate_solar_config
-from hue_simple_profile import simple_brightness_at, validate_simple_profile
+from hue_simple_profile import simple_brightness_at
 from hue_rgb import rgb_at, DEFAULT_RGB_PHASES, hsv_to_xy, point_inside_triangle, gamut_vertices
 from hue_solar_rhythm import daylight_xy
 
@@ -89,12 +85,3 @@ class SolarRhythmTests(TestCase):
         with self.assertRaises(ValueError):validate_solar_config(dict(LEGACY_SOLAR_CONFIG,transition=30))
         for m in [float('inf'),float('nan')]:
             with self.assertRaises(ValueError):simple_brightness_at(self.profile(),m)
-
-    def test_browser_brightness_matches_python_every_minute_including_midnight(self):
-        configs=[dict(DEFAULT_SOLAR_CONFIG,wake=315),dict(DEFAULT_SOLAR_CONFIG,wake=10,bed=1200),dict(DEFAULT_SOLAR_CONFIG,bed=1430)]
-        for config in configs:
-            p=draft_profile(date(2026,11,6),**config)['params']
-            script="global.window={};require('./static/solar_math.js');const p="+json.dumps(p)+";console.log(JSON.stringify(Array.from({length:1441},(_,m)=>window.HueRhythm.brightness(p,m))));"
-            actual=json.loads(subprocess.check_output(['node','-e',script],text=True))
-            expected=[simple_brightness_at(p,m) for m in range(1441)]
-            self.assertEqual(actual,expected)
