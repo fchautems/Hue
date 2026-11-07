@@ -1,3 +1,8 @@
+# v0.10.1 — Installation sans Node.js — 2026-11-07
+
+- Corrige l’installation de la v0.10.0 depuis le Raspberry. Le test comparant les courbes Python et JavaScript s’exécute sur GitHub. L’installateur embarqué peut lancer sa suite Python sans Node.js.
+- Depuis Mises à jour, vérifier GitHub puis installer et redémarrer. L’installateur de la v0.9.0 peut appliquer directement ce correctif.
+
 # v0.10.0 — Réveil anticipé, soirée confortable — 2026-11-06 — PUBLIÉE SUR MAIN
 
 - Soleil : niveaux de confort et saturation réglables au réveil/coucher, durée commune avant réveil/après coucher, nuit au minimum lumineux et saturation 100 %.

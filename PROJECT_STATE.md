@@ -1,6 +1,13 @@
 # PROJECT_STATE — Philips Hue Web
 
-Mise à jour : 2026-11-06
+Mise à jour : 2026-11-07
+
+## Correctif d’installation v0.10.1 — 2026-11-07
+- Signalement sur Raspberry : mise à jour de 98233468 vers e1c5b09b interrompue pendant les tests avant installation. La révision installée reste 98233468.
+- Cause reproduite localement : le test de parité Python/JavaScript, découvert par l’installateur v0.9.0, appelle Node.js et échoue avec FileNotFoundError si Node.js est absent. Les captures ne fournissent pas le détail du journal système du Raspberry.
+- Correctif : sortir ce test de la découverte Python standard et l’exécuter explicitement en CI. Le Raspberry peut utiliser l’installateur déjà présent et exécuter tous les tests Python de déploiement.
+- Vérification locale : installateur exact de 98233468 sur un dépôt de test, PATH sans Node.js et service simulé. La v0.10.0 est refusée avant tout arrêt. La v0.10.1 s’installe directement, redémarre le service simulé et préserve les fichiers de réglages et du pont à l’identique. Test de parité avec Node.js réussi.
+- Prochaine action : terminer la CI, publier puis retenter depuis Mises à jour sur le Raspberry. Automatisation en pause.
 
 ## État actuel — v0.10.0 publiée — 2026-11-06
 - PR #18 fusionnée sur main au commit 0b63a4c686bc4801f73c23adc1a747ccbca99937 ; arbre identique au commit validé 6da61b1 (2024fa3f). Aucun déploiement matériel.
