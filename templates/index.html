@@ -115,14 +115,17 @@
             </svg>
           </div>
 <div class="mode-control card"><div><strong>Horloge commune aux lampes en Auto</strong><small>La simulation commande les vraies lampes en Auto. Les lampes en Manuel restent indépendantes.</small></div><label for="clock-source" class="field-label">Référence horaire</label><select id="clock-source" class="field" aria-label="Horloge des lampes automatiques"><option value="reel">Heure réelle</option><option value="accelere">Simulation accélérée</option></select></div>
-          <div class="slider-heading"><span>Déplacer le temps simulé</span><strong id="seek-label">08:00</strong></div>
-          <input id="time-slider" class="range" type="range" min="0" max="1439" step="1" value="480">
+          <div class="sim-seek-controls">
+            <label for="seek-time">Heure simulée</label>
+            <input id="seek-time" class="field" type="time" step="60" value="08:00" disabled>
+            <button id="sim-play" class="btn muted" type="button" disabled>▶ Démarrer</button>
+          </div>
+          <input id="time-slider" aria-label="Déplacer l’heure simulée" class="range" type="range" min="0" max="1439" step="1" value="480">
           <div class="slider-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
         </div>
 <button id="v051-simulation-toggle" class="btn muted" type="button" aria-expanded="false" aria-controls="v061-sim-options">Afficher les commandes de simulation</button>
         <div class="card sim-card" id="v061-sim-options">
           <div class="eyebrow">BANC DE TEST</div><h2>Simulation temporelle</h2><p>Fais défiler une journée entière en quelques secondes ou minutes pour observer les transitions.</p>
-          <div class="setting-row"><div><strong>Faire tourner l'horloge</strong><small>Pause ou reprise du défilement</small></div><button id="sim-play" class="btn muted">▶ Démarrer</button></div>
           <label class="field-label" for="sim-speed">Durée d'une journée simulée</label><select id="sim-speed" class="field"><option value="30">30 secondes</option><option value="60">1 minute</option><option selected value="120">2 minutes</option><option value="300">5 minutes</option><option value="600">10 minutes</option></select>
           <div class="notice" id="sim-notice">La simulation agit seulement sur les lampes placées en Auto.</div>
         </div>
@@ -158,21 +161,21 @@
             <label>Mon coucher<input id="solar-bed" class="field" type="time" step="60"></label>
           </div>
           <fieldset class="solar-group"><legend>Au réveil et au coucher</legend>
-            <div class="solar-routine">
+            <div class="solar-routine solar-pair">
               <label>Luminosité de confort (%)<input id="solar-comfort" class="field" type="number" min="1" max="100"></label>
               <label>Saturation (%)<input id="solar-saturation" class="field" type="number" min="0" max="100"></label>
             </div>
             <small>Ces niveaux sont atteints à tes deux horaires. Entre le soleil et ces horaires, la lumière évolue progressivement.</small>
           </fieldset>
           <fieldset class="solar-group"><legend>Passage à la nuit et au réveil</legend>
-            <div class="solar-routine">
-              <label>Durée commune (minutes)<input id="solar-transition" class="field" type="number" min="1" max="180"></label>
+            <div class="solar-routine solar-pair">
+              <label>Transition (minutes)<input id="solar-transition" class="field" type="number" min="1" max="180"></label>
               <label>Luminosité de nuit (%)<input id="solar-low" class="field" type="number" min="1" max="99"></label>
             </div>
             <small id="solar-rhythm-summary">La montée commence avant ton réveil ; le minimum est atteint après ton coucher. La saturation de nuit est toujours de 100 %.</small>
           </fieldset>
           <fieldset class="solar-group"><legend>Couleurs et journée</legend>
-            <div class="solar-routine">
+            <div class="solar-routine solar-pair">
               <label>Luminosité de journée (%)<input id="solar-high" class="field" type="number" min="2" max="100"></label>
               <label>Blanc de journée<select id="solar-day_kelvin" class="field"><option value="4000">Plus chaud · 4’000 K</option><option value="4500">Doux · 4’500 K</option><option value="5000">Lumière du jour · 5’000 K</option><option value="5500">Neutre frais · 5’500 K</option><option value="6000">Frais · 6’000 K</option><option value="6500">Lumière du jour froide · 6’500 K</option></select></label>
             </div>
@@ -344,7 +347,6 @@
       <div class="settings-nav" role="group" aria-label="Rubriques des paramètres">
         <button type="button" class="btn muted" data-tab="setup">Pont Hue</button>
         <button type="button" class="btn muted" data-tab="diagnostics">Avancé · diagnostics & logs</button>
-        <button type="button" class="btn muted" data-tab="updates">Mises à jour</button>
       </div>
     <section id="tab-setup" class="settings-panel">
       <div class="setup-hero"><div class="eyebrow">CONNEXION LOCALE</div><h2>Connecter le pont Philips Hue</h2><p>Tout se fait ici. Aucun fichier de configuration à modifier et aucune commande à saisir.</p></div>
@@ -372,7 +374,8 @@
       <div class="section-title space-top"><h2>Journal des événements</h2><span>Connexion, commandes, erreurs, démarrages</span></div>
       <div class="card log-card"><div class="log-controls"><span>Dernières 150 lignes · fichier logs/hue.log</span><button id="refresh-logs" class="btn muted">↻ Rafraîchir</button></div><pre id="log-display">Chargement…</pre></div>
     </section>
-    <section id="tab-updates" class="settings-panel hidden">
+    </section>
+    <section id="tab-updates" class="tab hidden">
       <div class="section-title"><h2>Mises à jour GitHub</h2><span>Raspberry Pi · sans PC</span></div>
       <div class="card update-card">
         <div class="update-versions">
@@ -392,7 +395,6 @@
         </div>
         <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
-    </section>
     </section>
     <footer><span id="footer-version">Hue Lab · révision inconnue</span> · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>
