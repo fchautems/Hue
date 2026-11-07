@@ -63,6 +63,11 @@ const assert=require('node:assert/strict');
   await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
   await page.screenshot({path:`/tmp/hue-solar-${width}.png`,fullPage:true});
  }
+ for (const [left,right] of [['comfort','saturation'],['transition','low'],['high','day_kelvin']]) {
+   const a=await page.locator('#solar-'+left).boundingBox();
+   const b=await page.locator('#solar-'+right).boundingBox();
+   assert.ok(a&&b&&Math.abs(a.y-b.y)<1,'paired solar fields align: '+left);
+ }
  // Existing color editor keeps the daily source and hides duplicate schedule controls.
  await page.locator('#profile-colors > summary').click();
  await page.waitForFunction(()=>window.HueRGB.currentId()==='light-0');

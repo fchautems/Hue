@@ -1,3 +1,10 @@
+# v0.11.0 — Simulation et navigation — 2026-11-07
+
+- Pause et reprise à côté du curseur. Déplace le curseur ou saisis une heure pour mettre la simulation en pause à cet instant.
+- Mises à jour ouvre sa propre page. Les réglages du pont et les diagnostics restent accessibles dans Paramètres.
+- Les trois paires de champs Soleil restent alignées quand un libellé revient à la ligne.
+- Prototype Android séparé. L’icône ouvre l’interface web du serveur local.
+
 # v0.10.1 — Installation sans Node.js — 2026-11-07
 
 - Corrige l’installation de la v0.10.0 depuis le Raspberry. Le test comparant les courbes Python et JavaScript s’exécute sur GitHub. L’installateur embarqué peut lancer sa suite Python sans Node.js.

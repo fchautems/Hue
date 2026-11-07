@@ -2,6 +2,13 @@
 
 Mise à jour : 2026-11-07
 
+## Ergonomie v0.11.0 et prototype Android — 2026-11-07
+- Base publiée v0.10.1 vérifiée au commit 27e2b6e. Reprise des demandes vocales, fiche Brain et guide modèle lus.
+- Simulation : Pause/Reprendre près du curseur et saisie d’une heure exacte. Le déplacement fixe cette heure et met la lecture en pause. Les vitesses restent dans les commandes repliables. Les lampes Auto suivent toujours la référence choisie.
+- Navigation : Mises à jour et Paramètres ont des pages distinctes. Pont Hue et diagnostics restent dans Paramètres. Champs des trois rangées Soleil alignés sous les libellés longs.
+- Android : prototype WebView du serveur local, adresse initiale 10.0.0.12:8765 et IPv4 privée/port modifiables. Écran de récupération réseau. Compilation et signature de test par CI. Source dans android/.
+- Prochaine action : valider les parcours navigateur, compiler et vérifier l’APK, puis publier. Vérification sur téléphone et Raspberry à faire. Automatisation en pause.
+
 ## État actuel — v0.10.1 publiée — 2026-11-07
 - Signalement sur Raspberry : mise à jour de 98233468 vers e1c5b09b interrompue pendant les tests avant installation. La révision installée reste 98233468.
 - Cause reproduite localement : le test de parité Python/JavaScript, découvert par l’installateur v0.9.0, appelle Node.js et échoue avec FileNotFoundError si Node.js est absent. Les captures ne fournissent pas le détail du journal système du Raspberry.

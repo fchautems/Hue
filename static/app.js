@@ -10,6 +10,8 @@ let activeTab = "dashboard";
 let powerupId = null;
 let toastTimeout;
 let seekDragging = false;
+let simulationBusy = false;
+let simulationGeneration = 0;
 let refreshBusy = false;
 let profileDirty = false;
 let setupInProgress = false;
@@ -66,7 +68,8 @@ function tickClock() {
   $("#hour-hand").setAttribute("transform", `rotate(${minute/1440*360} 160 160)`);
   $("#minute-hand").setAttribute("transform", `rotate(${(minute%60)/60*360} 160 160)`);
   $("#clock-digital").textContent=mm(minute);
-  if(!seekDragging){$("#time-slider").value=Math.floor(minute);$("#seek-label").textContent=mm(minute);}
+  if(!seekDragging) $('#time-slider').value=Math.floor(minute);
+  if(document.activeElement!==$('#seek-time')) $('#seek-time').value=mm(minute);
   const d=new Date(); $("#real-clock").textContent=d.toLocaleTimeString("fr-CH",{hour12:false});
   renderProfileTarget();
 }
@@ -141,7 +144,7 @@ function updateLights(lights) {
 }
 function setTab(tab) {
   if(tab==="colors")tab="profiles";
-  const panels=['setup','diagnostics','updates'];
+  const panels=['setup','diagnostics'];
   if(tab==='settings')tab=settingsPanel;
   const inSettings=panels.includes(tab);
   if(inSettings)settingsPanel=tab;
@@ -165,8 +168,11 @@ function setTab(tab) {
 
 async function refresh() {
   if(refreshBusy)return; refreshBusy=true;
+  const generation=simulationGeneration;
   try{
-    const s=await api('/api/state');state=s;lastStateAt=performance.now();
+    const s=await api('/api/state');
+    if(generation!==simulationGeneration)return;
+    state=s;lastStateAt=performance.now();
     $('#bridge-dot').classList.toggle('online',s.connected);
     $('#bridge-label').textContent=s.connected?'Pont connecté':'Pont non connecté';
     $('#bridge-ip').textContent=s.bridge_ip??'Association requise';
@@ -178,11 +184,7 @@ async function refresh() {
     $('#stat-mode').textContent=`${s.auto_count} / ${s.lights.length}`;
     $('#light-updated').textContent=s.last_poll?`Pont actualisé : ${s.last_poll.replace('T',' ').slice(11,19)}`:'En attente du pont';
     if(document.activeElement!==$('#clock-source'))$('#clock-source').value=s.clock_mode;
-    $('#sim-play').textContent=s.simulation.running?'Ⅱ Pause':'▶ Démarrer';
-    $('#sim-play').disabled=!s.simulation.enabled;
-    $('#sim-speed').value=s.simulation.seconds_per_day;
-    $('#time-slider').disabled=s.clock_mode!=='accelere';
-    $('#sim-speed').disabled=s.clock_mode!=='accelere';
+    renderSimulationControls();
     $('#clock-mode').textContent=s.clock_mode==='accelere'?'TEMPS ACCÉLÉRÉ':'HEURE RÉELLE';
     $('#sim-notice').textContent=s.clock_mode==='accelere'?'L’horloge accélérée agit seulement sur les lampes en Auto.':'L’horloge réelle agit seulement sur les lampes en Auto.';
     addLightCards(s.lights);
@@ -192,6 +194,35 @@ async function refresh() {
   } catch(e){$('#bridge-label').textContent='Serveur indisponible';$('#error-banner').classList.remove('hidden');$('#error-banner').textContent=e.message;}
   finally{refreshBusy=false;}
 }
+function renderSimulationControls() {
+  const simulation=state?.simulation;
+  const disabled=simulationBusy||!simulation?.enabled;
+  $('#sim-play').textContent=simulation?.running?'Ⅱ Pause':'▶ Reprendre';
+  for(const id of ['sim-play','sim-speed','time-slider','seek-time']) $('#'+id).disabled=disabled;
+  $('#clock-source').disabled=simulationBusy;
+  if(simulation) $('#sim-speed').value=simulation.seconds_per_day;
+}
+
+async function updateSimulation(change) {
+  if(simulationBusy||!state?.simulation.enabled)return;
+  simulationBusy=true;
+  renderSimulationControls();
+  try {
+    const simulation=await api('/api/simulation','POST',change);
+    simulationGeneration++;
+    state.simulation=simulation;
+    lastStateAt=performance.now();
+    await refresh();
+  } finally {
+    simulationBusy=false;
+    seekDragging=false;
+    $('#seek-time').value=mm(currentMinute());
+    renderSimulationControls();
+    tickClock();
+    renderChart();
+  }
+}
+
 async function loadProfile() {
   if(!selectedId)return;
   const id=selectedId;
@@ -390,10 +421,15 @@ function bindEvents(){
   $('#setup-cancel').onclick=()=>{setupCancelled=true;setSetupStatus('Annulation demandée…');};
   $$('[data-tab]').forEach(btn=>btn.onclick=()=>setTab(btn.dataset.tab));
   $('#clock-source').onchange=e=>safe(async()=>{await api('/api/clock-mode','POST',{mode:e.target.value});showToast('Horloge '+(e.target.value==='reel'?'réelle':'accélérée')+' sélectionnée pour les lampes Auto.');await refresh();});
-  $('#sim-play').onclick=()=>safe(async()=>{await api('/api/simulation','POST',{running:!state.simulation.running});await refresh();});
-  $('#sim-speed').onchange=e=>safe(async()=>{await api('/api/simulation','POST',{seconds_per_day:Number(e.target.value)});await refresh();});
-  $('#time-slider').addEventListener('input',e=>{seekDragging=true;$('#seek-label').textContent=mm(Number(e.target.value));$('#hour-hand').setAttribute('transform',`rotate(${Number(e.target.value)/1440*360} 160 160)`);});
-  $('#time-slider').addEventListener('change',e=>safe(async()=>{seekDragging=false;await api('/api/simulation','POST',{minute:Number(e.target.value)});await refresh();renderChart();}));
+  $('#sim-play').onclick=()=>safe(()=>updateSimulation({running:!state.simulation.running}));
+  $('#sim-speed').onchange=e=>safe(()=>updateSimulation({seconds_per_day:Number(e.target.value)}));
+  $('#time-slider').addEventListener('input',()=>{seekDragging=true;tickClock();});
+  $('#time-slider').addEventListener('change',e=>safe(()=>updateSimulation({minute:Number(e.target.value),running:false})));
+  $('#seek-time').addEventListener('change',e=>{
+    if(!e.target.value)return;
+    const [hours,minutes]=e.target.value.split(':').map(Number);
+    safe(()=>updateSimulation({minute:hours*60+minutes,running:false}));
+  });
   $('#profile-light').onchange=e=>{selectedId=e.target.value;loadProfile();};
   $('#add-point').onclick=()=>{if(editingPoints.length>=24){showToast('Maximum 24 points',true);return;}editingPoints=readPoints();let next=720;while(editingPoints.some(p=>p.minute===next))next=(next+30)%1440;editingPoints.push({minute:next,brightness:50});editingPoints.sort((a,b)=>a.minute-b.minute);profileDirty=true;renderPointRows();renderChart();};
   $('#save-profile').onclick=()=>safe(async()=>{const points=readPoints();if(points.some(p=>!Number.isFinite(p.minute)||!Number.isFinite(p.brightness)))throw Error('Vérifie les heures et les valeurs.');await api(`/api/profile/${encodeURIComponent(selectedId)}`,'PUT',{points});showToast('Courbe enregistrée');await loadProfile();await refresh();});

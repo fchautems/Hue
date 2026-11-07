@@ -40,3 +40,7 @@
 
 .solar-hue::-webkit-slider-runnable-track{height:8px;border-radius:8px;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}
 .solar-hue::-moz-range-track{height:8px;border-radius:8px;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}
+
+/* A wrapped label must not move the field below its neighbour. */
+.solar-pair{align-items:stretch}
+.solar-pair label .field{margin-top:auto}

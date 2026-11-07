@@ -41,7 +41,7 @@
   function status(){
     const changed=dirty(),c=config();
     for(const phase of ['morning','evening','night']){const h=c[phase+'_hue'];$(phase+'-swatch').style.background=`hsl(${h} 100% 50%)`;}
-    $('rhythm-summary').textContent=valid(c)?`Montée dès ${fmt(c.wake-c.transition)}, confort à ${fmt(c.wake)}. Après ${fmt(c.bed)}, minimum de ${c.low} % et saturation à 100 % à ${fmt(c.bed+c.transition)}. Même durée : ${c.transition} min.`:'Vérifie les niveaux et la durée : les transitions doivent tenir dans la nuit.';
+    $('rhythm-summary').textContent=valid(c)?`Réveil de ${fmt(c.wake-c.transition)} à ${fmt(c.wake)}. Passage à la nuit de ${fmt(c.bed)} à ${fmt(c.bed+c.transition)} (luminosité ${c.low} %, saturation 100 %).`:'Vérifie les niveaux et la durée : les transitions doivent tenir dans la nuit.';
     $('color-note').textContent=lightColorNote();
     $('save').disabled=loading||saving||!uid||!valid(c)||(!changed&&active==='solar'&&!legacy);
     $('cancel').disabled=loading||saving||!changed;
