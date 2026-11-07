@@ -2,12 +2,13 @@
 
 Mise à jour : 2026-11-07
 
-## Correctif d’installation v0.10.1 — 2026-11-07
+## État actuel — v0.10.1 publiée — 2026-11-07
 - Signalement sur Raspberry : mise à jour de 98233468 vers e1c5b09b interrompue pendant les tests avant installation. La révision installée reste 98233468.
 - Cause reproduite localement : le test de parité Python/JavaScript, découvert par l’installateur v0.9.0, appelle Node.js et échoue avec FileNotFoundError si Node.js est absent. Les captures ne fournissent pas le détail du journal système du Raspberry.
 - Correctif : sortir ce test de la découverte Python standard et l’exécuter explicitement en CI. Le Raspberry peut utiliser l’installateur déjà présent et exécuter tous les tests Python de déploiement.
 - Vérification locale : installateur exact de 98233468 sur un dépôt de test, PATH sans Node.js et service simulé. La v0.10.0 est refusée avant tout arrêt. La v0.10.1 s’installe directement, redémarre le service simulé et préserve les fichiers de réglages et du pont à l’identique. Test de parité avec Node.js réussi.
-- Prochaine action : terminer la CI, publier puis retenter depuis Mises à jour sur le Raspberry. Automatisation en pause.
+- Publication : PR #19 fusionnée au commit 4bb12ff4a1f78e0baec143c2388b8fe8005cf22c, arbre identique au code testé. CI PR 42348078473 et main 42348150164 réussies (206 tests Python, parité, JavaScript et Chromium). Brain mis à jour.
+- Prochaine action : sur le Raspberry, vérifier GitHub puis installer et redémarrer depuis Mises à jour. Essai sur le matériel à faire. Automatisation en pause.
 
 ## État actuel — v0.10.0 publiée — 2026-11-06
 - PR #18 fusionnée sur main au commit 0b63a4c686bc4801f73c23adc1a747ccbca99937 ; arbre identique au commit validé 6da61b1 (2024fa3f). Aucun déploiement matériel.
