@@ -2,6 +2,11 @@
 
 Mise à jour : 2026-11-08
 
+## Réveil lumineux — détection Android validée — 2026-11-08
+- Fréd confirme que la détection d’un changement du prochain réveil a déjà été validée sur son Pixel. Le journal de 12 h 45 ci-dessous reste l’historique d’un essai antérieur. Les conditions exactes du test concluant ne sont pas consignées ici.
+- Fonction demandée : une option Réveil lumineux avec choix de la lampe, de la couleur, des minutes d’avance et de la luminosité au réveil.
+- Prochaine action : transmettre et confirmer la date et l’heure du prochain réveil au Raspberry avant la coupure du Wi-Fi. Le Raspberry pourra alors exécuter la montée lumineuse localement. La chaîne Android → Raspberry → Hue reste à vérifier.
+
 ## Saturation au coucher du soleil — 2026-11-08
 - Cause vérifiée sur `4db19445` : la couleur du soir partageait la progression retardée de la luminosité. À 19 h 20, l’aperçu du 8 novembre affichait 2 % de saturation et 98 % de luminosité, pour un coucher solaire à 17 h 10.
 - Décision et changement : la saturation prend de l’avance du coucher solaire jusqu’au coucher personnel. La luminosité garde sa courbe et les niveaux de confort et de nuit restent ceux des réglages existants. L’aperçu et le pilotage Auto utilisent le même calcul.
@@ -9,13 +14,13 @@ Mise à jour : 2026-11-08
 - Publication : v0.11.1 fusionnée par PR #23 au commit `19ca9b4`, arbre identique à celui testé. CI 42511730834 réussie, parcours Chromium compris.
 - Prochaine action : installer via Mises à jour et essayer le profil Soleil sur une ampoule RGB. Essai matériel à faire.
 
-## Essai Pixel — détection du prochain réveil — 2026-11-08
+## Historique du premier essai Pixel — 2026-11-08
 - Retour utilisateur : APK autonome de test installée, lecture du prochain réveil correcte ; journal partagé et analysé.
 - Faits du journal : événement `diffusion statique (manifest) | CHANGEMENT` à 12:45:17, avec nouvelle heure de réveil le lendemain ; tâche `JobScheduler` à 12:58:58, 13:13:22 et 13:31:45, heure stable. D'autres diffusions statiques ont été consignées plus tôt.
 - Correction apportée par l'utilisateur (2026-11-08) : il a vraisemblablement **rouvert l'APK autour de 12:45**, après l'avoir fermée auparavant. Le journal contient effectivement une `ouverture de l'application` à 12:44:44, puis une notification statique à 12:45:17. **Aucune preuve de réception de l'événement après swipe tant que l'app reste fermée** : retirer la précédente conclusion affirmative. La lecture des alarmes et les exécutions JobScheduler sont observées. Tester une modification d'alarme après swipe, sans rouvrir l'APK pendant un délai connu, et comparer horodatages du journal après réouverture.
 - Les vérifications périodiques ont eu des intervalles variables, notamment de 10:40:29 à 12:44:44 (~2 h 04 min) ; pas de garantie de passage toutes les quinze minutes. La détection sur événement est prometteuse mais pas encore démontrée en arrière-plan.
 - Code et suivi : APK de diagnostic isolée sur PR #21, sans envoi au Raspberry ni contrôle Hue. Hypothèse Wi-Fi coupé en mode avion conservée.
-- Prochaine étape : **retester explicitement le changement de réveil après swipe**, sans rouvrir l'APK pendant un délai connu, puis vérifier le journal. Ne pas engager l'intégration production vers Raspberry avant de confirmer le mécanisme de détection en arrière-plan. Évaluer écran verrouillé, sauvegarde avant mode avion et batterie.
+- Suite envisagée à l’issue de cet essai : isoler les conditions de détection après balayage et écran verrouillé. Voir l’état actuel du Réveil lumineux ci-dessus.
 
 ## Décision / test Android « prochain réveil » — 2026-11-08
 - Décision utilisateur : **supposer le Wi-Fi coupé la nuit en mode avion** ; le Raspberry doit connaître le prochain réveil avant la coupure. Ne pas dépendre d'une synchronisation nocturne.
