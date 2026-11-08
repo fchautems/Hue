@@ -6,7 +6,8 @@ Mise à jour : 2026-11-08
 - Cause vérifiée sur `4db19445` : la couleur du soir partageait la progression retardée de la luminosité. À 19 h 20, l’aperçu du 8 novembre affichait 2 % de saturation et 98 % de luminosité, pour un coucher solaire à 17 h 10.
 - Décision et changement : la saturation prend de l’avance du coucher solaire jusqu’au coucher personnel. La luminosité garde sa courbe et les niveaux de confort et de nuit restent ceux des réglages existants. L’aperçu et le pilotage Auto utilisent le même calcul.
 - Contrôles locaux : 207 tests Python, parité Python/JS et six suites Node réussis. Le scénario passe à 10 % de saturation à 18 h 10 et à 34 % à 19 h 20, avec 98 % de luminosité à 19 h 20.
-- Prochaine action : vérifier la CI puis essayer le profil Soleil sur une ampoule RGB après installation via Mises à jour. Essai matériel à faire.
+- Publication : v0.11.1 fusionnée par PR #23 au commit `19ca9b4`, arbre identique à celui testé. CI 42511730834 réussie, parcours Chromium compris.
+- Prochaine action : installer via Mises à jour et essayer le profil Soleil sur une ampoule RGB. Essai matériel à faire.
 
 ## Essai Pixel — détection du prochain réveil — 2026-11-08
 - Retour utilisateur : APK autonome de test installée, lecture du prochain réveil correcte ; journal partagé et analysé.
