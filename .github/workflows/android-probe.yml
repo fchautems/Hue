@@ -29,10 +29,10 @@ jobs:
           keytool -genkeypair -keystore "$HUE_ANDROID_KEYSTORE" -storepass android \
             -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 \
             -validity 10000 -dname 'CN=Hue Lab alarm probe'
-          bash android/probe/build.sh "$RUNNER_TEMP/Hue-Reveil-Test.apk"
+          bash android/probe/build.sh "$RUNNER_TEMP/Hue-Reveil-1min.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: Hue-Reveil-Test
-          path: ${{ runner.temp }}/Hue-Reveil-Test.apk
+          name: Hue-Reveil-1min
+          path: ${{ runner.temp }}/Hue-Reveil-1min.apk
           if-no-files-found: error
           retention-days: 14
