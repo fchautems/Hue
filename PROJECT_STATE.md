@@ -1,6 +1,14 @@
 # PROJECT_STATE — Philips Hue Web
 
-Mise à jour : 2026-11-07
+Mise à jour : 2026-11-08
+
+## Essai Pixel — détection du prochain réveil — 2026-11-08
+- Retour utilisateur : APK autonome de test installée, lecture du prochain réveil correcte ; journal partagé et analysé.
+- Faits du journal : événement `diffusion statique (manifest) | CHANGEMENT` à 12:45:17, avec nouvelle heure de réveil le lendemain ; tâche `JobScheduler` à 12:58:58, 13:13:22 et 13:31:45, heure stable. D'autres diffusions statiques ont été consignées plus tôt.
+- Contrainte de preuve : l'application était ouverte à 12:44:44. Le journal ne contient **pas** l'heure du swipe : il ne prouve pas encore que le receiver fonctionne après suppression de l'application des tâches récentes. Confirmer avec l'utilisateur si le swipe a précédé 12:45:17.
+- Les vérifications périodiques ont eu des intervalles variables, notamment de 10:40:29 à 12:44:44 (~2 h 04 min) ; pas de garantie de passage toutes les quinze minutes. La détection sur événement est prometteuse mais pas encore démontrée en arrière-plan.
+- Code et suivi : APK de diagnostic isolée sur PR #21, sans envoi au Raspberry ni contrôle Hue. Hypothèse Wi-Fi coupé en mode avion conservée.
+- Prochaine étape : obtenir l'ordre temporel swipe / notification ; si confirmé, tester écran verrouillé et vérifier synchronisation préalable au mode avion avant intégration au profil Soleil.
 
 ## Décision / test Android « prochain réveil » — 2026-11-08
 - Décision utilisateur : **supposer le Wi-Fi coupé la nuit en mode avion** ; le Raspberry doit connaître le prochain réveil avant la coupure. Ne pas dépendre d'une synchronisation nocturne.
