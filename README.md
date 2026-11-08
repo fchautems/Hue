@@ -151,7 +151,8 @@ La montée commence à 04:45 et atteint le confort à 05:15 ; elle rejoint ensui
 le niveau de journée au lever solaire (ajusté si nécessaire pour conserver l’ordre).
 La soirée part du coucher solaire et rejoint les niveaux de confort à 22:30.
 Le minimum nocturne et la saturation 100 % sont atteints à 23:00.
-Les transitions suivent des courbes en S asymétriques : montée avancée, baisse retardée.
+La luminosité suit des courbes en S asymétriques, avec une montée avancée et une baisse retardée.
+La saturation du soir augmente plus tôt pour faire apparaître la teinte alors que la pièce est encore lumineuse.
 Les transitions de nuit peuvent traverser minuit ; elles ne peuvent pas se chevaucher.
 Le rythme personnel reste limité à un réveil précédant le coucher dans la même journée.
 

@@ -1,3 +1,7 @@
+# v0.11.1 — Couleur du soir plus tôt — 2026-11-08
+
+- Soleil : la couleur du soir apparaît progressivement dès le coucher solaire, pendant que la luminosité suit sa baisse tardive. Les niveaux configurés au coucher personnel et de nuit restent les mêmes.
+
 # v0.11.0 — Simulation et navigation — 2026-11-07
 
 - Pause et reprise à côté du curseur. Déplace le curseur ou saisis une heure pour mettre la simulation en pause à cet instant.

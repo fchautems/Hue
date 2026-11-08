@@ -81,7 +81,8 @@ def rhythm_color(p, minute):
               (r['morning_hue'],0), (r['evening_hue'],0),
               (r['evening_hue'],saturation), (r['night_hue'],100), (r['night_hue'],100)]
     i, t = rhythm_position(p, minute)
-    k = rhythm_progress(t, evening=i in (3, 4))
+    # Bring out the evening hue while the room is still bright.
+    k = rhythm_progress(t, evening=i == 4)
     (ha, sa), (hb, sb) = points[i:i+2]
     h = (ha + (((hb-ha+180)%360)-180)*k) % 360
     s = sa + (sb-sa)*k
