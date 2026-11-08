@@ -1,9 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="ch.huelab.mobile"
-    android:versionCode="1"
-    android:versionName="0.1">
+    android:versionCode="2"
+    android:versionName="0.2">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:allowBackup="false"
         android:icon="@drawable/hue_lab"
@@ -17,5 +18,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <receiver android:name=".AlarmChangedReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.app.action.NEXT_ALARM_CLOCK_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <service android:name=".AlarmSyncJob" android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
 </manifest>

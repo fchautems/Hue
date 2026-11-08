@@ -191,6 +191,25 @@ const assert=require('node:assert/strict');
  await page.locator('#setup-pair').click();
  await page.waitForFunction(()=>activeTab==='dashboard');
  assert.equal(writes.find(r=>r.url==='/api/setup/pair').data.ip,'10.0.0.12');
+ // Dawn settings are saved once, and show the alarm confirmed by the Raspberry.
+ await page.setViewportSize({width:320,height:1000});
+ await page.locator('#dawn-save').waitFor();
+ await page.locator('#dawn-enabled').check();
+ await page.locator('#dawn-light').selectOption('light-0');
+ await page.locator('#dawn-color').fill('#ff7700');
+ await page.locator('#dawn-minutes').fill('25');
+ await page.locator('#dawn-brightness').fill('65');
+ await page.locator('#dawn-save').click();
+ await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent.includes('première synchronisation'));
+ assert.deepEqual(writes.find(r=>r.url==='/api/dawn').data,
+   {enabled:true, light_id:'light-0', color:'#ff7700', minutes:25, brightness:65});
+ await page.evaluate(()=>api('/api/dawn/alarm','PUT',{observed_at:Date.now(),alarm_at:Date.now()+36e5}));
+ await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent.includes('Réveil reçu'));
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await page.locator('#dawn-enabled').uncheck();
+ await page.locator('#dawn-save').click();
+ await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent==='Désactivé.');
+ await page.setViewportSize({width:1320,height:1000});
  // Vacations, manual commands, history and advanced diagnostics remain reachable.
  await page.locator('.light-card').first().locator('.switch').click();
  await page.waitForFunction(()=>!state.lights[0].on);

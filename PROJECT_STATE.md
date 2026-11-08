@@ -2,10 +2,12 @@
 
 Mise à jour : 2026-11-08
 
-## Réveil lumineux — détection Android validée — 2026-11-08
-- Fréd confirme que la détection d’un changement du prochain réveil a déjà été validée sur son Pixel. Le journal de 12 h 45 ci-dessous reste l’historique d’un essai antérieur. Les conditions exactes du test concluant ne sont pas consignées ici.
-- Fonction demandée : une option Réveil lumineux avec choix de la lampe, de la couleur, des minutes d’avance et de la luminosité au réveil.
-- Prochaine action : transmettre et confirmer la date et l’heure du prochain réveil au Raspberry avant la coupure du Wi-Fi. Le Raspberry pourra alors exécuter la montée lumineuse localement. La chaîne Android → Raspberry → Hue reste à vérifier.
+## Réveil lumineux — intégration v0.12.0 — 2026-11-08
+- Fréd confirme la détection du changement du prochain réveil sur son Pixel. Le premier journal de 12 h 45 reste l’historique d’un essai antérieur.
+- La carte Réveil lumineux dans Lampes & vacances enregistre une lampe couleur, la teinte, le nombre de minutes d’avance et l’intensité finale. L’APK Hue Lab 0.2 envoie la date et l’heure du prochain réveil. La carte affiche l’heure reçue et la dernière synchronisation, avec un bouton de synchronisation immédiate dans l’APK.
+- Le Raspberry conserve l’alarme reçue et exécute l’aube en heure réelle, même hors ligne côté téléphone. Maintien du niveau final cinq minutes. L’arrêt manuel et Vacances gardent la priorité. Android relit l’alarme à l’ouverture, sur changement reçu et via une tâche de secours reportable.
+- Contrôles locaux : scénarios d’API et de pilotage sur pont simulé, redémarrage, arrêt manuel, annulation et alarme expirée. APK et Chromium en attente de validation CI. Chaîne Pixel → Raspberry → Hue à vérifier sur le matériel.
+- Prochaine action : terminer les vérifications GitHub, puis essayer une alarme proche sur une lampe couleur après confirmation de l’heure et passage en mode avion.
 
 ## Saturation au coucher du soleil — 2026-11-08
 - Cause vérifiée sur `4db19445` : la couleur du soir partageait la progression retardée de la luminosité. À 19 h 20, l’aperçu du 8 novembre affichait 2 % de saturation et 98 % de luminosité, pour un coucher solaire à 17 h 10.

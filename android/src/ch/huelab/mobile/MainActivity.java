@@ -2,8 +2,10 @@ package ch.huelab.mobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.AlarmManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -23,17 +25,18 @@ import android.widget.Toast;
 import java.io.ByteArrayInputStream;
 
 public final class MainActivity extends Activity {
-    private static final String DEFAULT_SERVER = "http://10.0.0.12:8765";
+    static final String DEFAULT_SERVER = "http://10.0.0.12:8765";
     private static final String SERVER_KEY = "server";
     private WebView web;
     private LinearLayout offline;
     private TextView offlineMessage;
     private volatile String server;
+    private final AlarmChangedReceiver alarmReceiver = new AlarmChangedReceiver();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        server = getPreferences(MODE_PRIVATE).getString(SERVER_KEY, DEFAULT_SERVER);
+        server = AlarmSync.preferences(this).getString(SERVER_KEY, DEFAULT_SERVER);
         FrameLayout root = new FrameLayout(this);
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
@@ -44,6 +47,7 @@ public final class MainActivity extends Activity {
         web = new WebView(this);
         web.setBackgroundColor(0xff142337);
         web.getSettings().setJavaScriptEnabled(true);
+        web.getSettings().setUserAgentString(web.getSettings().getUserAgentString() + " HueLabAndroid/0.2");
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
         web.getSettings().setAllowContentAccess(false);
@@ -73,7 +77,29 @@ public final class MainActivity extends Activity {
         offline.addView(change);
         root.addView(offline, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
+        IntentFilter alarms = new IntentFilter(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED);
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(alarmReceiver, alarms, RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(alarmReceiver, alarms);
+        }
         loadServer();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        syncAlarm(false);
+    }
+
+    private void syncAlarm(boolean feedback) {
+        AlarmSync.request(this, succeeded -> {
+            if (feedback) runOnUiThread(() -> {
+                if (!isDestroyed()) {
+                    web.evaluateJavascript("window.HueDawn?.checkSync(" + succeeded + ")", null);
+                }
+            });
+        });
     }
 
     private void loadServer() {
@@ -108,6 +134,11 @@ public final class MainActivity extends Activity {
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             Uri url = request.getUrl();
+            if (request.isForMainFrame() && "huelab://sync-alarm".equals(url.toString())
+                    && view.getUrl() != null && sameServer(Uri.parse(view.getUrl()))) {
+                syncAlarm(true);
+                return true;
+            }
             if (sameServer(url)) return false;
             if (request.isForMainFrame() && request.hasGesture() && "https".equals(url.getScheme())) {
                 openBrowser(url);
@@ -153,9 +184,10 @@ public final class MainActivity extends Activity {
             web.stopLoading();
             web.clearHistory();
             server = address;
-            getPreferences(MODE_PRIVATE).edit().putString(SERVER_KEY, server).apply();
+            AlarmSync.preferences(this).edit().putString(SERVER_KEY, server).apply();
             dialog.dismiss();
             loadServer();
+            syncAlarm(false);
         }));
         dialog.show();
     }
@@ -171,6 +203,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        unregisterReceiver(alarmReceiver);
         web.destroy();
         super.onDestroy();
     }

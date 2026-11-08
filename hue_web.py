@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import argparse
 import copy
+import colorsys
 import ipaddress
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json
 import os
 import logging
+import re
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import threading
@@ -30,7 +32,7 @@ from hue_presence_log import PresenceLog
 from hue_vacation import build_schedule, desired_states, validate_selection, GRACE_SECONDS, LOCAL_TZ
 from hue_v03_runtime import HueEventStream, reconnect_transition_ms
 from hue_core import DEFAULT_POINTS, brightness_at, public_sim, simulated_minutes, validate_points, wall_clock_minutes
-from hue_simple_profile import DEFAULT_SIMPLE_PROFILE, simple_brightness_at, validate_simple_profile
+from hue_simple_profile import DEFAULT_SIMPLE_PROFILE, simple_brightness_at, smootherstep, validate_simple_profile
 from hue_rgb import DEFAULT_RGB_PHASES, DEFAULT_MANUAL_COLOR, rgb_at, hsv_to_xy, xy_distance, validate_hs, validate_rgb_phases
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -41,6 +43,24 @@ SETTINGS_PATH = ROOT / "hue_settings.json"
 LOG_DIR = ROOT / "logs"
 POLL_INTERVAL_SECONDS = 1.0
 COMMAND_COOLDOWN_SECONDS = 1.25
+DAWN_HOLD_SECONDS = 300
+DAWN_DEFAULTS = {"enabled": False, "light_id": "", "color": "#ff9a55",
+                 "minutes": 20, "brightness": 70}
+DAWN_SYNC_DEFAULTS = {"alarm_at": None, "observed_at": 0, "skipped_at": None}
+
+
+def validate_dawn(data):
+    if not isinstance(data, dict) or set(data) != set(DAWN_DEFAULTS):
+        raise ValueError("Réglages du réveil lumineux incomplets.")
+    if type(data["enabled"]) is not bool or not isinstance(data["light_id"], str):
+        raise ValueError("Choisis une lampe et l’état du réveil lumineux.")
+    if not isinstance(data["color"], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", data["color"]):
+        raise ValueError("Choisis une couleur valide.")
+    for key, maximum in (("minutes", 120), ("brightness", 100)):
+        if type(data[key]) is not int or not 1 <= data[key] <= maximum:
+            raise ValueError("Avance : 1 à 120 minutes. Luminosité : 1 à 100 %.")
+    return dict(data)
+
 LOG_DIR.mkdir(exist_ok=True)
 logger = logging.getLogger("hue_web")
 logger.setLevel(logging.INFO)
@@ -126,12 +146,24 @@ class HueServer:
                          "simple_profiles": {}, "profile_types": {}, "solar_profiles": {},
                          "rgb_profiles": {}, "rgb_manual": {}, "rgb_auto_enabled": {}}
         self._legacy_default_auto = False
+        self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS}
+        self.dawn_run = None
         self.vacation = {"enabled": False, "light_ids": [], "seed": "",
                          "plan_date": "", "schedule": [], "overrides": {}}
         if self.settings_path.exists():
             try:
                 loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
+                    saved_dawn = loaded.get("dawn")
+                    if isinstance(saved_dawn, dict):
+                        try:
+                            config = validate_dawn({key: saved_dawn.get(key) for key in DAWN_DEFAULTS})
+                            sync = {key: saved_dawn[key] for key in DAWN_SYNC_DEFAULTS
+                                    if type(saved_dawn.get(key)) is int and saved_dawn[key] > 0}
+                            self.dawn.update(config)
+                            self.dawn.update(sync)
+                        except ValueError:
+                            self.log.warning("Réglages du réveil lumineux ignorés.")
                     saved_vacation = loaded.get("vacation")
                     if isinstance(saved_vacation, dict):
                         ids = saved_vacation.get("light_ids")
@@ -289,6 +321,7 @@ class HueServer:
             "rgb_manual": self.settings["rgb_manual"],
             "rgb_auto_enabled": self.settings["rgb_auto_enabled"],
             "vacation": self.vacation,
+            "dawn": self.dawn,
         }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -321,6 +354,8 @@ class HueServer:
             self.power_tests.clear()
             self.vacation_last_commands.clear()
             self.vacation_test = None
+            self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS}
+            self.dawn_run = None
             self.vacation.update({"enabled": False, "light_ids": [], "schedule": [],
                                   "overrides": {}, "plan_date": ""})
             # Les anciens identifiants restent stockés pour retrouver les préférences
@@ -528,6 +563,7 @@ class HueServer:
                 else:
                     # Prochaine passe : consigne automatique avec transition douce.
                     self.auto_transition_pending.add(uid)
+                self._skip_dawn_locked(uid)
                 self.settings["light_modes"][uid] = mode
                 self.settings["auto"] = any(v == "auto" for v in self.settings["light_modes"].values())
                 self.last_sent.pop(uid, None)
@@ -582,6 +618,7 @@ class HueServer:
             self._automation_lock.release()
 
     def _automate_locked(self):
+        dawn_light = self._dawn_tick_locked()
         with self.lock:
             clock_mode = self.clock_mode
             minute = simulated_minutes(self.sim) if clock_mode == "accelere" else wall_clock_minutes()
@@ -604,6 +641,8 @@ class HueServer:
             transitioning = set(self.auto_transition_pending)
         for light in lights:
             uid = light["id"]
+            if uid == dawn_light:
+                continue
             if self.vacation["enabled"] and uid in self.vacation["light_ids"]:
                 continue  # Le mode Vacances a priorité sur les courbes et restaurations.
             online = status.get(light.get("owner", {}).get("rid"))
@@ -708,6 +747,113 @@ class HueServer:
             except HueError as exc:
                 self.log.error("AUTO refusé | %s | %s", uid, exc)
 
+
+    def dawn_state(self):
+        with self.lock:
+            return {key: self.dawn[key] for key in (*DAWN_DEFAULTS, "alarm_at", "observed_at")}
+
+    def set_dawn(self, data):
+        config = validate_dawn(data)
+        with self._automation_lock, self.lock:
+            if config["enabled"]:
+                light = self.require_light(config["light_id"])
+                if "color" not in light or "dimming" not in light:
+                    raise ValueError("Choisis une lampe qui gère la couleur et la luminosité.")
+            if not config["enabled"] or not self.dawn["enabled"]:
+                self.dawn.update(DAWN_SYNC_DEFAULTS)
+            if any(self.dawn[key] != config[key] for key in DAWN_DEFAULTS):
+                self.dawn_run = None
+            self.dawn.update(config)
+            self.save()
+            result = self.dawn_state()
+        self._event_wakeup.set()
+        return result
+
+    def sync_dawn(self, data):
+        if set(data) != {"alarm_at", "observed_at"}:
+            raise ValueError("Synchronisation du réveil incomplète.")
+        alarm, observed = data["alarm_at"], data["observed_at"]
+        now = int(time.time() * 1000)
+        if type(observed) is not int or abs(observed - now) > 300_000:
+            raise ValueError("L’heure du téléphone et celle du Raspberry doivent être synchronisées.")
+        if alarm is not None and (type(alarm) is not int or not 0 < alarm < 4_102_444_800_000):
+            raise ValueError("Date du prochain réveil invalide.")
+        with self._automation_lock, self.lock:
+            if self.dawn["enabled"] and observed > self.dawn["observed_at"]:
+                self.dawn.update(alarm_at=alarm if alarm and alarm > now else None,
+                                 observed_at=observed)
+                self.save()
+            result = self.dawn_state()
+        self._event_wakeup.set()
+        return result
+
+    def _skip_dawn_locked(self, uid):
+        run = self.dawn_run
+        if run and run["uid"] == uid:
+            self.dawn["skipped_at"] = run["alarm"]
+            self.dawn_run = None
+            self.save()
+
+    def _dawn_tick_locked(self):
+        """Own the selected lamp during the ramp and briefly at the final level."""
+        with self.lock:
+            config = self.dawn
+            uid = config["light_id"]
+            now = time.time()
+            run = self.dawn_run
+            alarm = config["alarm_at"]
+            if run and now >= run["alarm"] / 1000:
+                # Android may already report the following alarm as this one rings.
+                if now < run["alarm"] / 1000 + DAWN_HOLD_SECONDS:
+                    alarm = run["alarm"]
+            if not config["enabled"] or not alarm or alarm == config["skipped_at"]:
+                self.dawn_run = None
+                return None
+            wake = alarm / 1000
+            start = wake - config["minutes"] * 60
+            if (now < start or (now >= wake and (not run or run["alarm"] != alarm or run["last"] is None))
+                    or now >= wake + DAWN_HOLD_SECONDS
+                    or (self.vacation["enabled"] and uid in self.vacation["light_ids"])
+                    or self._vacation_test_blocks_override(uid)):
+                self.dawn_run = None
+                return None
+            light = next((item for item in self.lights if item["id"] == uid), None)
+            if (not light or "color" not in light or "dimming" not in light
+                    or self.previous_online.get(uid) is False):
+                return uid
+            on = light.get("on", {}).get("on") is True
+            if not run or run["alarm"] != alarm:
+                current = light["dimming"].get("brightness") if on else None
+                run = {"uid": uid, "alarm": alarm, "seen_on": on, "last": None,
+                       "initial": min(config["brightness"], current or 1)}
+                self.dawn_run = run
+            if run["seen_on"] and not on:
+                self._skip_dawn_locked(uid)
+                return None
+            run["seen_on"] |= on
+            final = config["brightness"]
+            progress = smootherstep(min(1, (now - start) / (wake - start)))
+            brightness = round(run["initial"] + (final - run["initial"]) * progress, 1)
+            last = run["last"]
+            if last is not None and abs(brightness - last) < 0.5 and (brightness != final or last == final):
+                return uid
+            hex_color = config["color"]
+            h, s, _ = colorsys.rgb_to_hsv(*(int(hex_color[i:i + 2], 16) for i in (1, 3, 5)))
+            xy = hsv_to_xy({"h": h * 360, "s": s * 100}, light["color"].get("gamut"))
+            payload = {"dimming": {"brightness": brightness}, "color": {"xy": xy}}
+            if last is None and not on:
+                payload["on"] = {"on": True}
+            if "dynamics" in light:
+                payload["dynamics"] = {"duration": 1000}
+            try:
+                self.client.resource(f"light/{uid}", "PUT", payload)
+            except HueError as exc:
+                self.log.warning("RÉVEIL LUMINEUX | %s | %s", uid, exc)
+                return uid
+            run["last"] = brightness
+            self.manual_restore_pending.discard(uid)
+            self.last_sent.pop(uid, None)
+            return uid
 
     def _ensure_vacation_plan(self, when):
         """Appelé sous self.lock ; une nouvelle journée recalcule 7 jours à l'avance."""
@@ -1396,6 +1542,7 @@ class HueServer:
                     payload["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
             self.client.resource(f"light/{uid}", "PUT", payload)
             with self.lock:
+                self._skip_dawn_locked(uid)
                 self.last_user_action[uid] = time.monotonic()
                 self.last_sent.pop(uid, None)
                 if mode == "manuel":
@@ -1423,6 +1570,7 @@ class HueServer:
                 payload["dynamics"] = {"duration": 400}
             self.client.resource(f"light/{uid}", "PUT", payload)
             with self.lock:
+                self._skip_dawn_locked(uid)
                 manual = self.settings["manual_states"].get(uid, {})
                 self.settings["manual_states"][uid] = {
                     "on": bool(manual.get("on", light.get("on", {}).get("on", True))),
@@ -1868,6 +2016,21 @@ def vacation_test(data: dict = Body(...)):
 @app.get("/api/vacation/schedule")
 def vacation_schedule():
     return ok(controller.vacation_schedule())
+
+
+@app.get("/api/dawn")
+def get_dawn():
+    return ok(controller.dawn_state())
+
+
+@app.put("/api/dawn")
+def put_dawn(data: dict = Body(...)):
+    return ok(controller.set_dawn(data))
+
+
+@app.put("/api/dawn/alarm")
+def put_dawn_alarm(data: dict = Body(...)):
+    return ok(controller.sync_dawn(data))
 
 
 @app.get("/api/vacation")

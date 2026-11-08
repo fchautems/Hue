@@ -28,6 +28,7 @@
   <script src="/static/solar_daily.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/presence.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/vacation.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/dawn.js?rev={{ asset_rev }}" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -57,6 +58,26 @@
       </div>
       <div class="section-title"><h2>Mes lumières</h2><span id="light-updated">Actualisation…</span></div>
       <div id="light-grid" class="light-grid"><div class="empty">Recherche des ampoules…</div></div>
+      <section class="card vacation-card" aria-labelledby="dawn-title">
+        <div class="vacation-heading">
+          <div><h2 id="dawn-title">Réveil lumineux</h2>
+            <p>La lampe s’allume doucement avant le prochain réveil de ton téléphone Android.</p></div>
+        </div>
+        <form id="dawn-form">
+          <label><input type="checkbox" id="dawn-enabled"> Activer le réveil lumineux</label>
+          <div class="dawn-fields" id="dawn-fields" hidden>
+            <label>Lampe <select id="dawn-light" class="field"></select></label>
+            <label>Couleur <input type="color" id="dawn-color" class="field" value="#ff9a55"></label>
+            <label>Minutes avant le réveil <input type="number" id="dawn-minutes" class="field" min="1" max="120" value="20"></label>
+            <label>Luminosité au réveil (%) <input type="number" id="dawn-brightness" class="field" min="1" max="100" value="70"></label>
+          </div>
+          <div class="vacation-actions">
+            <button type="submit" class="btn primary" id="dawn-save" disabled>Enregistrer</button>
+            <button type="button" class="btn muted" id="dawn-sync" hidden>Synchroniser maintenant</button>
+          </div>
+          <p id="dawn-status" role="status" aria-live="polite">Chargement…</p>
+        </form>
+      </section>
       <section class="card vacation-card" aria-labelledby="vacation-title">
         <div class="vacation-heading">
           <div><div class="eyebrow">SIMULATEUR DE PRÉSENCE</div><h2 id="vacation-title">Mode Vacances</h2>
