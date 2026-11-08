@@ -1,6 +1,13 @@
 # PROJECT_STATE — Philips Hue Web
 
-Mise à jour : 2026-11-07
+Mise à jour : 2026-11-08
+
+## APK de diagnostic du prochain réveil — 2026-11-08
+- Décision : présumer Wi-Fi coupé en mode avion nocturne. Une future synchronisation Raspberry devra précéder la coupure.
+- Réalisation sur branche `test/android-next-alarm-probe-20261108`, PR #21 ouverte : APK autonome `ch.huelab.alarmprobe`, lecture du prochain réveil Android, journal des notifications (récepteur dynamique et manifeste expérimental), vérification JobScheduler 15 minutes au mieux et copie du journal. Aucune commande Hue, aucun accès réseau.
+- Contrôles vérifiés : CI Android test [42459466634](https://github.com/fchautems/Hue/actions/runs/42459466634) completed/success et signature vérifiée ; CI du prototype Hue [42459466679](https://github.com/fchautems/Hue/actions/runs/42459466679) completed/success. Artefact GitHub Actions n°13609042600 : `Hue-Reveil-Test.apk`.
+- Incertitudes : la notification Android ne garantit pas de réveiller une application balayée ; JobScheduler est reportable selon l'état du téléphone. Aucun essai réel Pixel ni synchronisation Raspberry. Signature de test CI temporaire.
+- Prochaine étape : installer l'APK sur le Pixel, activer le contrôle périodique, modifier un réveil app ouverte puis balayée ; attendre 20–40 minutes, consulter les entrées antérieures à la réouverture, partager le journal pour décider de l'intégration.
 
 ## Décision / test Android « prochain réveil » — 2026-11-08
 - Décision utilisateur : **supposer le Wi-Fi coupé la nuit en mode avion** ; le Raspberry doit connaître le prochain réveil avant la coupure. Ne pas dépendre d'une synchronisation nocturne.
