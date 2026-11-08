@@ -2,6 +2,16 @@
 
 Mise à jour : 2026-11-07
 
+## Décision / test Android « prochain réveil » — 2026-11-08
+- Décision utilisateur : **supposer le Wi-Fi coupé la nuit en mode avion** ; le Raspberry doit connaître le prochain réveil avant la coupure. Ne pas dépendre d'une synchronisation nocturne.
+- But : lecture du prochain réveil Android par `AlarmManager.getNextAlarmClock()`, avec date et heure, et transmission vers Raspberry uniquement lors d'un changement confirmé, selon disponibilité réseau.
+- Point de vigilance vérifié dans la documentation Android : `ACTION_NEXT_ALARM_CLOCK_CHANGED` est envoyé aux receivers enregistrés ; une inscription dépendant d'un processus vivant ne garantit **pas** d'événement quand l'APK a été balayée/fermée. Ne pas présenter cette détection comme acquise. Un fallback périodique tolérant les reports Android est à évaluer, sans promesse de notification immédiate.
+- Vérifié dans le dépôt : `android/` contient l'APK prototype WebView 0.1 (target SDK 35), sans lecture de réveil ni synchronisation native.
+- Test demandé sur Pixel : (1) obtenir et afficher date/heure exactes du prochain réveil Google Horloge, (2) modifier l'alarme app ouverte, puis app balayée, puis téléphone verrouillé ; observer événement et latence réelle, (3) vérifier le dernier envoi sur le Raspberry avant passage en mode avion avec Wi-Fi désactivé, (4) tester redémarrage/force stop et impact batterie.
+- Contrôles réalisés : revue de documentation officielle Android et inspection de l'état GitHub. **Aucune APK de test construite, aucun test physique réalisé.** Ne pas implémenter une synchronisation de production avant validation du comportement sur appareil.
+- Blocage : test réel nécessite installer une APK instrumentée sur le Pixel et disposer du Raspberry en réseau local.
+- Prochaine action : créer une APK de test dédiée à l'observation du réveil et des notifications, sans modifier l'automatisation Hue de production.
+
 ## État actuel — v0.11.0 et prototype Android publiés — 2026-11-07
 - Base publiée v0.10.1 vérifiée au commit 27e2b6e. Reprise des demandes vocales, fiche Brain et guide modèle lus.
 - Simulation : Pause/Reprendre près du curseur et saisie d’une heure exacte. Le déplacement fixe cette heure et met la lecture en pause. Les vitesses restent dans les commandes repliables. Les lampes Auto suivent toujours la référence choisie.
