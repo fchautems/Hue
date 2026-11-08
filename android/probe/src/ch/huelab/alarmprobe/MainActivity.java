@@ -42,26 +42,51 @@ public final class MainActivity extends Activity {
         return (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
     }
 
-    private void startPolling() {
-        JobInfo job = new JobInfo.Builder(JOB_ID,
-                new ComponentName(this, AlarmPollJob.class))
-                .setPeriodic(15L * 60L * 1000L).setPersisted(true).build();
-        int code = scheduler().schedule(job);
-        Probe.record(this, code == JobScheduler.RESULT_SUCCESS
-                ? "surveillance périodique activée" : "ÉCHEC activation JobScheduler");
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 1001;
+
+    private void startMinuteTest() {
+        // L'ancien contrôle 15 minutes serait trompeur dans ce test.
+        scheduler().cancel(JOB_ID);
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST);
+            return;
+        }
+        try {
+            startForegroundService(new Intent(this, MinuteProbeService.class));
+            Probe.record(this, "demande de démarrage du test 1 min");
+        } catch (Exception e) {
+            Probe.record(this, "ERREUR lancement du test 1 min : " + e.getClass().getSimpleName());
+        }
         redraw();
     }
 
-    private void stopPolling() {
-        scheduler().cancel(JOB_ID);
-        Probe.record(this, "surveillance périodique désactivée");
+    private void stopMinuteTest() {
+        stopService(new Intent(this, MinuteProbeService.class));
+        Probe.record(this, "bouton arrêt test 1 min");
         redraw();
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode,
+            String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 &&
+                    grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                startMinuteTest();
+            } else {
+                Probe.record(this, "permission notifications refusée : test non démarré");
+                redraw();
+            }
+        }
     }
 
     private void redraw() {
         if (output == null) return;
-        boolean active = scheduler().getPendingJob(JOB_ID) != null;
-        output.setText("Vérification ~15 min : " + (active ? "programmée (horaire non garanti)" : "désactivée")
+        boolean active = MinuteProbeService.running;
+        output.setText("Test chaque minute : " + (active ? "ACTIF (maximum 45 min)" : "arrêté")
                 + "\n\n" + Probe.report(this));
     }
 
@@ -78,18 +103,20 @@ public final class MainActivity extends Activity {
         title.setTextSize(22f);
         panel.addView(title);
         TextView instructions = new TextView(this);
-        instructions.setText("Test indépendant : aucune commande Hue ni transmission réseau. "
-                + "La diffusion dynamique ne fonctionne que pendant l'ouverture. "
-                + "L'événement statique et la vérification périodique sont à observer après un swipe. "
-                + "Android peut retarder les tâches. Ne force pas l'arrêt pour le test normal.");
+        instructions.setText("APK indépendante, aucune commande Hue ni connexion réseau. "
+                + "Le bouton démarre un service au premier plan : lecture ~chaque minute "
+                + "pendant 45 minutes maximum, même après swipe ou écran éteint. "
+                + "Une notification permet de l'arrêter. "
+                + "Ce test garde le processeur actif et utilise davantage la batterie. "
+                + "Ne pas utiliser Forcer l'arrêt pour le test normal.");
         instructions.setTextSize(15f);
         panel.addView(instructions);
         button(panel, "Lire le prochain réveil", v -> {
             Probe.record(this, "bouton manuel");
             redraw();
         });
-        button(panel, "Activer une vérification ~15 min", v -> startPolling());
-        button(panel, "Arrêter les vérifications", v -> stopPolling());
+        button(panel, "Démarrer test 1 min (45 min)", v -> startMinuteTest());
+        button(panel, "Arrêter test 1 min", v -> stopMinuteTest());
         button(panel, "Copier le journal", v -> {
             ClipboardManager cb = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             cb.setPrimaryClip(ClipData.newPlainText("Test réveil Hue", Probe.report(this)));
