@@ -173,6 +173,7 @@ async function refresh() {
     const s=await api('/api/state');
     if(generation!==simulationGeneration)return;
     state=s;lastStateAt=performance.now();
+    window.HueDawn?.refresh(s.lights);
     $('#bridge-dot').classList.toggle('online',s.connected);
     $('#bridge-label').textContent=s.connected?'Pont connecté':'Pont non connecté';
     $('#bridge-ip').textContent=s.bridge_ip??'Association requise';

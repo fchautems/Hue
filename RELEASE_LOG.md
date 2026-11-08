@@ -1,3 +1,8 @@
+# v0.12.0 — Réveil lumineux — 2026-11-08
+
+- Une carte dans Lampes & vacances règle la lampe, la couleur, le nombre de minutes d’avance et la luminosité à l’heure du réveil.
+- Hue Lab Android 0.2 transmet le prochain réveil au Raspberry sur le Wi-Fi local. La carte confirme l’heure reçue. Le Raspberry exécute ensuite la montée sans dépendre du téléphone.
+
 # v0.11.1 — Couleur du soir plus tôt — 2026-11-08
 
 - Soleil : la couleur du soir apparaît progressivement dès le coucher solaire, pendant que la luminosité suit sa baisse tardive. Les niveaux configurés au coucher personnel et de nuit restent les mêmes.

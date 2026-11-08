@@ -56,3 +56,9 @@ body.v051-show-simulator #tab-profiles #v061-sim-options{display:block}
 .sim-seek-controls label{flex:1 1 100%}
 .sim-seek-controls input{width:auto;min-width:0;flex:1;min-height:44px}
 .sim-seek-controls button{min-height:44px}
+
+.dawn-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:14px 0; }
+.dawn-fields[hidden], #dawn-sync[hidden] { display:none; }
+.dawn-fields .field { display:block; width:100%; min-width:0; margin-top:4px; }
+#dawn-color { height:42px; }
+#dawn-status { margin-bottom:0; }
