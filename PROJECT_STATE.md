@@ -2,6 +2,14 @@
 
 Mise à jour : 2026-11-08
 
+## Test réveil Android — mode minute — 2026-11-08
+- Demande : changer le test pour sonder le prochain réveil toutes les minutes, y compris après swipe et écran verrouillé.
+- Correction du test précédent : journal de 12:45:17 non conclusif pour la réception manifest après swipe car ouverture à 12:44:44. L'utilisateur confirme avoir rouvert l'application à cette heure-là. Le JobScheduler 15 min est reporté et ne permet pas 1 min (minimum 15 min).
+- Modifications PR #21 : version 0.2 autonome, service au premier plan `specialUse` démarré sur demande, notification permanente + action Arrêter, lecture immédiate puis chaque ~60 s, `PARTIAL_WAKE_LOCK` pour écran éteint, arrêt automatique après 45 min. Journalise l'événement `onTaskRemoved` si reçu, arrêt et première détection. Ancien JobScheduler désactivé ; aucune transmission réseau ou commande Hue.
+- Limites : service et wake lock consomment davantage de batterie ; interdiction éventuelle de type `specialUse` ou interruption du service par Android ; intervalles réels à vérifier sur Pixel. APK CI signée éphémèrement ; désinstaller la version antérieure avant installation.
+- Vérification : en attente de CI Android et test Pixel. Prochaine action : obtenir l'APK signée, vérifier sa compilation puis analyser un journal avec plusieurs vérifications antérieures à l'ouverture de l'app.
+
+
 ## APK de diagnostic du prochain réveil — 2026-11-08
 - Décision : présumer Wi-Fi coupé en mode avion nocturne. Une future synchronisation Raspberry devra précéder la coupure.
 - Réalisation sur branche `test/android-next-alarm-probe-20261108`, PR #21 ouverte : APK autonome `ch.huelab.alarmprobe`, lecture du prochain réveil Android, journal des notifications (récepteur dynamique et manifeste expérimental), vérification JobScheduler 15 minutes au mieux et copie du journal. Aucune commande Hue, aucun accès réseau.
