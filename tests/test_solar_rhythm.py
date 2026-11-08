@@ -46,6 +46,18 @@ class SolarRhythmTests(TestCase):
             self.assertTrue(0<=c['s']<=100)
             self.assertTrue(10<=simple_brightness_at(p,m)<=85)
 
+    def test_evening_color_develops_while_the_room_is_still_bright(self):
+        config = dict(DEFAULT_SOLAR_CONFIG, wake=315, high=100)
+        draft = draft_profile(date(2026, 11, 8), **config)
+        sunset = draft['params']['evening_start']
+        samples = {sample['minute']: sample for sample in draft['samples']}
+        self.assertEqual(samples[sunset]['color']['s'], 0)
+        self.assertGreater(samples[sunset + 60]['color']['s'], 8)
+        self.assertEqual(samples[sunset + 60]['brightness'], 99.98)
+        self.assertGreater(samples[sunset + 130]['color']['s'], 30)
+        self.assertEqual(samples[sunset + 130]['brightness'], 98.44)
+        self.assertEqual(samples[config['bed']]['color']['s'], config['saturation'])
+
     def test_midnight_transitions_are_cyclic_and_do_not_overlap(self):
         for config in [dict(wake=10,bed=1200),dict(wake=315,bed=1430)]:
             c=dict(DEFAULT_SOLAR_CONFIG,**config)
