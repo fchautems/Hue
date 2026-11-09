@@ -5,6 +5,7 @@ import argparse
 import copy
 import colorsys
 import ipaddress
+from collections import deque
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json
@@ -25,6 +26,7 @@ import requests
 import urllib3
 
 from hue_discovery import discover_local_bridges
+from hue_dimmer import GROUP_TYPES, dimmer_bindings, dimmer_events
 from hue_solar_profile import draft_profile, DEFAULT_SOLAR_CONFIG, validate_solar_config
 from hue_solar import solar_times
 import hue_update_api
@@ -146,6 +148,11 @@ class HueServer:
                          "simple_profiles": {}, "profile_types": {}, "solar_profiles": {},
                          "rgb_profiles": {}, "rgb_manual": {}, "rgb_auto_enabled": {}}
         self._legacy_default_auto = False
+        self.dimmer_held = set()
+        self._dimmer_events = deque(maxlen=128)
+        self._dimmer_bindings = {}
+        self._dimmer_refresh_at = 0
+        self._dimmer_generation = 0
         self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS}
         self.dawn_run = None
         self.vacation = {"enabled": False, "light_ids": [], "seed": "",
@@ -240,6 +247,10 @@ class HueServer:
                             k: v for k, v in modes.items()
                             if isinstance(k, str) and v in ("manuel", "auto")
                         }
+                    held = loaded.get("dimmer_held", [])
+                    if isinstance(held, list):
+                        self.dimmer_held = {uid for uid in held if isinstance(uid, str)
+                                            and self.settings["light_modes"].get(uid) == "auto"}
                     states = loaded.get("manual_states", {})
                     if isinstance(states, dict):
                         for uid, value in states.items():
@@ -284,7 +295,8 @@ class HueServer:
         self._error_last_logged = 0
         self._event_wakeup = threading.Event()
         self._automation_lock = threading.Lock()
-        self._events = HueEventStream(lambda: self.client, self._event_wakeup.set, self._stop, self.log)
+        self._events = HueEventStream(lambda: self.client, self._event_wakeup.set, self._stop,
+                                      self.log, on_events=self._queue_dimmer_events)
         self.reconnect_at = {}
         self.reconnect_latency = {}
         if start_worker:
@@ -322,6 +334,7 @@ class HueServer:
             "rgb_auto_enabled": self.settings["rgb_auto_enabled"],
             "vacation": self.vacation,
             "dawn": self.dawn,
+            "dimmer_held": sorted(self.dimmer_held),
         }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -349,6 +362,11 @@ class HueServer:
             self.last_error = None
             self.previous_online.clear()
             self.previous_on.clear()
+            self.dimmer_held.clear()
+            self._dimmer_events.clear()
+            self._dimmer_bindings.clear()
+            self._dimmer_refresh_at = 0
+            self._dimmer_generation += 1
             self.reconnect_pending.clear()
             self.last_sent.clear()
             self.power_tests.clear()
@@ -463,6 +481,8 @@ class HueServer:
                             self.save()
                     is_on = l.get("on", {}).get("on")
                     old_on = self.previous_on.get(uid)
+                    if is_on is False and online is not False and self._resume_dimmer_locked(uid):
+                        self.save()
                     # Commande externe (télécommande Hue, app Hue, bouton logiciel) :
                     # priorité 10 minutes sur cette lampe, sans apprendre nos propres commandes.
                     command = self.vacation_last_commands.get(uid)
@@ -549,7 +569,11 @@ class HueServer:
             with self.lock:
                 light = self.require_light(uid)
                 previous = self.settings["light_modes"].get(uid, "manuel")
+                resumed = self._resume_dimmer_locked(uid)
                 if previous == mode:
+                    if resumed:
+                        self.save()
+                        self._event_wakeup.set()
                     return {"id": uid, "mode": mode}
                 if mode == "manuel":
                     # Geler l'état observé au moment où on quitte la courbe.
@@ -587,6 +611,7 @@ class HueServer:
                         self.auto_transition_pending.discard(uid)
                     else:
                         self.auto_transition_pending.discard(uid)  # Comportement historique API.
+                self.dimmer_held.clear()
                 self._legacy_default_auto = mode != "manuel"
                 self.settings["mode"] = mode
                 self.settings["auto"] = mode == "reel"
@@ -617,7 +642,77 @@ class HueServer:
         finally:
             self._automation_lock.release()
 
+    def _queue_dimmer_events(self, client, data):
+        with self.lock:
+            if client is not self.client:
+                return
+            now = time.monotonic()
+            for kind, uid, event in dimmer_events(data):
+                if kind == "config":
+                    self._dimmer_generation += 1
+                    self._dimmer_refresh_at = 0
+                else:
+                    self._dimmer_events.append((now, kind, uid, event))
+                    self._event_wakeup.set()
+
+    def _resume_dimmer_locked(self, uid):
+        if uid not in self.dimmer_held:
+            return False
+        self.dimmer_held.remove(uid)
+        self.last_sent.pop(uid, None)
+        self.auto_transition_pending.add(uid)
+        return True
+
+    def _apply_dimmer_events(self):
+        with self.lock:
+            if not self._dimmer_events:
+                return
+            client = self.client
+            now = time.monotonic()
+            refresh = now >= self._dimmer_refresh_at and any(
+                kind != "light" for _, kind, _, _ in self._dimmer_events)
+            generation = self._dimmer_generation
+            lights = self.lights
+        if refresh:
+            bindings = {}
+            try:
+                instances = client.resource("behavior_instance")
+                groups = [group for kind in GROUP_TYPES for group in client.resource(kind)] if instances else []
+                bindings = dimmer_bindings(instances, groups, lights)
+            except (HueError, KeyError, TypeError, AttributeError) as exc:
+                self.log.info("Télécommandes Hue : lecture des associations indisponible (%s).", type(exc).__name__)
+            with self.lock:
+                if client is not self.client or generation != self._dimmer_generation:
+                    return
+                self._dimmer_bindings = bindings
+                self._dimmer_refresh_at = now + 60
+        with self.lock:
+            if client is not self.client:
+                return
+            changed = False
+            while self._dimmer_events:
+                seen, kind, uid, event = self._dimmer_events.popleft()
+                if kind == "light":
+                    changed = self._resume_dimmer_locked(uid) or changed
+                elif now - seen <= 3:
+                    targets = self._dimmer_bindings.get((kind, uid, event), ())
+                    if not targets and kind == "relative_rotary" and event == "start":
+                        self.log.info("Molette Hue %s : cible de gradation non résolue.", uid)
+                    for light_id in targets:
+                        if (self.settings["light_modes"].get(light_id) != "auto"
+                                or self.previous_on.get(light_id) is not True
+                                or self.previous_online.get(light_id) is False
+                                or light_id in self.dimmer_held
+                                or (self.vacation["enabled"] and light_id in self.vacation["light_ids"])):
+                            continue
+                        self.dimmer_held.add(light_id)
+                        self._skip_dawn_locked(light_id)
+                        changed = True
+            if changed:
+                self.save()
+
     def _automate_locked(self):
+        self._apply_dimmer_events()
         dawn_light = self._dawn_tick_locked()
         with self.lock:
             clock_mode = self.clock_mode
@@ -637,11 +732,12 @@ class HueServer:
             manual = copy.deepcopy(self.settings["manual_states"])
             status = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
             reconnecting = set(self.reconnect_pending)
+            held = set(self.dimmer_held)
             restoring = set(self.manual_restore_pending)
             transitioning = set(self.auto_transition_pending)
         for light in lights:
             uid = light["id"]
-            if uid == dawn_light:
+            if uid == dawn_light or uid in held:
                 continue
             if self.vacation["enabled"] and uid in self.vacation["light_ids"]:
                 continue  # Le mode Vacances a priorité sur les courbes et restaurations.
@@ -733,6 +829,10 @@ class HueServer:
                     reconnect_transition_ms(current, target) if urgent_correction else
                     1800 if clock_mode == "accelere" else
                     8000 if target_xy is not None else 3000)}
+            with self.lock:
+                if any(uid in self._dimmer_bindings.get((kind, accessory, event), ())
+                       for _, kind, accessory, event in self._dimmer_events):
+                    continue  # Une commande physique vient d'arriver avant l'envoi Auto.
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
@@ -812,7 +912,7 @@ class HueServer:
             wake = alarm / 1000
             start = wake - config["minutes"] * 60
             if (now < start or (now >= wake and (not run or run["alarm"] != alarm or run["last"] is None))
-                    or now >= wake + DAWN_HOLD_SECONDS
+                    or now >= wake + DAWN_HOLD_SECONDS or uid in self.dimmer_held
                     or (self.vacation["enabled"] and uid in self.vacation["light_ids"])
                     or self._vacation_test_blocks_override(uid)):
                 self.dawn_run = None
@@ -1180,6 +1280,7 @@ class HueServer:
                     "rgb_auto": bool(self.settings["rgb_auto_enabled"].get(uid)),
                     "color_xy": copy.deepcopy(l.get("color", {}).get("xy")),
                     "control_mode": self.settings["light_modes"].get(l["id"], "manuel"),
+                    "manual_override": uid in self.dimmer_held,
                     "manual_state": copy.deepcopy(self.settings["manual_states"].get(l["id"])),
                     "status": connections.get(owner, "inconnu"),
                     "model": dev.get("product_data", {}).get("model_id", "inconnu"),
@@ -1542,6 +1643,8 @@ class HueServer:
                     payload["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
             self.client.resource(f"light/{uid}", "PUT", payload)
             with self.lock:
+                if not on and self._resume_dimmer_locked(uid):
+                    self.save()
                 self._skip_dawn_locked(uid)
                 self.last_user_action[uid] = time.monotonic()
                 self.last_sent.pop(uid, None)

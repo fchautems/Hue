@@ -46,9 +46,10 @@ def event_has_reconnect_signal(event_containers: object) -> bool:
 class HueEventStream:
     """Écoute SSE non bloquante, avec reconnexion automatique et arrêt propre."""
 
-    def __init__(self, get_client: Callable, on_change: Callable, stop_event: threading.Event, logger=None):
+    def __init__(self, get_client: Callable, on_change: Callable, stop_event: threading.Event, logger=None, *, on_events=None):
         self.get_client = get_client
         self.on_change = on_change
+        self.on_events = on_events
         self.stop_event = stop_event
         self.log = logger or logging.getLogger(__name__)
         self.thread = None
@@ -98,6 +99,8 @@ class HueEventStream:
                         except ValueError:
                             continue
                         self.last_event = time.time()
+                        if self.on_events is not None:
+                            self.on_events(client, data)
                         if event_has_reconnect_signal(data):
                             self.on_change()
             except requests.RequestException as exc:
