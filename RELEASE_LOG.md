@@ -1,3 +1,8 @@
+# v0.13.0 — Manuel temporaire avec les télécommandes Hue — 2026-11-09
+
+- Les touches de gradation et la molette suspendent Auto sur les lampes concernées lorsque le pont expose leur association. Une extinction suivie d’un rallumage fait reprendre le profil.
+- L’écran affiche « Manuel temporaire » pendant la suspension. Le bouton Auto permet aussi de reprendre immédiatement.
+
 # v0.12.0 — Réveil lumineux — 2026-11-08
 
 - Une carte dans Lampes & vacances règle la lampe, la couleur, le nombre de minutes d’avance et la luminosité à l’heure du réveil.

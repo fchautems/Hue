@@ -1,6 +1,12 @@
 # PROJECT_STATE — Philips Hue Web
 
-Mise à jour : 2026-11-08
+Mise à jour : 2026-11-09
+
+## Télécommandes Hue — Manuel temporaire — 2026-11-09
+- Demande : la gradation via touches +/− ou molette suspend Auto sur les lampes visées. Une extinction observée libère la suspension et le prochain allumage reprend le profil. Le bouton Auto permet aussi de reprendre immédiatement.
+- Association déduite en lecture seule des actions du pont. Les touches de gradation sont reconnues par leur action et les pièces ou zones sont développées en lampes. Une commande sans cible exploitable ne suspend aucun profil. Le mode choisi par lampe et la priorité de Vacances restent indépendants de la suspension temporaire.
+- Contrôles sur pont simulé : touches, molette, zone avec sélection de lampes, extinction/rallumage rapide, redémarrage, reprise manuelle d’Auto, scène et Vacances. Forme de l’association de la molette et fonctionnement sur le pont de Fréd à confirmer.
+- Prochaine action : passer la CI, puis vérifier une gradation +/−, une rotation et une extinction/rallumage sur les télécommandes réelles.
 
 ## Réveil lumineux — intégration v0.12.0 — 2026-11-08
 - Fréd confirme la détection du changement du prochain réveil sur son Pixel. Le premier journal de 12 h 45 reste l’historique d’un essai antérieur.

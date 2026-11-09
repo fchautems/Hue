@@ -77,12 +77,13 @@ function renderProfileTarget() {
   // The saved active profile is evaluated by the server, never by an editor.
   const light=state?.lights.find(l=>l.id===selectedId);
   const target=$('#profile-target'),status=$('#profile-live-status');
-  target.textContent=Number.isFinite(light?.target)?`Cible active ${Math.round(light.target)} %`:'Cible active — %';
+  const label=light?.manual_override?'Cible au rallumage':'Cible active';
+  target.textContent=Number.isFinite(light?.target)?`${label} ${Math.round(light.target)} %`:`${label} — %`;
   if(!status)return;
   if(!light){status.textContent='Choisis une lampe pour voir son état.';return;}
   const observed=Number.isFinite(light.brightness)?`${Math.round(light.brightness)} %`:'— %';
   const vacation=light.vacation_active;
-  const reason=vacation?'Vacances prioritaire':light.control_mode!=='auto'?'Manuel · profil non appliqué':!light.on?'Éteinte · profil en attente':light.status!=='connected'?'Connexion à vérifier':'Auto · profil actif';
+  const reason=vacation?'Vacances prioritaire':light.manual_override?'Manuel temporaire · reprise au rallumage':light.control_mode!=='auto'?'Manuel · profil non appliqué':!light.on?'Éteinte · profil en attente':light.status!=='connected'?'Connexion à vérifier':'Auto · profil actif';
   status.textContent=`Lampe : ${observed} · ${reason}`;
   if(state.error)status.textContent+=' · lecture du pont indisponible';
 }
@@ -136,7 +137,7 @@ function updateLights(lights) {
       btn.classList.toggle('active',chosen);
       btn.setAttribute('aria-pressed',String(chosen));
     });
-    card.querySelector('.lamp-mode-help').textContent=isAuto?`Courbe horaire active · cible ${Math.round(light.target)} %`:'Luminosité libre · indépendante de l’horloge';
+    card.querySelector('.lamp-mode-help').textContent=light.manual_override?'Manuel temporaire · Auto au rallumage':isAuto?`Courbe horaire active · cible ${Math.round(light.target)} %`:'Luminosité libre · indépendante de l’horloge';
     const status=card.querySelector('.light-status');
     status.className='pill light-status'+(light.status==='connected'?' ok':light.status==='disconnected'?' bad':'');
     status.textContent=light.status==='connected'?'● En ligne':light.status==='disconnected'?'● Hors ligne':`● ${light.status}`;
