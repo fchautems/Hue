@@ -89,3 +89,19 @@
   .rooms-page footer { display: none; }
   .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
+
+
+/* Plan schématique compact : les proportions ne représentent pas des mesures. */
+.apartment-plan { grid-column:1/-1; min-width:0; }
+.apartment-plan-title { font-size:13px; font-weight:700; margin:0 0 6px 3px; color:#c8d4e2; }
+.apartment-plan-surface { position:relative; width:100%; max-width:540px; margin:auto; aspect-ratio:1.45; background:#111e2c; border:1px solid #52667d; border-radius:12px; overflow:hidden; }
+.plan-room { position:absolute; border:1px solid #65788b; border-radius:6px; background:#203249; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:3px; min-width:0; }
+.plan-room-action { display:block; width:100%; min-height:34px; border:0; border-radius:5px; background:transparent; color:#edf4fb; font:600 clamp(10px,2.7vw,14px) inherit; font-size:clamp(10px,2.7vw,14px); cursor:pointer; overflow-wrap:anywhere; }
+.plan-room-action[aria-pressed="true"],.plan-room-action[aria-pressed="mixed"] { background:#28483f; color:#b7eadb; }
+.plan-lamps { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; }
+.plan-lamp { min-width:32px; min-height:32px; border:1px solid #6d8299; border-radius:50%; color:#a9b7c6; background:#17283a; cursor:pointer; font-size:18px; }
+.plan-lamp[aria-pressed="true"] { color:#b7eadb; background:#28483f; border-color:#65ae99; }
+.plan-lamp[aria-busy="true"],.plan-room-action[aria-busy="true"] { color:#ffdb9c; background:#443722; border-color:#f2be6f; }
+.plan-lamp:disabled,.plan-room-action:disabled { opacity:.48; cursor:default; }
+.plan-lamp:focus-visible,.plan-room-action:focus-visible { outline:2px solid #ffce83; outline-offset:1px; }
+@media(max-width:700px){.apartment-plan-surface{max-width:100%}.apartment-plan-surface{aspect-ratio:1.45}}
