@@ -54,8 +54,7 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>selectedId==='light-0'&&document.querySelector('#solar-wake').value==='05:15');
  // Profile selection persists after reload. No activation based on the preview date.
  await page.reload();await page.locator('.light-card').first().waitFor({state:'attached'});await page.locator('.nav [data-tab="profiles"]').click();
- await page.waitForFunction(()=>document.querySelector('.profile-card').dataset.v052View==='solar'&&!document.querySelector('#solar-wake').disabled);
- assert.equal(await page.locator('#solar-wake').inputValue(),'05:15');
+ await page.waitForFunction(()=>document.querySelector('.profile-card').dataset.v052View==='solar'&&!document.querySelector('#solar-wake').disabled&&document.querySelector('#solar-wake').value==='05:15');
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
