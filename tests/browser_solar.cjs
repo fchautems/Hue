@@ -83,6 +83,10 @@ const assert=require('node:assert/strict');
  await page.locator('#solar-save').click();await page.waitForFunction(()=>!window.HueSolar.isBusy()&&document.querySelector('#solar-save').disabled);
  const changed=await page.evaluate(()=>api('/api/profile/solar/light-0'));
  assert.equal(changed.config.comfort,62);assert.equal(changed.config.saturation,58);assert.equal(changed.config.transition,45);assert.equal(changed.config.day_kelvin,4500);assert.equal(changed.config.night_hue,0);
+ await page.route('**/static/solar_daily.js?*',async route=>{
+  await new Promise(resolve=>setTimeout(resolve,350));
+  await route.continue();
+ },{times:1});
  await page.reload();await page.locator('.light-card').first().waitFor({state:'attached'});await page.locator('.nav [data-tab="profiles"]').click();
  try{await page.waitForFunction(()=>!document.querySelector('#solar-wake').disabled&&document.querySelector('#solar-comfort').value==='62');}catch(e){console.error('Reload state',await page.evaluate(()=>({selectedId,activeTab,status:document.querySelector('#solar-save-status').textContent,value:document.querySelector('#solar-comfort').value,disabled:document.querySelector('#solar-wake').disabled})),errors,await page.evaluate(()=>api('/api/profile/solar/light-0')));throw e;}
  assert.equal(await page.locator('#solar-transition').inputValue(),'45');assert.equal(await page.locator('#solar-day_kelvin').inputValue(),'4500');
