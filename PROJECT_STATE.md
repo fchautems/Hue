@@ -1,13 +1,11 @@
 # PROJECT_STATE — Philips Hue Web
 
-## Plan interactif — éditeur en PR #31 — 2026-11-10
-- Plan compact de six zones dans Pièces, commandes par lampe et par pièce réutilisées ; les zones hors appartement restent exclues.
-- Mode « Modifier le plan » : choix de pièce pour chaque lampe, déplacement tactile du point dans la pièce et sauvegarde locale par adresse de pont dans le navigateur.
-- Les commandes existantes sous le plan restent disponibles. Aucune modification du moteur Hue.
-- Contrôles : CI de la première version en échec (42885245816), car la liste et le plan dépassaient 680 px sur écran 320 px. Liste secondaire désormais repliée, scénario navigateur adapté ; nouvelle CI à confirmer. Aucun test Pixel/pont réel exécuté.
-- Limites : configuration stockée uniquement dans ce navigateur (pas synchronisée avec un autre appareil) ; géométrie des pièces fixe, correspondance initiale par nom ; absence de validation tactile réelle. L'option « Hors plan » ne réaffecte plus implicitement la lampe.
-- Prochaine action : valider la CI et le comportement mobile avant fusion/publication, puis tester sur le pont réel.
-
+## Plan interactif — PR #31 — 2026-11-10
+- Accueil Pièces : plan schématique de six pièces, sans échelle. Le couloir et les escaliers communs au centre sont signalés et ne commandent aucune lampe. Un appui sur la surface d’une pièce commande ses lampes ; un appui sur un repère commande la lampe correspondante.
+- Les positions sont réparties sur deux rangées dans chaque pièce. En édition, déplacer un repère au doigt ou au clavier échange les places si nécessaire. L’affectation et les positions sont conservées dans le navigateur par adresse de pont. La liste repliée donne accès aux lampes hors plan ou en surnombre.
+- CI 42885664867 sur `b454b47` : Python, Node et Soleil réussis ; le test d’ergonomie attendait la liste repliée sans l’ouvrir. Le scénario vérifie désormais le plan fermé à 320 × 680 et 393 × 680, les commandes tactiles, la zone commune, le déplacement, la persistance et la liste ouverte.
+- Limites : géométrie fixe, affectation initiale par nom de pièce du pont et configuration propre à chaque navigateur. Essai sur Pixel, Raspberry et pont réels à faire.
+- Prochaine action : confirmer la CI de la PR #31 avant publication, puis valider le plan sur le Pixel avec le pont réel.
 
 Mise à jour : 2026-11-10
 
