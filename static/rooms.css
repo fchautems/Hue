@@ -105,3 +105,16 @@
 .plan-lamp:disabled,.plan-room-action:disabled { opacity:.48; cursor:default; }
 .plan-lamp:focus-visible,.plan-room-action:focus-visible { outline:2px solid #ffce83; outline-offset:1px; }
 @media(max-width:700px){.apartment-plan-surface{max-width:100%}.apartment-plan-surface{aspect-ratio:1.45}}
+
+.plan-header {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.plan-header .apartment-plan-title {margin:0}
+.plan-edit-toggle {min-height:36px;padding:4px 10px;border:1px solid #52667d;border-radius:9px;background:#203249;color:#f4f6fb;cursor:pointer}
+.plan-room {position:absolute}
+.plan-room-action {position:absolute;top:3px;left:2%;width:96%;min-height:32px;max-height:45%;z-index:1}
+.plan-lamps {display:contents}
+.plan-lamp {position:absolute;transform:translate(-50%,-50%);z-index:2;touch-action:none}
+.plan-lamp-draggable {cursor:grab;box-shadow:0 0 0 2px #ffce83}
+.plan-editor {display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:7px;margin-top:10px}
+.plan-editor p {grid-column:1/-1;margin:0;font-size:12px;color:#b9c7d7}
+.plan-editor label {display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:12px}
+.plan-editor select {max-width:120px;min-height:36px;background:#203249;color:#f4f6fb;border:1px solid #52667d;border-radius:6px}
