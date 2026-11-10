@@ -3,7 +3,8 @@
 ## v0.15.2 — Lisibilité du plan sur Pixel — 2026-11-10
 - Capture Pixel sur la v0.15.1 : le plan tient sur l’écran, mais sa hauteur fixe aplatit le croquis et les doubles cercles dominent visuellement.
 - La hauteur s’adapte aux téléphones plus hauts tout en conservant le format compact à 320 × 680 et 393 × 680. Les repères sont dessinés par un point et les cibles tactiles gardent leurs dimensions. La salle de bain reprend son nom complet dès 351 px.
-- Contrôles : scénario Chromium 393 × 830 ajouté aux scénarios compacts et aux cinq repères du salon. Prochaine action : valider la CI puis publier via Mises à jour.
+- Contrôles réussis en CI 42899169101 sur pont simulé : 320 × 680, 393 × 680 et 393 × 830, cinq repères du salon et libellé de la salle de bain.
+- Publication : PR #33 fusionnée au commit `405b8f0`, arbre identique à la révision testée. Mise à jour détectée depuis la v0.15.1. Prochaine action : essayer sur le Pixel.
 
 ## v0.15.1 — Tracé de l’appartement et déplacement libre — 2026-11-10
 - Retour sur Pixel : le plan v0.15.0 ne reproduit pas la forme des pièces, l’encadré des parties communes est superflu et le déplacement par cases manque de finesse. Trois lampes sont prévues en plus des deux du salon.
