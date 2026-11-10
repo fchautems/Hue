@@ -6,7 +6,7 @@ const assert=require('node:assert/strict');
  page.on('pageerror',e=>errors.push(e.message));
  page.on('request',r=>{if(r.method()!=='GET')writes.push({url:new URL(r.url()).pathname,data:r.postDataJSON()});});
  await page.goto('http://127.0.0.1:8765');
- await page.locator('.light-card').first().waitFor();
+ await page.locator('.light-card').first().waitFor({state:'attached'});
  await page.locator('.nav [data-tab="profiles"]').click();
  await page.waitForFunction(()=>selectedId==='light-0'&&!document.querySelector('#v052-wake').disabled);
  await page.locator('.v052-mode[data-type="solar"]').click();
@@ -53,9 +53,8 @@ const assert=require('node:assert/strict');
  await page.locator('#profile-light').selectOption('light-0');
  await page.waitForFunction(()=>selectedId==='light-0'&&document.querySelector('#solar-wake').value==='05:15');
  // Profile selection persists after reload. No activation based on the preview date.
- await page.reload();await page.locator('.light-card').first().waitFor();await page.locator('.nav [data-tab="profiles"]').click();
- await page.waitForFunction(()=>document.querySelector('.profile-card').dataset.v052View==='solar'&&!document.querySelector('#solar-wake').disabled);
- assert.equal(await page.locator('#solar-wake').inputValue(),'05:15');
+ await page.reload();await page.locator('.light-card').first().waitFor({state:'attached'});await page.locator('.nav [data-tab="profiles"]').click();
+ await page.waitForFunction(()=>document.querySelector('.profile-card').dataset.v052View==='solar'&&!document.querySelector('#solar-wake').disabled&&document.querySelector('#solar-wake').value==='05:15');
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
@@ -84,7 +83,7 @@ const assert=require('node:assert/strict');
  await page.locator('#solar-save').click();await page.waitForFunction(()=>!window.HueSolar.isBusy()&&document.querySelector('#solar-save').disabled);
  const changed=await page.evaluate(()=>api('/api/profile/solar/light-0'));
  assert.equal(changed.config.comfort,62);assert.equal(changed.config.saturation,58);assert.equal(changed.config.transition,45);assert.equal(changed.config.day_kelvin,4500);assert.equal(changed.config.night_hue,0);
- await page.reload();await page.locator('.light-card').first().waitFor();await page.locator('.nav [data-tab="profiles"]').click();
+ await page.reload();await page.locator('.light-card').first().waitFor({state:'attached'});await page.locator('.nav [data-tab="profiles"]').click();
  try{await page.waitForFunction(()=>!document.querySelector('#solar-wake').disabled&&document.querySelector('#solar-comfort').value==='62');}catch(e){console.error('Reload state',await page.evaluate(()=>({selectedId,activeTab,status:document.querySelector('#solar-save-status').textContent,value:document.querySelector('#solar-comfort').value,disabled:document.querySelector('#solar-wake').disabled})),errors,await page.evaluate(()=>api('/api/profile/solar/light-0')));throw e;}
  assert.equal(await page.locator('#solar-transition').inputValue(),'45');assert.equal(await page.locator('#solar-day_kelvin').inputValue(),'4500');
  await page.locator('#solar-wake').fill('02:00');await page.locator('#solar-transition').fill('180');assert.equal(await page.locator('#solar-save').isDisabled(),true,'overlapping night ramps rejected');

@@ -22,7 +22,7 @@ class ErgonomicsTests(unittest.TestCase):
     def test_activity_navigation_and_settings(self):
         nav = [attrs['data-tab'] for tag, attrs, ancestors in self.parser.nodes
                if 'nav-item' in attrs.get('class', '').split()]
-        self.assertEqual(nav, ['dashboard', 'profiles', 'presence', 'settings', 'updates'])
+        self.assertEqual(nav, ['rooms', 'dashboard', 'profiles', 'presence', 'settings', 'updates'])
         for uid in ('tab-setup', 'tab-diagnostics'):
             self.assertIn('tab-settings', self.parser.ids[uid][0][2])
         self.assertNotIn('tab-settings', self.parser.ids['tab-updates'][0][2])

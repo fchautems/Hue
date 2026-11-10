@@ -17,8 +17,10 @@
   <link rel="stylesheet" href="/static/vacation.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/solar.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/ergonomics.css?rev={{ asset_rev }}">
+  <link rel="stylesheet" href="/static/rooms.css?rev={{ asset_rev }}">
   <script src="/static/solar_math.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/app.js?rev={{ asset_rev }}" defer></script>
+  <script src="/static/rooms.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v051.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v052.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v06.js?rev={{ asset_rev }}" defer></script>
@@ -30,12 +32,13 @@
   <script src="/static/vacation.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/dawn.js?rev={{ asset_rev }}" defer></script>
 </head>
-<body>
+<body class="rooms-page">
 <div class="app-shell">
   <aside class="sidebar">
     <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span id="brand-version">Commande locale · révision en cours de lecture</span></div></div>
     <nav class="nav" aria-label="Navigation">
-      <button class="nav-item active" data-tab="dashboard"><span aria-hidden="true">◫</span> Lampes & vacances</button>
+      <button class="nav-item active" data-tab="rooms" aria-current="page"><span aria-hidden="true">◫</span> Pièces</button>
+      <button class="nav-item" data-tab="dashboard"><span aria-hidden="true">☀</span> Lampes & vacances</button>
       <button class="nav-item" data-tab="profiles"><span aria-hidden="true">◷</span> Profils & simulation</button>
       <button class="nav-item" data-tab="presence"><span aria-hidden="true">◴</span> Historique</button>
       <button class="nav-item secondary-nav" data-tab="settings"><span aria-hidden="true">⚙</span> Paramètres</button>
@@ -45,12 +48,17 @@
   </aside>
 
   <main class="main">
-    <header class="topbar"><div><div class="eyebrow">PHILIPS HUE / ENVIRONNEMENT LOCAL</div><h1 id="page-title">Lampes & vacances</h1><p id="page-subtitle">Éclairage, simulation et suivi en temps réel.</p></div><div class="top-time"><span>HEURE DU SERVEUR</span><strong id="real-clock">--:--:--</strong></div></header>
+    <header class="topbar"><div><div class="eyebrow">PHILIPS HUE / ENVIRONNEMENT LOCAL</div><h1 id="page-title">Pièces</h1><p id="page-subtitle">Commande une pièce ou une lampe.</p></div><div class="top-time"><span>HEURE DU SERVEUR</span><strong id="real-clock">--:--:--</strong></div></header>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="error-banner" class="error-banner hidden"></div>
 
-    <section id="tab-dashboard" class="tab">
+    <section id="tab-rooms" class="tab" aria-label="Commandes par pièce">
+      <p id="room-notice" role="status">Recherche des pièces du pont…</p>
+      <div id="room-grid" class="room-grid"></div>
+    </section>
+
+    <section id="tab-dashboard" class="tab hidden">
       <div class="stat-strip">
         <div><span>AMPOULES</span><strong id="stat-count">—</strong><small>sur le pont</small></div>
         <div><span>CONNECTÉES</span><strong id="stat-online">—</strong><small>selon Zigbee</small></div>

@@ -9,11 +9,34 @@ const assert=require('node:assert/strict');
  page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push({url:new URL(r.url()).pathname,data:r.postDataJSON()});});
  await page.route('**/api/update/status',r=>r.fulfill({json:{ok:true,data:{configured:true,installed:'old123456',remote:'new123456',available:true,changes:['Navigation revue'],change_kind:'interface'}}}));
  await page.goto('http://127.0.0.1:8766');
- await page.locator('.light-card').first().waitFor();
+ await page.locator('.light-card').first().waitFor({state:'attached'});
  const nav=tab=>page.locator('.nav [data-tab="'+tab+'"]');
  const check=async(condition,msg)=>assert.ok(await condition,msg);
  await check(page.locator('#update-badge').isVisible(),'permanent update badge');
  assert.equal(writes.length,0,'opening the app must not command lamps');
+ const room=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Couloir',exact:true})});
+ await room.waitFor();
+ assert.equal(await room.locator('.room-lamp').count(),2);
+ const zone=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Étage',exact:true})});
+ assert.equal(await zone.locator('.room-lamp').count(),3);
+ for(const width of [320,393]){
+  await page.setViewportSize({width,height:680});
+  await page.screenshot({path:`/tmp/hue-ergonomics-rooms-${width}.png`});
+  const pageHeight=await page.evaluate(()=>document.documentElement.scrollHeight);
+  assert.ok(pageHeight<=680,`room home fits the phone at ${width}px (page height ${pageHeight}px)`);
+  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.room-card button')].every(
+    button=>button.getBoundingClientRect().height>=48)),'touch targets at least 48 px high');
+ }
+ await room.getByRole('button',{name:'Commande de groupe · Couloir'}).click();
+ await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
+ assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
+ await room.getByRole('button',{name:'Salon',exact:true}).click();
+ await page.waitForFunction(()=>state.lights[1].on);
+ assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/light/light-1/switch']);
+ await room.getByRole('button',{name:'Entrée',exact:true}).click();
+ await page.waitForFunction(()=>state.lights[0].on);
+ writes.splice(0);
+
  // Layout and reachable daily activities at phone/tablet/desktop widths.
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
@@ -189,8 +212,9 @@ const assert=require('node:assert/strict');
  // Association still uses the explicit manual address and preserves button instructions.
  await page.route('**/api/setup/pair',r=>r.fulfill({json:{ok:true,data:{paired:true,ip:'10.0.0.12',lights:3}}}));
  await page.locator('#setup-pair').click();
- await page.waitForFunction(()=>activeTab==='dashboard');
+ await page.waitForFunction(()=>activeTab==='rooms');
  assert.equal(writes.find(r=>r.url==='/api/setup/pair').data.ip,'10.0.0.12');
+ await nav('dashboard').click();
  // Dawn settings are saved once, and show the alarm confirmed by the Raspberry.
  await page.setViewportSize({width:320,height:1000});
  await page.locator('#dawn-save').waitFor();

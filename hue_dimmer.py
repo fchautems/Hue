@@ -22,8 +22,8 @@ def _targets(ref, groups, light_ids, by_device, visited=frozenset()):
     ))
 
 
-def dimmer_bindings(instances, groups, lights):
-    """Map (service type, id, event) to the lights controlled by that action."""
+def group_light_resolver(groups, lights):
+    """Resolve Hue device, light and group references to light IDs."""
     by_device = defaultdict(set)
     for light in lights:
         by_device[light.get("owner", {}).get("rid")].add(light["id"])
@@ -33,6 +33,12 @@ def dimmer_bindings(instances, groups, lights):
         for service in group.get("services", []):
             if service.get("rtype") == "grouped_light":
                 children[service["rid"]] = children[group["id"]]
+    return lambda ref: _targets(ref, children, light_ids, by_device)
+
+
+def dimmer_bindings(instances, groups, lights):
+    """Map (service type, id, event) to the lights controlled by that action."""
+    resolve = group_light_resolver(groups, lights)
     bindings = defaultdict(set)
     for instance in instances:
         if instance.get("enabled") is not True:
@@ -70,8 +76,7 @@ def dimmer_bindings(instances, groups, lights):
                         if not isinstance(refs, list):
                             continue
                         for ref in refs:
-                            bindings[(kind, uid, event)].update(
-                                _targets(ref, children, light_ids, by_device))
+                            bindings[(kind, uid, event)].update(resolve(ref))
     return dict(bindings)
 
 

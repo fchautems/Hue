@@ -1,6 +1,12 @@
 # PROJECT_STATE — Philips Hue Web
 
-Mise à jour : 2026-11-09
+Mise à jour : 2026-11-10
+
+## Accueil Pièces — 2026-11-10
+- Décision : commandes des pièces et des lampes à l’accueil, en une page sans pagination ni défilement sur le téléphone de Fréd. Le futur plan reste un chantier séparé.
+- L’accueil récupère les pièces et les zones du pont, affiche leurs lampes et réutilise la commande existante par lampe, y compris lors d’un allumage de groupe. Les lampes non attribuées restent accessibles. L’ancien écran est accessible via Lampes & vacances.
+- Contrôles locaux : 216 tests Python et vérification de l’API avec pièces, zone imbriquée et pont simulé. Lancement de Chromium local bloqué par l’environnement.
+- Prochaine action : valider le rendu et l’absence de défilement sur le Pixel avec les groupes réels, puis vérifier la commande de groupe et le maintien des profils sur le Raspberry.
 
 ## Télécommandes Hue — Manuel temporaire — 2026-11-09
 - Demande : la gradation via touches +/− ou molette suspend Auto sur les lampes visées. Une extinction observée libère la suspension et le prochain allumage reprend le profil. Le bouton Auto permet aussi de reprendre immédiatement.
