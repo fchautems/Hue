@@ -4,8 +4,8 @@
 - Plan compact de six zones dans Pièces, commandes par lampe et par pièce réutilisées ; les zones hors appartement restent exclues.
 - Mode « Modifier le plan » : choix de pièce pour chaque lampe, déplacement tactile du point dans la pièce et sauvegarde locale par adresse de pont dans le navigateur.
 - Les commandes existantes sous le plan restent disponibles. Aucune modification du moteur Hue.
-- Contrôles : inspection du code et lecture des fichiers GitHub ; aucun test Node/Chromium ni test Pixel/pont réel exécuté. Aucun workflow CI trouvé pour le dernier commit au moment de la consultation.
-- Limites : configuration stockée uniquement dans ce navigateur (pas synchronisée avec un autre appareil) ; géométrie des pièces fixe, correspondance initiale par nom ; absence de validation tactile réelle.
+- Contrôles : CI de la première version en échec (42885245816), car la liste et le plan dépassaient 680 px sur écran 320 px. Liste secondaire désormais repliée, scénario navigateur adapté ; nouvelle CI à confirmer. Aucun test Pixel/pont réel exécuté.
+- Limites : configuration stockée uniquement dans ce navigateur (pas synchronisée avec un autre appareil) ; géométrie des pièces fixe, correspondance initiale par nom ; absence de validation tactile réelle. L'option « Hors plan » ne réaffecte plus implicitement la lampe.
 - Prochaine action : valider la CI et le comportement mobile avant fusion/publication, puis tester sur le pont réel.
 
 
