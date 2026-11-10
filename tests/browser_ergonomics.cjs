@@ -14,6 +14,28 @@ const assert=require('node:assert/strict');
  const check=async(condition,msg)=>assert.ok(await condition,msg);
  await check(page.locator('#update-badge').isVisible(),'permanent update badge');
  assert.equal(writes.length,0,'opening the app must not command lamps');
+ const room=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Couloir',exact:true})});
+ await room.waitFor();
+ assert.equal(await room.locator('.room-lamp').count(),2);
+ const zone=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Étage',exact:true})});
+ assert.equal(await zone.locator('.room-lamp').count(),3);
+ for(const width of [320,393]){
+  await page.setViewportSize({width,height:680});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false,'room home fits the phone');
+  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.room-card button')].every(
+    button=>button.getBoundingClientRect().height>=48)),'touch targets at least 48 px high');
+ }
+ await page.screenshot({path:'/tmp/hue-ergonomics-rooms.png'});
+ await room.getByRole('button',{name:'Commande de groupe · Couloir'}).click();
+ await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
+ assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
+ await room.getByRole('button',{name:'Salon',exact:true}).click();
+ await page.waitForFunction(()=>state.lights[1].on);
+ assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/light/light-1/switch']);
+ await room.getByRole('button',{name:'Entrée',exact:true}).click();
+ await page.waitForFunction(()=>state.lights[0].on);
+ writes.splice(0);
+
  // Layout and reachable daily activities at phone/tablet/desktop widths.
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});

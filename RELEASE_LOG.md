@@ -1,3 +1,8 @@
+# v0.14.0 — Pièces et lampes à l’accueil — 2026-11-10
+
+- Retrouve les pièces et zones configurées sur le pont. Dans chaque carte, le bouton marche/arrêt commande le groupe et chaque lampe se commande directement.
+- L’accueil affiche les commandes dans une grille compacte. Les réglages par lampe, le réveil et Vacances restent dans Lampes & vacances.
+
 # v0.13.0 — Manuel temporaire avec les télécommandes Hue — 2026-11-09
 
 - Les touches de gradation et la molette suspendent Auto sur les lampes concernées lorsque le pont expose leur association. Une extinction suivie d’un rallumage fait reprendre le profil.
