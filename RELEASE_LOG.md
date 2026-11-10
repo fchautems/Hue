@@ -1,3 +1,8 @@
+# v0.14.3 — Télécommandes Hue et réaffectation — 2026-11-10
+
+- Après la réaffectation d’un bouton ou d’une molette, Hue Lab relit les cibles du pont avant de suspendre Auto. Les boutons de scène sont pris en compte quand les lampes concernées peuvent être identifiées.
+- Le mode Manuel temporaire se termine à l’extinction. Au rallumage, la lampe reprend son profil Auto.
+
 # v0.14.2 — Retour visuel des commandes — 2026-11-10
 
 - Les commandes de lampe s’affichent en ambre pendant l’attente, puis en vert quand le pont confirme l’allumage. Une lampe éteinte revient à l’état neutre.

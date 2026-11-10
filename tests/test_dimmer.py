@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from hue_web import HueServer
+from hue_web import HueError, HueServer
 from test_v05 import ThreeLamps
 
 
@@ -35,6 +35,8 @@ class AccessoryBridge(ThreeLamps):
         }
 
     def resource(self, path, method="GET", payload=None):
+        if method == "GET" and path == "":
+            return [dict(item, type=kind) for kind, items in self.accessories.items() for item in items]
         if method == "GET" and path in self.accessories:
             return self.accessories[path]
         return super().resource(path, method, payload)
@@ -60,6 +62,93 @@ class DimmerTests(TestCase):
 
     def button(self, uid, event="initial_press"):
         self.deliver(update("button", uid, button={"button_report": {"event": event}}))
+
+    def reassign(self):
+        down = self.bridge.accessories["behavior_instance"][0]["configuration"]["buttons"]["down"]
+        down["where"] = [{"group": ref("zone", "coin"), "items": [ref("light", "light-1")]}]
+
+    def test_next_press_uses_reassignment_even_without_config_notification(self):
+        self.button("down")
+        self.assertEqual(self.server.dimmer_held, {"light-0"})
+        self.deliver(update("light", "light-0", on={"on": False}))
+        self.reassign()
+        self.button("down")
+        self.assertEqual(self.server.dimmer_held, {"light-1"})
+
+    def test_old_press_does_not_cross_a_config_update(self):
+        press = update("button", "down", button={"button_report": {"event": "initial_press"}})
+        self.reassign()
+        self.deliver(press + update("behavior_instance", "switch-config"))
+        self.assertFalse(self.server.dimmer_held)
+        self.button("down")
+        self.assertEqual(self.server.dimmer_held, {"light-1"})
+
+    def test_config_change_during_read_drops_only_superseded_presses(self):
+        resource = self.bridge.resource
+        press = update("button", "down", button={"button_report": {"event": "initial_press"}})
+
+        def change_during_read(path, method="GET", payload=None):
+            if path in ("", "behavior_instance"):
+                self.bridge.resource = resource
+                self.reassign()
+                self.server._queue_dimmer_events(self.bridge, update("behavior_instance", "switch-config") + press)
+            return resource(path, method, payload)
+
+        self.bridge.resource = change_during_read
+        self.button("down")
+        self.assertFalse(self.server.dimmer_held)
+        self.server.automate()
+        self.assertEqual(self.server.dimmer_held, {"light-1"})
+
+    def test_configured_scene_holds_only_its_lamps_and_power_buttons_are_ignored(self):
+        buttons = self.bridge.accessories["behavior_instance"][0]["configuration"]["buttons"]
+        slot = [{"action": {"recall": ref("scene", "lecture")}}]
+        buttons["scene"]["where"] = [{"group": ref("zone", "coin")}]
+        buttons["scene"]["on_short_release"] = {"scene_cycle_extended": {"slots": [slot]}}
+        buttons["power"] = {"where": buttons["scene"]["where"], "on_short_release": {
+            "time_based_extended": {"slots": [{"actions": slot}], "with_off": {"enabled": True}},
+        }}
+        self.bridge.accessories["scene"] = [{"id": "lecture", "actions": [
+            {"target": ref("light", "light-1"), "action": {"dimming": {"brightness": 28}}},
+        ]}]
+        self.button("power", "short_release")
+        self.assertFalse(self.server.dimmer_held)
+        self.button("scene", "short_release")
+        self.assertEqual(self.server.dimmer_held, {"light-1"})
+
+    def test_group_membership_changes_and_empty_items_never_select_the_whole_group(self):
+        self.button("down")
+        self.assertEqual(self.server.dimmer_held, {"light-0"})
+        self.deliver(update("light", "light-0", on={"on": False}))
+        room = self.bridge.accessories["room"][0]
+        room["children"] = [ref("device", "device-1"), ref("device", "device-2")]
+        self.server.set_light_mode("light-2", "auto")
+        self.button("down")
+        self.assertEqual(self.server.dimmer_held, {"light-1", "light-2"})
+        self.deliver(update("light", "light-1", on={"on": False}) +
+                     update("light", "light-2", on={"on": False}))
+        down = self.bridge.accessories["behavior_instance"][0]["configuration"]["buttons"]["down"]
+        down["where"][0]["items"] = []
+        self.button("down")
+        self.assertFalse(self.server.dimmer_held)
+
+    def test_failed_config_read_never_reuses_old_targets_and_next_press_recovers(self):
+        self.button("down")
+        self.deliver(update("light", "light-0", on={"on": False}))
+        self.reassign()
+        resource = self.bridge.resource
+
+        def unavailable(path, method="GET", payload=None):
+            if path == "":
+                raise HueError("lecture indisponible")
+            return resource(path, method, payload)
+
+        self.bridge.resource = unavailable
+        self.button("down")
+        self.assertFalse(self.server.dimmer_held)
+        self.bridge.resource = resource
+        self.button("down")
+        self.assertEqual(self.server.dimmer_held, {"light-1"})
 
     def test_dimmer_suspends_only_its_room_and_resumes_on_next_on(self):
         self.bridge.lights[0]["dimming"]["brightness"] = 24

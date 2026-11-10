@@ -95,10 +95,11 @@ class HueClient:
         self.session.verify = False  # HTTPS local Hue: certificat non validé dans ce prototype.
 
     def resource(self, resource, method="GET", payload=None):
+        path = "/clip/v2/resource" + (f"/{resource}" if resource else "")
         try:
             response = self.session.request(
                 method,
-                f"https://{self.ip}/clip/v2/resource/{resource}",
+                f"https://{self.ip}{path}",
                 json=payload,
                 timeout=4,
             )
@@ -150,8 +151,6 @@ class HueServer:
         self._legacy_default_auto = False
         self.dimmer_held = set()
         self._dimmer_events = deque(maxlen=128)
-        self._dimmer_bindings = {}
-        self._dimmer_refresh_at = 0
         self._dimmer_generation = 0
         self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS}
         self.dawn_run = None
@@ -364,8 +363,6 @@ class HueServer:
             self.previous_on.clear()
             self.dimmer_held.clear()
             self._dimmer_events.clear()
-            self._dimmer_bindings.clear()
-            self._dimmer_refresh_at = 0
             self._dimmer_generation += 1
             self.reconnect_pending.clear()
             self.last_sent.clear()
@@ -650,9 +647,8 @@ class HueServer:
             for kind, uid, event in dimmer_events(data):
                 if kind == "config":
                     self._dimmer_generation += 1
-                    self._dimmer_refresh_at = 0
                 else:
-                    self._dimmer_events.append((now, kind, uid, event))
+                    self._dimmer_events.append((now, self._dimmer_generation, kind, uid, event))
                     self._event_wakeup.set()
 
     def _resume_dimmer_locked(self, uid):
@@ -668,34 +664,32 @@ class HueServer:
             if not self._dimmer_events:
                 return
             client = self.client
-            now = time.monotonic()
-            refresh = now >= self._dimmer_refresh_at and any(
-                kind != "light" for _, kind, _, _ in self._dimmer_events)
             generation = self._dimmer_generation
+            events = list(self._dimmer_events)
+            self._dimmer_events.clear()
             lights = self.lights
-        if refresh:
-            bindings = {}
+        bindings = {}
+        now = time.monotonic()
+        if client and any(kind != "light" and epoch == generation and now - seen <= 3
+                          for seen, epoch, kind, _, _ in events):
             try:
-                instances = client.resource("behavior_instance")
-                groups = [group for kind in GROUP_TYPES for group in client.resource(kind)] if instances else []
-                bindings = dimmer_bindings(instances, groups, lights)
+                resources = client.resource("")
+                instances = [item for item in resources if item.get("type") == "behavior_instance"]
+                groups = [item for item in resources if item.get("type") in GROUP_TYPES]
+                scenes = [item for item in resources if item.get("type") == "scene"]
+                bindings = dimmer_bindings(instances, groups, lights, scenes)
             except (HueError, KeyError, TypeError, AttributeError) as exc:
                 self.log.info("Télécommandes Hue : lecture des associations indisponible (%s).", type(exc).__name__)
-            with self.lock:
-                if client is not self.client or generation != self._dimmer_generation:
-                    return
-                self._dimmer_bindings = bindings
-                self._dimmer_refresh_at = now + 60
         with self.lock:
             if client is not self.client:
                 return
+            now = time.monotonic()
             changed = False
-            while self._dimmer_events:
-                seen, kind, uid, event = self._dimmer_events.popleft()
+            for seen, epoch, kind, uid, event in events:
                 if kind == "light":
                     changed = self._resume_dimmer_locked(uid) or changed
-                elif now - seen <= 3:
-                    targets = self._dimmer_bindings.get((kind, uid, event), ())
+                elif epoch == self._dimmer_generation and now - seen <= 3:
+                    targets = bindings.get((kind, uid, event), ())
                     if not targets and kind == "relative_rotary" and event == "start":
                         self.log.info("Molette Hue %s : cible de gradation non résolue.", uid)
                     for light_id in targets:
@@ -711,8 +705,16 @@ class HueServer:
             if changed:
                 self.save()
 
+    def _dimmer_input_pending_locked(self):
+        now = time.monotonic()
+        return any(kind != "light" and epoch == self._dimmer_generation and now - seen <= 3
+                   for seen, epoch, kind, _, _ in self._dimmer_events)
+
     def _automate_locked(self):
         self._apply_dimmer_events()
+        with self.lock:
+            if self._dimmer_input_pending_locked():
+                return
         dawn_light = self._dawn_tick_locked()
         with self.lock:
             clock_mode = self.clock_mode
@@ -830,9 +832,8 @@ class HueServer:
                     1800 if clock_mode == "accelere" else
                     8000 if target_xy is not None else 3000)}
             with self.lock:
-                if any(uid in self._dimmer_bindings.get((kind, accessory, event), ())
-                       for _, kind, accessory, event in self._dimmer_events):
-                    continue  # Une commande physique vient d'arriver avant l'envoi Auto.
+                if self._dimmer_input_pending_locked():
+                    return  # Résoudre la nouvelle commande physique avant le prochain envoi Auto.
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
