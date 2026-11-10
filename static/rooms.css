@@ -231,3 +231,7 @@
     max-height: clamp(320px, calc(100dvh - 360px), 420px);
   }
 }
+
+@media (max-width: 350px) {
+  .plan-room[data-plan-room="bain"] .plan-room-action { font-size: 10px; padding-inline: 3px; white-space: nowrap; }
+}

@@ -30,6 +30,8 @@ const assert=require('node:assert/strict');
   const pageHeight=await page.evaluate(()=>document.documentElement.scrollHeight);
   assert.ok(pageHeight<=680,`room home fits the phone at ${width}px (page height ${pageHeight}px)`);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
+  assert.ok(await plan.locator('[data-plan-room="bain"] .plan-room-action').evaluate(button=>button.scrollWidth<=button.clientWidth),
+   'the full bathroom label fits');
   assert.ok(await plan.locator('.plan-lamp').evaluateAll(markers=>markers.every(marker=>{
    const {left,top,right,bottom,width,height}=marker.getBoundingClientRect();
    const room=marker.closest('.plan-room').getBoundingClientRect();
