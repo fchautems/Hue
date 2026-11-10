@@ -212,8 +212,9 @@ const assert=require('node:assert/strict');
  // Association still uses the explicit manual address and preserves button instructions.
  await page.route('**/api/setup/pair',r=>r.fulfill({json:{ok:true,data:{paired:true,ip:'10.0.0.12',lights:3}}}));
  await page.locator('#setup-pair').click();
- await page.waitForFunction(()=>activeTab==='dashboard');
+ await page.waitForFunction(()=>activeTab==='rooms');
  assert.equal(writes.find(r=>r.url==='/api/setup/pair').data.ip,'10.0.0.12');
+ await nav('dashboard').click();
  // Dawn settings are saved once, and show the alarm confirmed by the Raspberry.
  await page.setViewportSize({width:320,height:1000});
  await page.locator('#dawn-save').waitFor();
