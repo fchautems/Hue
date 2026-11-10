@@ -1,3 +1,8 @@
+## v0.15.0 — Plan interactif de l’appartement — 2026-11-10
+
+- **Code concret :** dans Pièces, touche une pièce pour commander ses lampes ou un repère pour commander une seule ampoule. Les parties communes restent inactives.
+- Modifier le plan permet de réaffecter les lampes et de déplacer leurs repères. Les positions sont conservées dans le navigateur. La liste donne accès aux lampes hors plan.
+
 # v0.14.3 — Télécommandes Hue et réaffectation — 2026-11-10
 
 - Après la réaffectation d’un bouton ou d’une molette, Hue Lab relit les cibles du pont avant de suspendre Auto. Les boutons de scène sont pris en compte quand les lampes concernées peuvent être identifiées.
