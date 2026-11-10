@@ -118,3 +118,11 @@
 .plan-editor p {grid-column:1/-1;margin:0;font-size:12px;color:#b9c7d7}
 .plan-editor label {display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:12px}
 .plan-editor select {max-width:120px;min-height:36px;background:#203249;color:#f4f6fb;border:1px solid #52667d;border-radius:6px}
+
+.plan-cards-toggle {grid-column:1/-1;min-height:38px;border:1px solid #52667d;border-radius:9px;background:#203249;color:#f4f6fb;cursor:pointer}
+.room-grid:not(.plan-cards-expanded) > .room-card {display:none}
+@media(max-width:700px) {
+ .apartment-plan-surface {aspect-ratio:1.48;max-height:310px}
+ .plan-room-action {min-height:30px}
+ .plan-lamp {min-width:32px;min-height:32px}
+}
