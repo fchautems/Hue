@@ -40,10 +40,29 @@ const assert=require('node:assert/strict');
  // Layout and reachable daily activities at phone/tablet/desktop widths.
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
-  for(const tab of ['dashboard','profiles','presence','settings','updates']){
+  for(const tab of ['rooms','dashboard','profiles','presence','settings','updates']){
    await nav(tab).click();
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
    assert.equal(overflow,false,`${tab} overflow at ${width}`);
+   if(width<=700){
+    const layout=await page.locator('.sidebar').evaluate(sidebar=>{
+     const nav=sidebar.querySelector('.nav');
+     const buttons=[...nav.querySelectorAll('.nav-item')];
+     const rect=nav.getBoundingClientRect();
+     return {
+      rows:new Set(buttons.map(button=>button.offsetTop)).size,
+      buttons:buttons.length,
+      allVisible:buttons.every(button=>{
+       const box=button.getBoundingClientRect();
+       return box.width>0&&box.height>=48&&box.left>=rect.left&&box.right<=rect.right+1;
+      }),
+      title:sidebar.querySelector('.brand').getBoundingClientRect().height>0,
+      noHorizontalScroll:nav.scrollWidth===nav.clientWidth,
+     };
+    });
+    assert.deepEqual(layout,{rows:2,buttons:6,allVisible:true,title:true,noHorizontalScroll:true},
+      `${tab}: two rows with all tabs and Hue Lab visible at ${width}px`);
+   }
    if(tab==='profiles'){
     await check(page.locator('#clock-svg').isVisible(),'clock visible');
     await check(page.locator('#profile-chart').isVisible(),'curve visible');
