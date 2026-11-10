@@ -2,6 +2,13 @@
 
 Mise à jour : 2026-11-10
 
+## APK Android 0.2.1 — synchronisation du réveil — 2026-11-10
+- Sur le Pixel, le bouton de synchronisation apparaît en 0.2, mais la première synchronisation échoue. Fréd confirme que les horloges du téléphone et du Raspberry concordent.
+- Défaut identifié dans le manifeste 0.2 : le SDK cible 35 et JobScheduler exige ACCESS_NETWORK_STATE pour planifier une tâche avec contrainte réseau. La planification précède l'envoi du réveil, donc l'exception interrompt l'envoi.
+- Correctif : déclarer l'autorisation Android et passer l’APK à 0.2.1 (code 3). Nouvelle icône Android adaptative avec une ampoule ambrée. Compilation locale, vérification des signatures v2/v3 et contrôle du manifeste empaqueté réussis.
+- Blocage de mise à jour Android : le certificat de la 0.2 de CI diffère du certificat de la 0.2.1. Une réinstallation du client est nécessaire. Le réglage du réveil est stocké par le Raspberry.
+- Prochaine action : installer l'APK corrigé, synchroniser sur le Wi-Fi local et vérifier l'heure reçue sur le Raspberry. Essai réel en attente.
+
 ## Commandes des lampes : état et couleur — 2026-11-10
 - Retour Pixel : la même lampe allumée apparaît verte dans Lampes & vacances et brune dans Pièces, et l’état affiché peut attendre la prochaine lecture du pont.
 - Décision de Fréd : bouton marche-arrêt pour la pièce, ligne tactile et petit point pour chaque lampe. Gris éteint, ambre dès la demande, vert après confirmation. Le mode Auto reste indépendant.

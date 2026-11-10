@@ -1,13 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="ch.huelab.mobile"
-    android:versionCode="2"
-    android:versionName="0.2">
+    android:versionCode="3"
+    android:versionName="0.2.1">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:allowBackup="false"
-        android:icon="@drawable/hue_lab"
+        android:icon="@mipmap/hue_lab"
         android:label="Hue Lab"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="true">
