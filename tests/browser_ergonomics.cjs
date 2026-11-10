@@ -72,6 +72,7 @@ const assert=require('node:assert/strict');
  assert.match(await listToggle.textContent(),/1 hors plan/);
  await page.reload();
  await other.waitFor();
+ await page.locator('#room-notice').waitFor({state:'hidden'});
  assert.equal(await lamp.count(),0,'Hors plan survives reloading');
  assert.deepEqual(await other.boundingBox(),dragStart,'moved position survives reloading');
  await edit.tap();

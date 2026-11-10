@@ -6,7 +6,8 @@
 - CI 42885664867 sur `b454b47` : Python, Node et Soleil réussis ; le test d’ergonomie attendait la liste repliée sans l’ouvrir. Le scénario vérifie désormais le plan fermé à 320 × 680 et 393 × 680, les commandes tactiles, la zone commune, le déplacement, la persistance et la liste ouverte.
 - Contrôles locaux : 222 tests Python, test de parité et six suites Node réussis. La CI 42887581947 a constaté un débordement vertical de 5 px à 393 px ; la hauteur du plan est maintenant plafonnée à 320 px sur mobile.
 - Limites : géométrie fixe, affectation initiale par nom de pièce du pont et configuration propre à chaque navigateur. Essai sur Pixel, Raspberry et pont réels à faire.
-- Prochaine action : confirmer la CI de la PR #31 avant publication, puis valider le plan sur le Pixel avec le pont réel.
+- CI 42887865013 réussie sur `7196b98` : parcours complet, dont rendu sans défilement à 320 × 680 et 393 × 680, appuis pièce/lampe, parties communes inactives, déplacement tactile et persistance sur pont simulé. Le test attend désormais la fin de la lecture des pièces avant de comparer la position après rechargement.
+- Prochaine action : valider le plan sur le Pixel avec le pont réel avant publication. La PR #31 reste en brouillon.
 
 Mise à jour : 2026-11-10
 
