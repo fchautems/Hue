@@ -4,6 +4,7 @@
 - Accueil Pièces : plan schématique de six pièces, sans échelle. Le couloir et les escaliers communs au centre sont signalés et ne commandent aucune lampe. Un appui sur la surface d’une pièce commande ses lampes ; un appui sur un repère commande la lampe correspondante.
 - Les positions sont réparties sur deux rangées dans chaque pièce. En édition, déplacer un repère au doigt ou au clavier échange les places si nécessaire. L’affectation et les positions sont conservées dans le navigateur par adresse de pont. La liste repliée donne accès aux lampes hors plan ou en surnombre.
 - CI 42885664867 sur `b454b47` : Python, Node et Soleil réussis ; le test d’ergonomie attendait la liste repliée sans l’ouvrir. Le scénario vérifie désormais le plan fermé à 320 × 680 et 393 × 680, les commandes tactiles, la zone commune, le déplacement, la persistance et la liste ouverte.
+- Contrôles locaux : 222 tests Python, test de parité et six suites Node réussis. La CI 42887581947 a constaté un débordement vertical de 5 px à 393 px ; la hauteur du plan est maintenant plafonnée à 320 px sur mobile.
 - Limites : géométrie fixe, affectation initiale par nom de pièce du pont et configuration propre à chaque navigateur. Essai sur Pixel, Raspberry et pont réels à faire.
 - Prochaine action : confirmer la CI de la PR #31 avant publication, puis valider le plan sur le Pixel avec le pont réel.
 
