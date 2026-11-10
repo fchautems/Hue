@@ -21,11 +21,12 @@ const assert=require('node:assert/strict');
  assert.equal(await zone.locator('.room-lamp').count(),3);
  for(const width of [320,393]){
   await page.setViewportSize({width,height:680});
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight),false,'room home fits the phone');
+  await page.screenshot({path:`/tmp/hue-ergonomics-rooms-${width}.png`});
+  const pageHeight=await page.evaluate(()=>document.documentElement.scrollHeight);
+  assert.ok(pageHeight<=680,`room home fits the phone at ${width}px (page height ${pageHeight}px)`);
   assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.room-card button')].every(
     button=>button.getBoundingClientRect().height>=48)),'touch targets at least 48 px high');
  }
- await page.screenshot({path:'/tmp/hue-ergonomics-rooms.png'});
  await room.getByRole('button',{name:'Commande de groupe · Couloir'}).click();
  await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
  assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
