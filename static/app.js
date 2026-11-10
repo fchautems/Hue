@@ -504,7 +504,21 @@ function bindEvents(){
   $('#cancel-powerup').onclick=()=>$('#powerup-dialog').close();
   $('#save-powerup').onclick=()=>safe(async()=>{const preset=$('#powerup-preset').value;const brightness=Number($('#powerup-brightness').value);const result=await api(`/api/light/${encodeURIComponent(powerupId)}/powerup`,'POST',{preset,brightness});$('#powerup-dialog').close();showToast(result.verified_readback?'Réglage confirmé par lecture du pont. Teste le retour secteur.':'Écriture envoyée mais valeur non confirmée. Consulte Diagnostics.',!result.verified_readback);await refresh();await refreshDiagnostics();});
 }
-initClockFace();bindEvents();tickClock();setInterval(tickClock,250);refresh();safe(refreshUpdater);setInterval(()=>{refresh();if(activeTab==='profiles'&&!profileDirty)renderChart();if(activeTab==='updates')refreshUpdater().catch(()=>{$('#update-status').textContent='Connexion interrompue : redémarrage ou serveur indisponible…';});},2000);
-
-// Local updater status only: the worker retains responsibility for contacting GitHub.
-setInterval(()=>{if(activeTab!=='updates')refreshUpdater().catch(()=>{});},60000);
+initClockFace();
+bindEvents();
+// The deferred profile editors must register their loaders before the first state is read.
+document.addEventListener('DOMContentLoaded', () => {
+  tickClock();
+  refresh();
+  safe(refreshUpdater);
+  setInterval(tickClock, 250);
+  setInterval(() => {
+    refresh();
+    if (activeTab === 'profiles' && !profileDirty) renderChart();
+    if (activeTab === 'updates') refreshUpdater().catch(() => {
+      $('#update-status').textContent = 'Connexion interrompue : redémarrage ou serveur indisponible…';
+    });
+  }, 2000);
+  // The local status read does not trigger a GitHub check.
+  setInterval(() => { if (activeTab !== 'updates') refreshUpdater().catch(() => {}); }, 60000);
+}, {once: true});

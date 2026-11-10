@@ -4,6 +4,7 @@
 - Retour sur Pixel : le plan v0.15.0 ne reproduit pas la forme des pièces, l’encadré des parties communes est superflu et le déplacement par cases manque de finesse. Trois lampes sont prévues en plus des deux du salon.
 - Tracé repris du croquis sans échelle : salon et cuisine ouverts en haut, chambre et bureau avec décroché, couloir en L à droite, salle de bain en bas à droite. Le rectangle extérieur au centre reste vide et inactif.
 - Déplacement continu au doigt, limité au contour de la pièce et sans déplacement des voisins. Les positions sont conservées dans le navigateur. Si une ancienne position tombe dans un décroché, le repère reprend une place valide. Les repères trop rapprochés restent séparés pour garder des cibles tactiles distinctes.
+- CI 42896089928 : après rechargement, un test Soleil a observé la valeur par défaut dans le formulaire alors que le serveur conservait le réglage. La première lecture est désormais lancée après l’enregistrement des éditeurs différés. Le test ralentit le chargement du script Soleil pour couvrir cet ordre.
 - Contrôles prévus en CI : écran 320 et 393 px, vide central inactif, précision du glissement, persistance après rechargement et cinq ampoules accessibles dans le salon à 320 px.
 - Prochaine action : valider la CI, publier via Mises à jour et essayer sur le Pixel.
 
