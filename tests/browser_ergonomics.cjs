@@ -3,7 +3,7 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 (async()=>{
  const browser=await chromium.launch({headless:true});
- const page=await browser.newPage({locale:'fr-CH'});
+ const page=await browser.newPage({locale:'fr-CH',hasTouch:true});
  const errors=[],writes=[];
  page.on('pageerror',e=>errors.push(e.message));
  page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push({url:new URL(r.url()).pathname,data:r.postDataJSON()});});
@@ -14,19 +14,82 @@ const assert=require('node:assert/strict');
  const check=async(condition,msg)=>assert.ok(await condition,msg);
  await check(page.locator('#update-badge').isVisible(),'permanent update badge');
  assert.equal(writes.length,0,'opening the app must not command lamps');
- const room=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Couloir',exact:true})});
- await room.waitFor();
- assert.equal(await room.locator('.room-lamp').count(),2);
- const zone=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Étage',exact:true})});
- assert.equal(await zone.locator('.room-lamp').count(),3);
+ const plan=page.getByRole('region',{name:'Plan de l’appartement'});
+ const lamp=plan.locator('[data-plan-lamp="light-0"]');
+ const corridor=plan.getByRole('button',{name:'Allumer ou éteindre la pièce · Couloir'});
+ const outside=plan.getByText('Parties communes',{exact:true});
+ const listToggle=page.locator('.plan-cards-toggle');
+ await lamp.waitFor();
+ assert.equal(await plan.locator('.plan-room-action').count(),6);
+ assert.equal(await plan.locator('.plan-lamp').count(),3);
+ assert.equal(await listToggle.getAttribute('aria-expanded'),'false');
  for(const width of [320,393]){
   await page.setViewportSize({width,height:680});
   await page.screenshot({path:`/tmp/hue-ergonomics-rooms-${width}.png`});
   const pageHeight=await page.evaluate(()=>document.documentElement.scrollHeight);
   assert.ok(pageHeight<=680,`room home fits the phone at ${width}px (page height ${pageHeight}px)`);
-  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.room-card button')].every(
-    button=>button.getBoundingClientRect().height>=48)),'touch targets at least 48 px high');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
+  assert.ok(await plan.locator('.plan-lamp').evaluateAll(markers=>markers.every(marker=>{
+   const {left,top,right,bottom,width,height}=marker.getBoundingClientRect();
+   const room=marker.closest('.plan-room').getBoundingClientRect();
+   return width>=32&&height>=32&&left>=room.left&&right<=room.right&&top>=room.top&&bottom<=room.bottom
+    &&document.elementFromPoint(left+width/2,top+height/2)===marker;
+  })),'markers are touchable and stay within their rooms');
  }
+ await outside.tap();
+ assert.equal(writes.length,0,'the common area sends no Hue command');
+ await lamp.tap();
+ await page.waitForFunction(()=>!state.lights[0].on);
+ assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/light/light-0/switch']);
+ const roomBox=await corridor.boundingBox();
+ const tapRoom=()=>page.touchscreen.tap(roomBox.x+4,roomBox.y+roomBox.height-5);
+ await tapRoom();
+ await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
+ assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
+ await tapRoom();
+ await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>l.on));
+ assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
+
+ const edit=plan.locator('.plan-edit-toggle');
+ const assignment=plan.getByRole('combobox',{name:'Pièce de Entrée'});
+ await edit.tap();
+ assert.ok(await corridor.isDisabled());
+ assert.equal(await assignment.inputValue(),'couloir');
+ await lamp.tap();
+ assert.equal(writes.length,0,'editing a marker never sends a Hue command');
+ const dragStart=await lamp.boundingBox();
+ const other=plan.locator('[data-plan-lamp="light-1"]');
+ const dragEnd=await other.boundingBox();
+ const touchPoint=box=>({x:box.x+box.width/2,y:box.y+box.height/2});
+ const touch=await page.context().newCDPSession(page);
+ await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[touchPoint(dragStart)]});
+ await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[touchPoint(dragEnd)]});
+ await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ assert.deepEqual(await lamp.boundingBox(),dragEnd,'the marker moves to the chosen slot');
+ assert.deepEqual(await other.boundingBox(),dragStart,'occupied slots swap without hiding either lamp');
+ await assignment.selectOption('');
+ assert.equal(await lamp.count(),0);
+ assert.match(await listToggle.textContent(),/1 hors plan/);
+ await page.reload();
+ await other.waitFor();
+ await page.locator('#room-notice').waitFor({state:'hidden'});
+ assert.equal(await lamp.count(),0,'Hors plan survives reloading');
+ assert.deepEqual(await other.boundingBox(),dragStart,'moved position survives reloading');
+ await edit.tap();
+ await assignment.selectOption('couloir');
+ await lamp.waitFor();
+ assert.equal(await assignment.inputValue(),'couloir');
+ await edit.tap();
+ assert.equal(writes.length,0,'assignment, drag and reload do not command lamps');
+
+ await listToggle.click();
+ const room=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Couloir',exact:true})});
+ await room.waitFor();
+ assert.equal(await room.locator('.room-lamp').count(),2);
+ const zone=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Étage',exact:true})});
+ assert.equal(await zone.locator('.room-lamp').count(),3);
+ assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.room-card button')].every(
+  button=>button.getBoundingClientRect().height>=48)),'list touch targets at least 48 px high');
  const roomSwitch=room.getByRole('button',{name:'Commande de groupe · Couloir'});
  assert.equal(await roomSwitch.locator('.switch > span').count(),1,'the room uses the shared switch design');
  await roomSwitch.click();

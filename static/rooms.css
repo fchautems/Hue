@@ -89,3 +89,128 @@
   .rooms-page footer { display: none; }
   .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
+
+/* Le plan est un schéma sans échelle. La zone commune n’est pas interactive. */
+.apartment-plan { grid-column: 1 / -1; min-width: 0; }
+.plan-header, .apartment-plan-surface { width: 100%; max-width: 540px; margin-inline: auto; }
+.plan-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.plan-header h2 { margin: 0; font-size: 14px; }
+.plan-edit-toggle, .plan-cards-toggle {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: #edf4fb;
+  cursor: pointer;
+}
+.apartment-plan-surface {
+  position: relative;
+  height: 370px;
+  overflow: hidden;
+  border: 1px solid #52667d;
+  border-radius: 12px;
+  background: #111e2c;
+}
+.plan-outside {
+  position: absolute;
+  inset: 34% 29% 36% 43%;
+  display: grid;
+  place-content: center;
+  padding: 3px;
+  border: 1px dashed #52667d;
+  border-radius: 6px;
+  background: #172331;
+  color: #a7b6c8;
+  font-size: 11px;
+  text-align: center;
+}
+.plan-room { position: absolute; }
+.plan-room-action {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  padding: 5px 4px 0 7px;
+  border: 1px solid #65788b;
+  border-radius: 6px;
+  background: #203249;
+  color: #edf4fb;
+  font: inherit;
+  font-size: clamp(11px, 3vw, 14px);
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.plan-room-action[aria-pressed="true"], .plan-room-action[aria-pressed="mixed"] {
+  border-color: var(--power-on-border);
+  color: var(--power-on-text);
+}
+.plan-room-action[aria-pressed="true"] { background: var(--power-on-bg); }
+.plan-room-action[aria-pressed="mixed"] { background: #253c3d; }
+.plan-lamps {
+  position: absolute;
+  inset: 25px 3px 3px;
+  display: grid;
+  grid-template-columns: repeat(var(--plan-columns), minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  place-items: center;
+  pointer-events: none;
+}
+.plan-lamp {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #7b90a6;
+  border-radius: 50%;
+  color: #c0ccda;
+  background: #17283a;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.plan-lamp::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.plan-lamp[aria-pressed="true"] {
+  color: var(--power-on-text);
+  background: var(--power-on-bg);
+  border-color: var(--power-on-border);
+}
+.plan-lamp[aria-pressed="true"]::before { background: currentColor; }
+.plan-lamp[aria-busy="true"], .plan-room-action[aria-busy="true"] {
+  color: var(--power-pending-text);
+  background: var(--power-pending-bg);
+  border-color: var(--power-pending-border);
+  cursor: wait;
+}
+.plan-lamp[aria-busy="true"]::before { background: transparent; border-width: 2px; }
+.plan-lamp:disabled:not([aria-busy="true"]), .plan-room-action:disabled:not([aria-busy="true"]) {
+  color: #a7b6c8;
+  cursor: default;
+}
+.apartment-plan button:focus-visible, .plan-cards-toggle:focus-visible { outline: 2px solid #ffce83; outline-offset: 1px; }
+.plan-edit-toggle[aria-pressed="true"] { border-color: #ffce83; color: #ffce83; }
+.apartment-plan:has(.plan-edit-toggle[aria-pressed="true"]) .plan-lamp {
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 0 0 1px #ffce83;
+}
+.plan-lamp:active { z-index: 1; }
+.plan-editor { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 8px; margin-top: 10px; }
+.plan-editor p { grid-column: 1 / -1; margin: 0; font-size: 12px; color: #b9c7d7; }
+.plan-editor label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.plan-editor select { max-width: 120px; min-height: 44px; background: #203249; color: #f4f6fb; border: 1px solid #52667d; border-radius: 6px; }
+.plan-cards-toggle { grid-column: 1 / -1; justify-self: center; width: 100%; max-width: 540px; }
+.room-grid:not(.plan-cards-expanded) > .room-card { display: none; }
+
+@media (max-width: 700px) {
+  .apartment-plan-surface { height: 320px; }
+}
