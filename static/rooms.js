@@ -72,7 +72,7 @@
     element.className = group ? "room-power" : "room-lamp";
     element.setAttribute("aria-label", group ? `Commande de groupe · ${name}` : name);
     if (group) {
-      element.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8M7.2 5.6a8 8 0 1 0 9.6 0"/></svg>';
+      element.innerHTML = '<span class="switch" aria-hidden="true"><span></span></span>';
     } else {
       const icon = document.createElement("span");
       icon.className = "room-lamp-dot";

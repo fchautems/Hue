@@ -27,7 +27,9 @@ const assert=require('node:assert/strict');
   assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.room-card button')].every(
     button=>button.getBoundingClientRect().height>=48)),'touch targets at least 48 px high');
  }
- await room.getByRole('button',{name:'Commande de groupe · Couloir'}).click();
+ const roomSwitch=room.getByRole('button',{name:'Commande de groupe · Couloir'});
+ assert.equal(await roomSwitch.locator('.switch > span').count(),1,'the room uses the shared switch design');
+ await roomSwitch.click();
  await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
  assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
  const salon=room.getByRole('button',{name:'Salon',exact:true});
@@ -48,6 +50,11 @@ const assert=require('node:assert/strict');
  assert.equal(await salon.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(68, 55, 34)');
  assert.ok((await acknowledged).ok());
  assert.equal(await salon.getAttribute('aria-busy'),'true','HTTP acceptance is not lamp confirmation');
+ await nav('dashboard').click();
+ const dashboardSwitch=page.locator('.light-card[data-id="light-1"] .switch');
+ assert.equal(await dashboardSwitch.getAttribute('aria-busy'),'true','the other view shows the same pending command');
+ assert.equal(await dashboardSwitch.locator('input').isChecked(),false);
+ await nav('rooms').click();
  stale=false;
  await salon.and(page.locator('[aria-pressed="true"][aria-busy="false"]')).waitFor();
  await page.unroute('**/api/state',holdObservedState);

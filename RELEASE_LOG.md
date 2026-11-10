@@ -1,7 +1,7 @@
 # v0.14.2 — Retour visuel des commandes — 2026-11-10
 
 - Les commandes de lampe s’affichent en ambre pendant l’attente, puis en vert quand le pont confirme l’allumage. Une lampe éteinte revient à l’état neutre.
-- Les deux vues partagent la même indication, avec un petit point par lampe dans Pièces.
+- Dans Pièces, chaque groupe a le même interrupteur que dans Lampes & vacances. Les lampes gardent un petit point : gris vide, anneau ambre pendant l’attente ou vert plein après confirmation.
 
 # v0.14.1 — Navigation mobile cohérente — 2026-11-10
 
