@@ -21,6 +21,8 @@ let setupInitDone = false;
 let updaterWasBusy = false;
 let settingsPanel = "setup";
 let setupIpEdited = false;
+const pendingPower = new Map();
+const POWER_CONFIRM_MS = 12000;
 
 function escapeHtml(text) { return String(text ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function mm(minute) { const m = ((Math.floor(minute) % 1440) + 1440) % 1440; return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`; }
@@ -32,6 +34,56 @@ async function api(url, method="GET", data=undefined, extraHeaders={}) {
   return result.data ?? result;
 }
 async function safe(fn) { try {await fn();} catch(e) {showToast(e.message,true);} }
+function renderPower() {
+  updateLights(state.lights);
+  if(activeTab==='rooms')window.HueRooms?.render(state);
+}
+function confirmPower(snapshot) {
+  if(state?.bridge_ip!==snapshot.bridge_ip){
+    pendingPower.clear();
+    return;
+  }
+  if(!snapshot.connected)return;
+  for(const light of snapshot.lights){
+    const command=pendingPower.get(light.id);
+    if(command?.accepted && light.status!=='disconnected' && light.on===command.on)pendingPower.delete(light.id);
+  }
+}
+async function changePower(ids, on) {
+  if(!state?.connected || !ids.length || ids.some(id=>pendingPower.has(id)))return;
+  const bridge=state.bridge_ip;
+  const commands=ids.map(id=>{
+    const command={on,accepted:false};
+    pendingPower.set(id,command);
+    setTimeout(()=>{
+      if(pendingPower.get(id)!==command)return;
+      pendingPower.delete(id);
+      renderPower();
+      showToast('État de la lampe non confirmé par le pont.',true);
+    },POWER_CONFIRM_MS);
+    return [id,command];
+  });
+  renderPower();
+  const results=await Promise.allSettled(commands.map(async ([id,command])=>{
+    try{
+      await api(`/api/light/${encodeURIComponent(id)}/switch`,"POST",{on});
+      if(pendingPower.get(id)!==command)return;
+      command.accepted=true;
+    }catch(error){
+      if(pendingPower.get(id)===command)pendingPower.delete(id);
+      throw error;
+    }
+  }));
+  if(state.bridge_ip!==bridge)return;
+  const rejected=results.filter(result=>result.status==='rejected');
+  if(rejected.length){
+    showToast(ids.length===1?rejected[0].reason.message
+      :`${ids.length-rejected.length}/${ids.length} commandes acceptées par le pont.`,true);
+    renderPower();
+  }
+  await refresh();
+}
+
 function currentMinute() {
   if (!state) return 480;
   if (!state.simulation.enabled) {
@@ -94,7 +146,11 @@ function addLightCards(lights) {
   $("#light-grid").innerHTML=lights.length?lights.map(l=>`<article class="card light-card" data-id="${escapeHtml(l.id)}"><div class="light-top"><div class="light-icon">☀</div><label class="switch"><input class="light-switch" type="checkbox" aria-label="Allumer ou éteindre ${escapeHtml(l.name)}"><span></span></label></div><h3>${escapeHtml(l.name)}</h3><div class="subline">${escapeHtml(l.model)}</div><div class="lamp-control"><div class="lamp-control-label">Pilotage de cette lampe</div><div class="lamp-mode-buttons" role="group" aria-label="Pilotage de ${escapeHtml(l.name)}"><button type="button" class="lamp-mode-btn" data-control="manuel" aria-pressed="false">Manuel</button><button type="button" class="lamp-mode-btn" data-control="auto" aria-pressed="false">Auto</button></div><small class="lamp-mode-help"></small></div><div class="light-bottom"><div class="light-level"><span>Luminosité</span><strong class="light-value">— %</strong></div><input class="range light-brightness" type="range" min="1" max="100" step="1"><div class="light-foot"><span class="pill light-status">…</span><div class="light-foot-actions"><button class="tiny light-curve" type="button">Courbe →</button>${l.capabilities?.color?`<button class="tiny light-rgb" type="button">Couleurs →</button>`:``}<button class="tiny light-details" type="button">Diagnostic →</button></div></div></div></article>`).join(''):'<div class="empty">Aucune ampoule trouvée.</div>';
   $$(".light-card").forEach(card=>{
     const id=card.dataset.id;
-    card.querySelector(".light-switch").addEventListener("change",e=>safe(async()=>{await api(`/api/light/${encodeURIComponent(id)}/switch`,"POST",{on:e.target.checked});showToast('Commande envoyée');await refresh();}));
+    card.querySelector(".light-switch").addEventListener("change",e=>{
+      const on=e.target.checked;
+      e.target.checked=!!state.lights.find(light=>light.id===id)?.on;
+      changePower([id],on);
+    });
     const slider=card.querySelector(".light-brightness");
     slider.addEventListener("input",e=>{card.querySelector(".light-value").textContent=`${e.target.value} %`;});
     slider.addEventListener("change",e=>safe(async()=>{await api(`/api/light/${encodeURIComponent(id)}/brightness`,"POST",{brightness:Number(e.target.value)});showToast('Luminosité demandée');await refresh();}));
@@ -126,12 +182,14 @@ function updateLights(lights) {
   for(const light of lights){
     const card=$$(".light-card").find(c=>c.dataset.id===light.id); if(!card)continue;
     const cb=card.querySelector('.light-switch'); const slider=card.querySelector('.light-brightness');
-    if(document.activeElement!==cb)cb.checked=!!light.on;
+    cb.checked=!!light.on;
+    const waiting=pendingPower.has(light.id);
+    cb.closest('.switch').setAttribute('aria-busy',String(waiting));
     const isAuto=light.control_mode==='auto';
     if(document.activeElement!==slider){slider.value=Math.max(1,Math.round(light.brightness??1));card.querySelector('.light-value').textContent=light.brightness==null?'Non disponible':`${Math.round(light.brightness)} %`;}
     slider.disabled=isAuto||!light.capabilities.dimming||!light.on||light.status==='disconnected';
     slider.title=isAuto?'Luminosité réglée par la courbe : passe en Manuel pour la modifier.':'Régler la luminosité';
-    cb.disabled=light.status==='disconnected'||!light.capabilities.on;
+    cb.disabled=waiting||!state.connected||light.status==='disconnected'||!light.capabilities.on;
     card.querySelectorAll('.lamp-mode-btn').forEach(btn=>{
       const chosen=btn.dataset.control===light.control_mode;
       btn.classList.toggle('active',chosen);
@@ -175,6 +233,7 @@ async function refresh() {
   try{
     const s=await api('/api/state');
     if(generation!==simulationGeneration)return;
+    confirmPower(s);
     state=s;lastStateAt=performance.now();
     window.HueDawn?.refresh(s.lights);
     $('#bridge-dot').classList.toggle('online',s.connected);
