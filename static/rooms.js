@@ -22,7 +22,7 @@
       anchors: [{x: 63, y: 23}, {x: 78, y: 73}]},
     {key: "bureau", label: "Bureau", x: 1, y: 62, w: 73, h: 37, columns: 5,
       outline: [[0, 0], [37, 0], [37, 24], [100, 24], [100, 100], [0, 100]]},
-    {key: "bain", label: "Salle de bain", shortLabel: "Bain", x: 74, y: 84, w: 25, h: 16, columns: 2},
+    {key: "bain", label: "Salle de bain", x: 74, y: 84, w: 25, h: 16, columns: 2},
   ];
   let editMode = false;
   let showCards = false;
@@ -225,7 +225,7 @@
       area.dataset.planRoom = room.key;
       Object.assign(area.style, {left: `${room.x}%`, top: `${room.y}%`, width: `${room.w}%`, height: `${room.h}%`});
       const roomButton = button(room.label, roomLamps.map(light => light.id), true, "plan-room-action");
-      roomButton.textContent = room.shortLabel || room.label;
+      roomButton.textContent = room.label;
       if (room.outline) {
         roomButton.classList.add("plan-room-shaped");
         roomButton.style.clipPath = `polygon(${room.outline.map(([x, y]) => `${x}% ${y}%`).join(", ")})`;

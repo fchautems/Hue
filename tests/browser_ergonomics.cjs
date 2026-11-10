@@ -37,6 +37,12 @@ const assert=require('node:assert/strict');
     &&document.elementFromPoint(left+width/2,top+height/2)===marker;
   })),'markers are touchable and stay within their rooms');
  }
+ const compactHeight=(await surface.boundingBox()).height;
+ await page.setViewportSize({width:393,height:830});
+ assert.ok((await surface.boundingBox()).height>compactHeight+50,'a tall phone preserves the plan proportions');
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'the plan still fits without scrolling');
+ await page.screenshot({path:'/tmp/hue-ergonomics-plan-pixel.png'});
+ await page.setViewportSize({width:393,height:680});
  const planBox=await surface.boundingBox();
  await page.touchscreen.tap(planBox.x+planBox.width*0.55,planBox.y+planBox.height*0.62);
  assert.equal(writes.length,0,'the common area sends no Hue command');
@@ -99,7 +105,7 @@ const assert=require('node:assert/strict');
 
  const dense=await browser.newPage({locale:'fr-CH',hasTouch:true,viewport:{width:320,height:680}});
  dense.on('pageerror',e=>errors.push(e.message));
- const salonIds=Array.from({length:5},(_,index)=>`salon-${index+1}`);
+ const salonIds=['light-0', ...Array.from({length:4},(_,index)=>`salon-${index+2}`)];
  await dense.route('**/api/state',async route=>{
   const response=await route.fetch();
   const snapshot=await response.json();
