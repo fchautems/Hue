@@ -5,7 +5,8 @@ Mise à jour : 2026-11-10
 ## Accueil Pièces — 2026-11-10
 - Décision : commandes des pièces et des lampes à l’accueil, en une page sans pagination ni défilement sur le téléphone de Fréd. Le futur plan reste un chantier séparé.
 - L’accueil récupère les pièces et les zones du pont, affiche leurs lampes et réutilise la commande existante par lampe, y compris lors d’un allumage de groupe. Les lampes non attribuées restent accessibles. L’ancien écran est accessible via Lampes & vacances.
-- Contrôles locaux : 216 tests Python et vérification de l’API avec pièces, zone imbriquée et pont simulé. Lancement de Chromium local bloqué par l’environnement.
+- Contrôles : 216 tests Python, suites Node et CI Chromium 42801863249 réussis. Avec le pont simulé, commandes de groupe et par lampe vérifiées, sans défilement à 320 × 680 et 393 × 680, avec des boutons de 48 px.
+- Publication : v0.14.0 fusionnée par [PR #26](https://github.com/fchautems/Hue/pull/26) sur `f0716cc`. Disponible via Mises à jour ; installation sur le Raspberry et test matériel encore à faire.
 - Prochaine action : valider le rendu et l’absence de défilement sur le Pixel avec les groupes réels, puis vérifier la commande de groupe et le maintien des profils sur le Raspberry.
 
 ## Télécommandes Hue — Manuel temporaire — 2026-11-09
