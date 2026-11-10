@@ -140,6 +140,7 @@
 .plan-room[data-plan-room="salon"] .plan-room-action { border-right: 0; border-radius: 8px 0 0 0; }
 .plan-room[data-plan-room="cuisine"] .plan-room-action { border-left-style: dashed; border-radius: 0 8px 0 0; }
 .plan-room[data-plan-room="bain"] .plan-room-action { border-radius: 0 0 8px 0; font-size: 11px; padding-inline: 4px; }
+.plan-room-label-short { display: none; }
 .plan-room-shaped { border: 0; border-radius: 0; }
 .plan-outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .plan-outline polygon { fill: none; stroke: #516780; stroke-width: 1px; }
@@ -233,5 +234,6 @@
 }
 
 @media (max-width: 350px) {
-  .plan-room[data-plan-room="bain"] .plan-room-action { font-size: 10px; padding-inline: 3px; white-space: nowrap; }
+  .plan-room-label-long { display: none; }
+  .plan-room-label-short { display: inline; }
 }

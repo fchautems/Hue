@@ -1,6 +1,6 @@
 ## v0.15.2 — Plan plus lisible sur téléphone — 2026-11-10
 
-- **Code concret :** le plan profite de la hauteur disponible sur les téléphones, ses repères sont plus discrets et la salle de bain est nommée en entier.
+- **Code concret :** le plan profite de la hauteur disponible sur les téléphones, ses repères sont plus discrets et la salle de bain affiche son nom complet quand la place le permet.
 
 ## v0.15.1 — Plan redessiné et repères libres — 2026-11-10
 
