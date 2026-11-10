@@ -7,8 +7,8 @@
 - Contrôles locaux : 222 tests Python, test de parité et six suites Node réussis. La CI 42887581947 a constaté un débordement vertical de 5 px à 393 px ; la hauteur du plan est maintenant plafonnée à 320 px sur mobile.
 - Limites : géométrie fixe, affectation initiale par nom de pièce du pont et configuration propre à chaque navigateur. Essai sur Pixel, Raspberry et pont réels à faire.
 - CI 42887865013 réussie sur `7196b98` : parcours complet, dont rendu sans défilement à 320 × 680 et 393 × 680, appuis pièce/lampe, parties communes inactives, déplacement tactile et persistance sur pont simulé. Le test attend désormais la fin de la lecture des pièces avant de comparer la position après rechargement.
-- CI 42888152551 réussie sur `ecd57b7`. L’installateur Hue Lab récupère `origin/main`. La v0.15.0 y est destinée pour permettre l’essai matériel via Mises à jour.
-- Prochaine action : une fois la PR #31 fusionnée, installer et redémarrer depuis Mises à jour, puis essayer les commandes sur le Pixel avec le pont réel.
+- Publication : PR #31 fusionnée sur `main` au commit `fdf338e`. CI 42888943326 (PR) et 42889165835 (main) réussies. L’installateur a détecté le passage v0.14.3 → v0.15.0 dans une installation de test, à partir du dépôt GitHub.
+- Prochaine action : installer et redémarrer depuis Mises à jour, puis essayer les commandes dans Pièces sur le Pixel avec le pont réel.
 
 Mise à jour : 2026-11-10
 
