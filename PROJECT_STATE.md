@@ -1,5 +1,14 @@
 # PROJECT_STATE — Philips Hue Web
 
+## Plan interactif — prototype — 2026-11-10
+- Branche `feat/plan-interactif` : vue schématique compacte dans Pièces, avec six zones (salon, cuisine, chambre, bureau, couloir, salle de bain).
+- Réutilise les commandes existantes des groupes et des lampes et leurs états en attente/confirmé. Les zones sans groupe correspondant sont désactivées.
+- Correspondance provisoire par nom des groupes Hue ; les positions et proportions sont indicatives, sans mode édition ni persistance.
+- Contrôles : inspection statique du code ; CI et essai sur pont réel non réalisés.
+- Blocages : noms réels des groupes inconnus ; positionnement des lampes encore automatique.
+- Prochaine action : faire tourner la CI, valider sur Pixel puis ajouter une association et un placement configurables.
+
+
 Mise à jour : 2026-11-10
 
 ## Audit télécommandes Hue — réaffectation et scènes — 2026-11-10
