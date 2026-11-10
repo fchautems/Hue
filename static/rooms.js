@@ -10,6 +10,47 @@
   let loaded = false;
   let layout = "";
   let controls = [];
+  const planRooms = [
+    {key:"salon", label:"Salon", x:2,y:2,w:58,h:30},
+    {key:"cuisine",label:"Cuisine",x:61,y:2,w:37,h:30},
+    {key:"chambre",label:"Chambre",x:2,y:34,w:40,h:30},
+    {key:"bureau",label:"Bureau",x:2,y:66,w:40,h:32},
+    {key:"couloir",label:"Couloir",x:72,y:34,w:26,h:30},
+    {key:"bain",label:"Salle de bain",x:55,y:66,w:43,h:32},
+  ];
+  const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  function matchRoom(name, key) {
+    const n=normalize(name);
+    return key==="bain" ? /bain|douche|wc/.test(n) : n.includes(key);
+  }
+  function makePlan(cards, lights) {
+    const plan=document.createElement("section");
+    plan.className="apartment-plan";
+    plan.setAttribute("aria-label","Plan interactif de l’appartement");
+    const title=document.createElement("div"); title.className="apartment-plan-title"; title.textContent="Plan de l’appartement";
+    const surface=document.createElement("div"); surface.className="apartment-plan-surface";
+    for (const room of planRooms) {
+      const group=cards.find(g=>matchRoom(g.name,room.key));
+      const area=document.createElement("div"); area.className="plan-room";
+      Object.assign(area.style,{left:room.x+"%",top:room.y+"%",width:room.w+"%",height:room.h+"%"});
+      const roomButton=button(room.label,group?.light_ids || [],true);
+      roomButton.className="plan-room-action";
+      roomButton.textContent=room.label;
+      area.append(roomButton);
+      const ids=(group?.light_ids || []).filter(id=>lights.has(id));
+      const lamps=document.createElement("div"); lamps.className="plan-lamps";
+      for(const id of ids) {
+        const lamp=button(lights.get(id).name,[id]);
+        lamp.className="plan-lamp"; lamp.textContent="●";
+        lamp.setAttribute("aria-label","Allumer ou éteindre "+lights.get(id).name);
+        lamp.title=lights.get(id).name;
+        lamps.append(lamp);
+      }
+      area.append(lamps);surface.append(area);
+    }
+    plan.append(title,surface);
+    return plan;
+  }
 
   function render(snapshot) {
     const lights = new Map(snapshot.lights.map(light => [light.id, light]));
@@ -27,7 +68,7 @@
     if (layout !== key) {
       layout = key;
       controls = [];
-      grid.replaceChildren(...visibleCards.map(group => {
+      grid.replaceChildren(makePlan(visibleCards, lights), ...visibleCards.map(group => {
         const card = document.createElement("article");
         card.className = "room-card";
         const heading = document.createElement("h2");
