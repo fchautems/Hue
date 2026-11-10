@@ -26,7 +26,7 @@ import requests
 import urllib3
 
 from hue_discovery import discover_local_bridges
-from hue_dimmer import GROUP_TYPES, dimmer_bindings, dimmer_events
+from hue_dimmer import GROUP_TYPES, dimmer_bindings, dimmer_events, group_light_resolver
 from hue_solar_profile import draft_profile, DEFAULT_SOLAR_CONFIG, validate_solar_config
 from hue_solar import solar_times
 import hue_update_api
@@ -1314,6 +1314,24 @@ class HueServer:
                 "lights": self.get_lights(),
             }
 
+    def lighting_groups(self):
+        with self.lock:
+            client = self.client
+        if client is None:
+            return []
+        by_type = {kind: client.resource(kind) for kind in ("room", "zone")}
+        with self.lock:
+            if client is not self.client:
+                raise HueError("Le pont a changé. Actualise les pièces.")
+            lights = self.lights
+        resolve = group_light_resolver(by_type["room"] + by_type["zone"], lights)
+        return [
+            {"id": group["id"], "kind": kind,
+             "name": group.get("metadata", {}).get("name") or ("Pièce" if kind == "room" else "Zone"),
+             "light_ids": sorted(resolve({"rtype": kind, "rid": group["id"]}))}
+            for kind, groups in by_type.items() for group in groups
+        ]
+
     def _target_for(self, uid, minute, profiles=None, simple_profiles=None, profile_types=None):
         """Consigne calculée selon le type actif de chaque lampe (verrou déjà pris)."""
         types = self.settings["profile_types"] if profile_types is None else profile_types
@@ -1996,6 +2014,11 @@ def apply_solar_draft(uid: str, data: dict = Body(...)):
 @app.get("/api/state")
 def state():
     return controller.state()
+
+
+@app.get("/api/lighting-groups")
+def lighting_groups():
+    return ok(controller.lighting_groups())
 
 
 @app.get("/api/setup/status")

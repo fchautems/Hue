@@ -9,7 +9,7 @@ const assert=require('node:assert/strict');
  page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push({url:new URL(r.url()).pathname,data:r.postDataJSON()});});
  await page.route('**/api/update/status',r=>r.fulfill({json:{ok:true,data:{configured:true,installed:'old123456',remote:'new123456',available:true,changes:['Navigation revue'],change_kind:'interface'}}}));
  await page.goto('http://127.0.0.1:8766');
- await page.locator('.light-card').first().waitFor();
+ await page.locator('.light-card').first().waitFor({state:'attached'});
  const nav=tab=>page.locator('.nav [data-tab="'+tab+'"]');
  const check=async(condition,msg)=>assert.ok(await condition,msg);
  await check(page.locator('#update-badge').isVisible(),'permanent update badge');

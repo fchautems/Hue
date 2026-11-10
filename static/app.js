@@ -6,7 +6,7 @@ let selectedId = null;
 let editingPoints = [];
 let cardIds = "";
 let lastStateAt = performance.now();
-let activeTab = "dashboard";
+let activeTab = "rooms";
 let powerupId = null;
 let toastTimeout;
 let seekDragging = false;
@@ -150,6 +150,7 @@ function setTab(tab) {
   const inSettings=panels.includes(tab);
   if(inSettings)settingsPanel=tab;
   activeTab=tab;
+  document.body.classList.toggle('rooms-page',tab==='rooms');
   $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${inSettings?'settings':tab}`));
   $$('.settings-panel').forEach(x=>x.classList.toggle('hidden',x.id!==`tab-${tab}`));
   $$('[data-tab]').forEach(x=>{
@@ -157,8 +158,9 @@ function setTab(tab) {
     x.classList.toggle('active',chosen);
     x.setAttribute('aria-current',chosen?'page':'false');
   });
-  const titles={dashboard:['Lampes & vacances','Tes lampes au quotidien et ton programme de présence.'],profiles:['Profils & simulation','Horloge & lumières : courbes, couleurs et simulation pour chaque lampe.'],presence:['Historique','Allumages, extinctions et connexions observés.'],diagnostics:['Paramètres avancés','Capacités des lampes, démarrage, diagnostics et logs.'],setup:['Paramètres · Pont Hue','Adresse et association locale ; à utiliser lors de l’installation ou d’un changement de pont.'],updates:['Mises à jour','Vérifier et installer les nouvelles versions depuis GitHub.']};
+  const titles={rooms:['Pièces','Commande une pièce ou une lampe.'],dashboard:['Lampes & vacances','Tes lampes au quotidien et ton programme de présence.'],profiles:['Profils & simulation','Horloge & lumières : courbes, couleurs et simulation pour chaque lampe.'],presence:['Historique','Allumages, extinctions et connexions observés.'],diagnostics:['Paramètres avancés','Capacités des lampes, démarrage, diagnostics et logs.'],setup:['Paramètres · Pont Hue','Adresse et association locale ; à utiliser lors de l’installation ou d’un changement de pont.'],updates:['Mises à jour','Vérifier et installer les nouvelles versions depuis GitHub.']};
   $('#page-title').textContent=titles[tab][0]; $('#page-subtitle').textContent=titles[tab][1];
+  if(tab==='rooms' && state)window.HueRooms?.update(state);
   if(tab==='presence')window.HuePresence?.refresh();
   if(tab==='profiles' && state?.lights?.length)window.HueRGB?.open(selectedId,false,true);
   if(tab==='setup')safe(initializeSetup);
@@ -179,6 +181,7 @@ async function refresh() {
     $('#bridge-label').textContent=s.connected?'Pont connecté':'Pont non connecté';
     $('#bridge-ip').textContent=s.bridge_ip??'Association requise';
     if(s.needs_setup && !setupFirstShown) {setupFirstShown=true;setTab('setup');}
+    if(activeTab==='rooms')window.HueRooms?.update(s);
     $('#error-banner').classList.toggle('hidden', !s.error || s.needs_setup);
     $('#error-banner').textContent=s.error||'';
     $('#stat-count').textContent=s.lights.length;
@@ -338,7 +341,7 @@ async function pairHue() {
           $('#setup-connected').classList.remove('hidden');
           $('#setup-connected').textContent=`✓ Pont connecté : ${result.ip} · ${result.lights} ampoule(s).`;
           await refresh();
-          setTab('dashboard');
+          setTab('rooms');
           showToast('Pont connecté. Configuration enregistrée automatiquement.');
           return;
         }
