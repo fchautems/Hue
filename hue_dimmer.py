@@ -36,10 +36,62 @@ def group_light_resolver(groups, lights):
     return lambda ref: _targets(ref, children, light_ids, by_device)
 
 
-def dimmer_bindings(instances, groups, lights):
+def _configured_targets(where, resolve):
+    if not isinstance(where, list):
+        return set()
+    targets = set()
+    for target in where:
+        if isinstance(target, dict):
+            refs = target.get("items", [target.get("group", target)])
+            if isinstance(refs, list):
+                for ref in refs:
+                    targets.update(resolve(ref))
+    return targets
+
+
+def _scene_targets(action, scenes):
+    if action.get("action") in ("on", "off", "toggle", "do_nothing"):
+        return set()
+    recall = action.get("recall")
+    if (isinstance(recall, dict) and recall.get("rtype") == "scene"
+            and isinstance(recall.get("rid"), str)):
+        return scenes.get(recall.get("rid"), set())
+    for key in ("scene_cycle_extended", "time_based_extended"):
+        cycle = action.get(key)
+        if not isinstance(cycle, dict) or not isinstance(cycle.get("slots"), list):
+            continue
+        with_off = cycle.get("with_off")
+        if isinstance(with_off, dict) and with_off.get("enabled"):
+            continue
+        targets = []
+        for slot in cycle["slots"]:
+            steps = slot.get("actions") if isinstance(slot, dict) else slot
+            if not isinstance(steps, list) or not steps:
+                return set()
+            selected = set()
+            for step in steps:
+                command = step.get("action") if isinstance(step, dict) else None
+                lamps = _scene_targets(command, scenes) if isinstance(command, dict) else set()
+                if not lamps:
+                    return set()
+                selected.update(lamps)
+            targets.append(selected)
+        # The event does not reveal which slot the bridge chose.
+        if targets and all(lamps == targets[0] for lamps in targets):
+            return targets[0]
+    return set()
+
+
+def dimmer_bindings(instances, groups, lights, scenes=()):
     """Map (service type, id, event) to the lights controlled by that action."""
     resolve = group_light_resolver(groups, lights)
-    bindings = defaultdict(set)
+    bindings = {}
+    conflicts = set()
+    scene_lights = {
+        scene["id"]: set().union(*(resolve(step.get("target")) for step in scene["actions"]
+                                  if isinstance(step, dict)))
+        for scene in scenes if isinstance(scene.get("id"), str) and isinstance(scene.get("actions"), list)
+    }
     for instance in instances:
         if instance.get("enabled") is not True:
             continue
@@ -61,23 +113,21 @@ def dimmer_bindings(instances, groups, lights):
                     event_actions = {"start": actions.get("start", {}),
                                      "repeat": actions.get("repeat", {})}
                 else:
-                    event_actions = {key: value for key, value in actions.items()
-                                     if value.get("action") in ("dim_up", "dim_down")}
-                    if "repeat" in event_actions and not {"initial_press", "short_release"} & actions.keys():
-                        event_actions["initial_press"] = event_actions["repeat"]
+                    event_actions = actions.copy()
+                    if (actions.get("repeat", {}).get("action") in ("dim_up", "dim_down")
+                            and not {"initial_press", "short_release"} & actions.keys()):
+                        event_actions["initial_press"] = actions["repeat"]
                 for event, action in event_actions.items():
-                    where = action.get("where", control.get("where", []))
-                    if not isinstance(where, list):
-                        continue
-                    for target in where:
-                        if not isinstance(target, dict):
-                            continue
-                        refs = target.get("items") or [target.get("group", target)]
-                        if not isinstance(refs, list):
-                            continue
-                        for ref in refs:
-                            bindings[(kind, uid, event)].update(resolve(ref))
-    return dict(bindings)
+                    where = action.get("where", control.get("where"))
+                    targets = _configured_targets(where, resolve)
+                    if kind == "button" and action.get("action") not in ("dim_up", "dim_down"):
+                        lamps = _scene_targets(action, scene_lights)
+                        targets = lamps if where is None else targets & lamps
+                    key = (kind, uid, event)
+                    if key in bindings and bindings[key] != targets:
+                        conflicts.add(key)
+                    bindings[key] = targets
+    return {key: targets for key, targets in bindings.items() if targets and key not in conflicts}
 
 
 def dimmer_events(containers):
@@ -94,7 +144,8 @@ def dimmer_events(containers):
             if not isinstance(item, dict) or not isinstance(item.get("id"), str):
                 continue
             kind, uid = item.get("type"), item["id"]
-            if kind in (*GROUP_TYPES, "behavior_instance", "device"):
+            if (kind in (*GROUP_TYPES, "behavior_instance", "device")
+                    or kind == "scene" and (change != "update" or "actions" in item or "group" in item)):
                 yield "config", uid, kind
             elif change != "update":
                 continue

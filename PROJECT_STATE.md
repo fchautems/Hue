@@ -2,6 +2,12 @@
 
 Mise à jour : 2026-11-10
 
+## Audit télécommandes Hue — réaffectation et scènes — 2026-11-10
+- Trois régressions reproduites sur `e8461bb` : ancienne cible réutilisée jusqu’à 60 secondes sans notification de configuration, appui en file réattribué après une modification, scène explicite ignorée.
+- Correction : un instantané des ressources du pont par lot d’appuis, abandon des appuis antérieurs à un changement signalé, et résolution des scènes à partir des lampes effectivement visées. Les cycles à cibles variables, actions marche/arrêt et cibles ambiguës ne créent pas de suspension. Une liste de lampes vide ne retombe pas sur toute la pièce.
+- Contrôles sur pont simulé : réaffectation A → B sans redémarrage et sans notification, changement de configuration pendant une lecture, zone et groupe multi-lampes, scène, marche/arrêt, erreur de lecture, molette, reprise d’Auto au rallumage et priorité de Vacances.
+- Prochaine action : vérifier la CI puis essayer sur le pont réel avec un bouton réaffecté. La structure de configuration réellement exposée par la molette reste à confirmer.
+
 ## Commandes des lampes : état et couleur — 2026-11-10
 - Retour Pixel : la même lampe allumée apparaît verte dans Lampes & vacances et brune dans Pièces, et l’état affiché peut attendre la prochaine lecture du pont.
 - Décision de Fréd : bouton marche-arrêt pour la pièce, ligne tactile et petit point pour chaque lampe. Gris éteint, ambre dès la demande, vert après confirmation. Le mode Auto reste indépendant.
