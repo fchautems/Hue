@@ -24,6 +24,7 @@
     return key==="bain" ? /bain|douche|wc/.test(n) : n.includes(key);
   }
   let editMode = false;
+  let showCards = false;
   let planConfig = {};
   let configBridge = "";
   const storageKey = ip => "hue-apartment-plan-v1:" + (ip || "offline");
@@ -42,7 +43,7 @@
   }
   function roomForLight(id, cards) {
     const saved = planConfig[id]?.room;
-    if (planRooms.some(r => r.key === saved)) return saved;
+    if (Object.prototype.hasOwnProperty.call(planConfig, id)) return planRooms.some(r => r.key === saved) ? saved : "";
     const group = cards.find(g => g.light_ids.includes(id) && planRooms.some(r => matchRoom(g.name, r.key)));
     return group ? planRooms.find(r => matchRoom(group.name, r.key)).key : "";
   }
@@ -163,13 +164,19 @@
     const visibleCards = cards.map(group => ({
       ...group, light_ids: group.light_ids.filter(id => lights.has(id)),
     }));
-    const key = JSON.stringify([editMode, planConfig, visibleCards.map(group => [
+    const key = JSON.stringify([editMode, showCards, planConfig, [...lights.keys()], visibleCards.map(group => [
       group.kind, group.name, group.light_ids.map(id => [id, lights.get(id).name]),
     ])]);
     if (layout !== key) {
       layout = key;
       controls = [];
-      grid.replaceChildren(makePlan(visibleCards, lights), ...visibleCards.map(group => {
+      const toggle = document.createElement("button");
+      toggle.type = "button"; toggle.className = "plan-cards-toggle";
+      toggle.textContent = showCards ? "Masquer la liste des pièces" : "Afficher la liste des pièces";
+      toggle.setAttribute("aria-expanded", String(showCards));
+      toggle.addEventListener("click", () => { showCards = !showCards; layout = ""; render(state); });
+      grid.classList.toggle("plan-cards-expanded", showCards);
+      grid.replaceChildren(makePlan(visibleCards, lights), toggle, ...visibleCards.map(group => {
         const card = document.createElement("article");
         card.className = "room-card";
         const heading = document.createElement("h2");
