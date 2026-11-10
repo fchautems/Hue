@@ -23,32 +23,133 @@
     const n=normalize(name);
     return key==="bain" ? /bain|douche|wc/.test(n) : n.includes(key);
   }
+  let editMode = false;
+  let planConfig = {};
+  let configBridge = "";
+  const storageKey = ip => "hue-apartment-plan-v1:" + (ip || "offline");
+  function loadConfig(ip) {
+    configBridge = ip || "";
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey(configBridge)) || "{}");
+      planConfig = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch { planConfig = {}; }
+  }
+  function saveConfig() {
+    try { localStorage.setItem(storageKey(configBridge), JSON.stringify(planConfig)); }
+    catch { notice.textContent = "Impossible de sauvegarder le plan sur cet appareil."; }
+    layout = "";
+    if (state) render(state);
+  }
+  function roomForLight(id, cards) {
+    const saved = planConfig[id]?.room;
+    if (planRooms.some(r => r.key === saved)) return saved;
+    const group = cards.find(g => g.light_ids.includes(id) && planRooms.some(r => matchRoom(g.name, r.key)));
+    return group ? planRooms.find(r => matchRoom(group.name, r.key)).key : "";
+  }
   function makePlan(cards, lights) {
-    const plan=document.createElement("section");
-    plan.className="apartment-plan";
-    plan.setAttribute("aria-label","Plan interactif de l’appartement");
-    const title=document.createElement("div"); title.className="apartment-plan-title"; title.textContent="Plan de l’appartement";
-    const surface=document.createElement("div"); surface.className="apartment-plan-surface";
+    const plan = document.createElement("section");
+    plan.className = "apartment-plan";
+    plan.setAttribute("aria-label", "Plan interactif de l’appartement");
+    const title = document.createElement("div");
+    title.className = "apartment-plan-title";
+    title.textContent = "Plan de l’appartement";
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "plan-edit-toggle";
+    edit.textContent = editMode ? "Terminer" : "Modifier le plan";
+    edit.setAttribute("aria-pressed", String(editMode));
+    edit.addEventListener("click", () => { editMode = !editMode; layout = ""; render(state); });
+    const header = document.createElement("div");
+    header.className = "plan-header";
+    header.append(title, edit);
+    const surface = document.createElement("div");
+    surface.className = "apartment-plan-surface";
+    const entries = [...lights.values()];
     for (const room of planRooms) {
-      const group=cards.find(g=>matchRoom(g.name,room.key));
-      const area=document.createElement("div"); area.className="plan-room";
-      Object.assign(area.style,{left:room.x+"%",top:room.y+"%",width:room.w+"%",height:room.h+"%"});
-      const roomButton=button(room.label,group?.light_ids || [],true);
-      roomButton.className="plan-room-action";
-      roomButton.textContent=room.label;
+      const ids = entries.filter(light => roomForLight(light.id, cards) === room.key).map(light => light.id);
+      const area = document.createElement("div");
+      area.className = "plan-room";
+      Object.assign(area.style, {left:room.x+"%",top:room.y+"%",width:room.w+"%",height:room.h+"%"});
+      const roomButton = button(room.label, ids, true);
+      roomButton.className = "plan-room-action";
+      roomButton.textContent = room.label;
+      if (editMode) roomButton.disabled = true;
       area.append(roomButton);
-      const ids=(group?.light_ids || []).filter(id=>lights.has(id));
-      const lamps=document.createElement("div"); lamps.className="plan-lamps";
-      for(const id of ids) {
-        const lamp=button(lights.get(id).name,[id]);
-        lamp.className="plan-lamp"; lamp.textContent="●";
-        lamp.setAttribute("aria-label","Allumer ou éteindre "+lights.get(id).name);
-        lamp.title=lights.get(id).name;
-        lamps.append(lamp);
-      }
-      area.append(lamps);surface.append(area);
+      const lamps = document.createElement("div");
+      lamps.className = "plan-lamps";
+      ids.forEach((id, index) => {
+        const light = lights.get(id);
+        const lamp = button(light.name, [id]);
+        lamp.className = "plan-lamp";
+        lamp.textContent = "●";
+        lamp.setAttribute("aria-label", "Allumer ou éteindre " + light.name);
+        lamp.title = light.name;
+        const point = planConfig[id];
+        if (point && Number.isFinite(point.x) && Number.isFinite(point.y)) {
+          lamp.style.left = Math.max(3, Math.min(97, point.x)) + "%";
+          lamp.style.top = Math.max(5, Math.min(95, point.y)) + "%";
+        } else {
+          lamp.style.left = (20 + (index % 3) * 30) + "%";
+          lamp.style.top = (65 + Math.floor(index / 3) * 20) + "%";
+        }
+        if (editMode) {
+          lamp.disabled = false;
+          lamp.classList.add("plan-lamp-draggable");
+          lamp.addEventListener("pointerdown", event => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            lamp.setPointerCapture(event.pointerId);
+            const move = e => {
+              const rect = area.getBoundingClientRect();
+              const x = Math.max(3, Math.min(97, (e.clientX-rect.left)/rect.width*100));
+              const y = Math.max(5, Math.min(95, (e.clientY-rect.top)/rect.height*100));
+              lamp.style.left = x+"%"; lamp.style.top = y+"%";
+            };
+            const stop = e => {
+              move(e);
+              lamp.removeEventListener("pointermove", move);
+              lamp.removeEventListener("pointerup", stop);
+              lamp.removeEventListener("pointercancel", cancel);
+              planConfig[id] = {...planConfig[id], room:room.key, x:parseFloat(lamp.style.left), y:parseFloat(lamp.style.top)};
+              saveConfig();
+            };
+            const cancel = () => {lamp.removeEventListener("pointermove",move);lamp.removeEventListener("pointerup",stop);lamp.removeEventListener("pointercancel",cancel);};
+            lamp.addEventListener("pointermove",move);
+            lamp.addEventListener("pointerup",stop);
+            lamp.addEventListener("pointercancel",cancel);
+          });
+          lamp.addEventListener("click", e => e.stopImmediatePropagation(), true);
+        }
+        area.append(lamp);
+      });
+      surface.append(area);
     }
-    plan.append(title,surface);
+    plan.append(header,surface);
+    if (editMode) {
+      const editor = document.createElement("div");
+      editor.className = "plan-editor";
+      const help = document.createElement("p");
+      help.textContent = "Choisis la pièce de chaque lampe, puis déplace son point dans la pièce. Les réglages sont conservés sur cet appareil.";
+      editor.append(help);
+      for (const light of entries) {
+        const label = document.createElement("label");
+        label.textContent = light.name + " ";
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Pièce de " + light.name);
+        for (const option of [{key:"",label:"Hors plan"}, ...planRooms]) {
+          const node = document.createElement("option");
+          node.value = option.key; node.textContent = option.label;
+          select.append(node);
+        }
+        select.value = roomForLight(light.id, cards);
+        select.addEventListener("change", () => {
+          planConfig[light.id] = {room:select.value};
+          saveConfig();
+        });
+        label.append(select); editor.append(label);
+      }
+      plan.append(editor);
+    }
     return plan;
   }
 
@@ -62,9 +163,9 @@
     const visibleCards = cards.map(group => ({
       ...group, light_ids: group.light_ids.filter(id => lights.has(id)),
     }));
-    const key = JSON.stringify(visibleCards.map(group => [
+    const key = JSON.stringify([editMode, planConfig, visibleCards.map(group => [
       group.kind, group.name, group.light_ids.map(id => [id, lights.get(id).name]),
-    ]));
+    ])]);
     if (layout !== key) {
       layout = key;
       controls = [];
@@ -93,7 +194,7 @@
       const mixed = on > 0 && on < available.length;
       control.on = on > 0;
       const waiting = control.ids.some(id => pendingPower.has(id));
-      control.element.disabled = waiting || !snapshot.connected || !available.length;
+      control.element.disabled = (editMode && control.element.classList.contains("plan-room-action")) || waiting || !snapshot.connected || !available.length;
       control.element.setAttribute("aria-busy", String(waiting));
       control.element.setAttribute("aria-pressed", mixed ? "mixed" : String(control.on));
       control.element.title = control.group
@@ -131,6 +232,7 @@
 
   async function update(snapshot) {
     if (bridge !== snapshot.bridge_ip) {
+      loadConfig(snapshot.bridge_ip);
       bridge = snapshot.bridge_ip;
       groups = [];
       loaded = false;
