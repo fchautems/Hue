@@ -1,3 +1,7 @@
+# v0.14.1 — Navigation mobile cohérente — 2026-11-10
+
+- Les six onglets restent sur deux rangées, sans défilement horizontal, et le titre Hue Lab apparaît aussi sur l’accueil Pièces.
+
 # v0.14.0 — Pièces et lampes à l’accueil — 2026-11-10
 
 - Retrouve les pièces et zones configurées sur le pont. Dans chaque carte, le bouton marche/arrêt commande le groupe et chaque lampe se commande directement.

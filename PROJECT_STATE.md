@@ -2,6 +2,11 @@
 
 Mise à jour : 2026-11-10
 
+## Navigation mobile — 2026-11-10
+- Retour sur le Pixel : la v0.14.0 affiche deux rangées dans Pièces et trois dans les autres onglets ; le titre Hue Lab disparaît dans Pièces. Fréd demande deux rangées partout, les six onglets visibles sans défilement et le titre rétabli.
+- Correction : grille mobile commune de trois colonnes ; le bandeau Hue Lab reste visible sur l’accueil. Contrôle Chromium prévu sur tous les onglets à 320 et 390 px, avec le contrôle existant de la hauteur de l’accueil.
+- Prochaine action : valider la CI puis vérifier la navigation avec la configuration réelle du Pixel.
+
 ## Accueil Pièces — 2026-11-10
 - Décision : commandes des pièces et des lampes à l’accueil, en une page sans pagination ni défilement sur le téléphone de Fréd. Le futur plan reste un chantier séparé.
 - L’accueil récupère les pièces et les zones du pont, affiche leurs lampes et réutilise la commande existante par lampe, y compris lors d’un allumage de groupe. Les lampes non attribuées restent accessibles. L’ancien écran est accessible via Lampes & vacances.
