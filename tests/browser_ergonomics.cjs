@@ -27,12 +27,47 @@ const assert=require('node:assert/strict');
   assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.room-card button')].every(
     button=>button.getBoundingClientRect().height>=48)),'touch targets at least 48 px high');
  }
- await room.getByRole('button',{name:'Commande de groupe · Couloir'}).click();
+ const roomSwitch=room.getByRole('button',{name:'Commande de groupe · Couloir'});
+ assert.equal(await roomSwitch.locator('.switch > span').count(),1,'the room uses the shared switch design');
+ await roomSwitch.click();
  await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
  assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
- await room.getByRole('button',{name:'Salon',exact:true}).click();
- await page.waitForFunction(()=>state.lights[1].on);
+ const salon=room.getByRole('button',{name:'Salon',exact:true});
+ const salonInZone=zone.getByRole('button',{name:'Salon',exact:true});
+ let stale=true;
+ const holdObservedState=async route=>{
+  const response=await route.fetch();
+  const snapshot=await response.json();
+  if(stale)snapshot.lights[1].on=false;
+  await route.fulfill({response,json:snapshot});
+ };
+ await page.route('**/api/state',holdObservedState);
+ const acknowledged=page.waitForResponse(response=>response.url().endsWith('/api/light/light-1/switch'));
+ await salon.click();
+ assert.equal(await salon.getAttribute('aria-busy'),'true');
+ assert.equal(await salonInZone.getAttribute('aria-busy'),'true');
+ assert.equal(await salon.getAttribute('aria-pressed'),'false','waiting preserves the observed off state');
+ assert.equal(await salon.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(68, 55, 34)');
+ assert.ok((await acknowledged).ok());
+ assert.equal(await salon.getAttribute('aria-busy'),'true','HTTP acceptance is not lamp confirmation');
+ await nav('dashboard').click();
+ const dashboardSwitch=page.locator('.light-card[data-id="light-1"] .switch');
+ assert.equal(await dashboardSwitch.getAttribute('aria-busy'),'true','the other view shows the same pending command');
+ assert.equal(await dashboardSwitch.locator('input').isChecked(),false);
+ await nav('rooms').click();
+ stale=false;
+ await salon.and(page.locator('[aria-pressed="true"][aria-busy="false"]')).waitFor();
+ await page.unroute('**/api/state',holdObservedState);
+ assert.equal(await salon.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(40, 72, 63)');
  assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/light/light-1/switch']);
+ await page.route('**/api/light/light-1/switch',route=>route.fulfill({
+  status:502,json:{ok:false,error:'Commande refusée pour le test'},
+ }),{times:1});
+ await salon.click();
+ await page.getByText('Commande refusée pour le test',{exact:true}).waitFor();
+ assert.equal(await salon.getAttribute('aria-busy'),'false');
+ assert.equal(await salon.getAttribute('aria-pressed'),'true','a refused command leaves the observed state intact');
+ writes.splice(0);
  await room.getByRole('button',{name:'Entrée',exact:true}).click();
  await page.waitForFunction(()=>state.lights[0].on);
  writes.splice(0);

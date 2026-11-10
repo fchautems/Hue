@@ -2,6 +2,15 @@
 
 Mise à jour : 2026-11-10
 
+## Commandes des lampes : état et couleur — 2026-11-10
+- Retour Pixel : la même lampe allumée apparaît verte dans Lampes & vacances et brune dans Pièces, et l’état affiché peut attendre la prochaine lecture du pont.
+- Décision de Fréd : bouton marche-arrêt pour la pièce, ligne tactile et petit point pour chaque lampe. Gris éteint, ambre dès la demande, vert après confirmation. Le mode Auto reste indépendant.
+- Correction : couleurs partagées entre les vues et attente suivie par lampe, y compris quand la même lampe figure dans plusieurs groupes. L’acceptation de la requête ne confirme pas l’allumage.
+- Retour Pixel du 2026-11-10 : le Raspberry affiche `47fef0e51011` (v0.14.1) et les deux rangées d’onglets. La v0.14.2 est en validation dans la PR #28.
+- La relance de la CI 42803961954 sur `4bb3dac` passe sans changement, y compris Soleil et les commandes de lampe. Chromium local ne démarre pas dans cet environnement.
+- Le bouton de groupe reprend le dessin de l’interrupteur de Lampes & vacances, en gardant une cible tactile de 48 px. Le test navigateur vérifie aussi que l’attente reste visible en changeant d’onglet.
+- Prochaine action : valider les parcours navigateur sur la PR #28, puis installer sur le Raspberry et essayer sur le pont réel.
+
 ## Navigation mobile — 2026-11-10
 - Retour sur le Pixel : la v0.14.0 affiche deux rangées dans Pièces et trois dans les autres onglets ; le titre Hue Lab disparaît dans Pièces. Fréd demande deux rangées partout, les six onglets visibles sans défilement et le titre rétabli.
 - Correction : grille mobile commune de trois colonnes ; le bandeau Hue Lab reste visible sur l’accueil. Contrôle Chromium réussi sur tous les onglets à 320 et 390 px : deux rangées, six commandes visibles, pas de défilement horizontal, titre présent. L’accueil avec pont simulé tient à 320 × 680 et 393 × 680. CI 42803068107.

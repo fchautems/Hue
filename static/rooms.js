@@ -9,7 +9,6 @@
   let failed = false;
   let loaded = false;
   let layout = "";
-  let sending = false;
   let controls = [];
 
   function render(snapshot) {
@@ -52,7 +51,9 @@
       const on = available.filter(light => light.on).length;
       const mixed = on > 0 && on < available.length;
       control.on = on > 0;
-      control.element.disabled = sending || !snapshot.connected || !available.length;
+      const waiting = control.ids.some(id => pendingPower.has(id));
+      control.element.disabled = waiting || !snapshot.connected || !available.length;
+      control.element.setAttribute("aria-busy", String(waiting));
       control.element.setAttribute("aria-pressed", mixed ? "mixed" : String(control.on));
       control.element.title = control.group
         ? `${control.on ? "Éteindre" : "Allumer"} ${control.name}`
@@ -71,7 +72,7 @@
     element.className = group ? "room-power" : "room-lamp";
     element.setAttribute("aria-label", group ? `Commande de groupe · ${name}` : name);
     if (group) {
-      element.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8M7.2 5.6a8 8 0 1 0 9.6 0"/></svg>';
+      element.innerHTML = '<span class="switch" aria-hidden="true"><span></span></span>';
     } else {
       const icon = document.createElement("span");
       icon.className = "room-lamp-dot";
@@ -83,25 +84,7 @@
     }
     const control = {element, name, ids, group, targets: [], on: false};
     controls.push(control);
-    element.addEventListener("click", async () => {
-      if (sending || !control.targets.length) return;
-      const {targets, on} = control;
-      sending = true;
-      render(state);
-      try {
-        const results = await Promise.allSettled(targets.map(id =>
-          api(`/api/light/${encodeURIComponent(id)}/switch`, "POST", {on: !on})));
-        const rejected = results.filter(result => result.status === "rejected");
-        if (rejected.length) {
-          showToast(rejected.length === 1 && targets.length === 1 ? rejected[0].reason.message
-            : `${targets.length - rejected.length}/${targets.length} commandes envoyées.`, true);
-        }
-        await refresh();
-      } finally {
-        sending = false;
-        render(state);
-      }
-    });
+    element.addEventListener("click", () => changePower(control.targets, !control.on));
     return element;
   }
 
@@ -134,5 +117,5 @@
     }
   }
 
-  window.HueRooms = {update};
+  window.HueRooms = {update, render};
 })();
