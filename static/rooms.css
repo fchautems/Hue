@@ -95,6 +95,7 @@
 .plan-header, .apartment-plan-surface { width: 100%; max-width: 540px; margin-inline: auto; }
 .plan-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .plan-header h2 { margin: 0; font-size: 14px; }
+.plan-edit-toggle { white-space: nowrap; font-size: 13px; }
 .plan-edit-toggle, .plan-cards-toggle {
   min-height: 44px;
   padding: 6px 10px;
@@ -138,7 +139,8 @@
 }
 .plan-room[data-plan-room="salon"] .plan-room-action { border-right: 0; border-radius: 8px 0 0 0; }
 .plan-room[data-plan-room="cuisine"] .plan-room-action { border-left-style: dashed; border-radius: 0 8px 0 0; }
-.plan-room[data-plan-room="bain"] .plan-room-action { border-radius: 0 0 8px 0; }
+.plan-room[data-plan-room="bain"] .plan-room-action { border-radius: 0 0 8px 0; font-size: 11px; padding-inline: 4px; }
+.plan-room-label-short { display: none; }
 .plan-room-shaped { border: 0; border-radius: 0; }
 .plan-outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .plan-outline polygon { fill: none; stroke: #516780; stroke-width: 1px; }
@@ -150,8 +152,8 @@
   border-color: var(--power-on-border);
   color: var(--power-on-text);
 }
-.plan-room-action[aria-pressed="true"] { background: #203a38; }
-.plan-room-action[aria-pressed="mixed"] { background: #1d3337; }
+.plan-room-action[aria-pressed="true"] { background: #1d3637; }
+.plan-room-action[aria-pressed="mixed"] { background: #1b3037; }
 .plan-lamps {
   position: absolute;
   inset: 18px 3px 1px;
@@ -167,33 +169,33 @@
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 1px solid #566d84;
+  border: 0;
   border-radius: 50%;
-  color: #c0ccda;
-  background: #17283a;
+  color: #aabed4;
+  background: transparent;
   cursor: pointer;
   pointer-events: auto;
 }
 .plan-lamp::before {
   content: "";
-  width: 10px;
-  height: 10px;
-  border: 1px solid currentColor;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid currentColor;
   border-radius: 50%;
 }
-.plan-lamp[aria-pressed="true"] {
-  color: var(--power-on-text);
-  background: var(--power-on-bg);
-  border-color: var(--power-on-border);
+.plan-lamp[aria-pressed="true"] { color: var(--power-on-text); }
+.plan-lamp[aria-pressed="true"]::before {
+  background: currentColor;
+  box-shadow: 0 0 0 4px #b7eadb26;
 }
-.plan-lamp[aria-pressed="true"]::before { background: currentColor; }
-.plan-lamp[aria-busy="true"], .plan-room-action[aria-busy="true"] {
+.plan-room-action[aria-busy="true"] {
   color: var(--power-pending-text);
   background: var(--power-pending-bg);
   border-color: var(--power-pending-border);
   cursor: wait;
 }
-.plan-lamp[aria-busy="true"]::before { background: transparent; border-width: 2px; }
+.plan-lamp[aria-busy="true"] { color: var(--power-pending-text); cursor: wait; }
+.plan-lamp[aria-busy="true"]::before { background: transparent; border-width: 2px; box-shadow: 0 0 0 4px #ffdb9c26; }
 .plan-lamp:disabled:not([aria-busy="true"]), .plan-room-action:disabled:not([aria-busy="true"]) {
   color: #a7b6c8;
   opacity: 1;
@@ -211,9 +213,27 @@
 .plan-editor p { grid-column: 1 / -1; margin: 0; font-size: 12px; color: #b9c7d7; }
 .plan-editor label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
 .plan-editor select { max-width: 120px; min-height: 44px; background: #203249; color: #f4f6fb; border: 1px solid #52667d; border-radius: 6px; }
-.plan-cards-toggle { grid-column: 1 / -1; justify-self: center; width: 100%; max-width: 540px; }
+.plan-cards-toggle {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 100%;
+  max-width: 540px;
+  background: transparent;
+  color: #c4d0de;
+  font-size: 13px;
+}
 .room-grid:not(.plan-cards-expanded) > .room-card { display: none; }
 
 @media (max-width: 700px) {
-  .apartment-plan-surface { height: 320px; }
+  .apartment-plan-surface {
+    aspect-ratio: 0.91;
+    height: auto;
+    min-height: 320px;
+    max-height: clamp(320px, calc(100dvh - 360px), 420px);
+  }
+}
+
+@media (max-width: 350px) {
+  .plan-room-label-long { display: none; }
+  .plan-room-label-short { display: inline; }
 }

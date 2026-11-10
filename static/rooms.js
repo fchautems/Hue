@@ -225,7 +225,16 @@
       area.dataset.planRoom = room.key;
       Object.assign(area.style, {left: `${room.x}%`, top: `${room.y}%`, width: `${room.w}%`, height: `${room.h}%`});
       const roomButton = button(room.label, roomLamps.map(light => light.id), true, "plan-room-action");
-      roomButton.textContent = room.shortLabel || room.label;
+      roomButton.textContent = room.label;
+      if (room.shortLabel) {
+        const full = document.createElement("span");
+        full.className = "plan-room-label-long";
+        full.textContent = room.label;
+        const short = document.createElement("span");
+        short.className = "plan-room-label-short";
+        short.textContent = room.shortLabel;
+        roomButton.replaceChildren(full, short);
+      }
       if (room.outline) {
         roomButton.classList.add("plan-room-shaped");
         roomButton.style.clipPath = `polygon(${room.outline.map(([x, y]) => `${x}% ${y}%`).join(", ")})`;
