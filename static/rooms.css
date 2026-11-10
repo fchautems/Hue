@@ -90,7 +90,7 @@
   .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
 
-/* Le plan est un schéma sans échelle. La zone commune n’est pas interactive. */
+/* Le plan est un schéma sans échelle. Les espaces extérieurs restent vides. */
 .apartment-plan { grid-column: 1 / -1; min-width: 0; }
 .plan-header, .apartment-plan-surface { width: 100%; max-width: 540px; margin-inline: auto; }
 .plan-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
@@ -108,22 +108,14 @@
   position: relative;
   height: 370px;
   overflow: hidden;
-  border: 1px solid #52667d;
-  border-radius: 12px;
-  background: #111e2c;
 }
-.plan-outside {
-  position: absolute;
-  inset: 34% 29% 36% 43%;
-  display: grid;
-  place-content: center;
-  padding: 3px;
-  border: 1px dashed #52667d;
-  border-radius: 6px;
-  background: #172331;
-  color: #a7b6c8;
-  font-size: 11px;
-  text-align: center;
+.plan-feedback {
+  max-width: 540px;
+  min-height: 2.7em;
+  line-height: 1.35;
+  margin: 0 auto 6px;
+  color: #c2cddd;
+  font-size: 12px;
 }
 .plan-room { position: absolute; }
 .plan-room-action {
@@ -134,9 +126,9 @@
   justify-items: start;
   align-content: start;
   padding: 5px 4px 0 7px;
-  border: 1px solid #65788b;
+  border: 1px solid #516780;
   border-radius: 6px;
-  background: #203249;
+  background: #192b3e;
   color: #edf4fb;
   font: inherit;
   font-size: clamp(11px, 3vw, 14px);
@@ -144,28 +136,38 @@
   text-align: left;
   cursor: pointer;
 }
+.plan-room[data-plan-room="salon"] .plan-room-action { border-right: 0; border-radius: 8px 0 0 0; }
+.plan-room[data-plan-room="cuisine"] .plan-room-action { border-left-style: dashed; border-radius: 0 8px 0 0; }
+.plan-room[data-plan-room="bain"] .plan-room-action { border-radius: 0 0 8px 0; }
+.plan-room-shaped { border: 0; border-radius: 0; }
+.plan-outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.plan-outline polygon { fill: none; stroke: #516780; stroke-width: 1px; }
+.plan-room-action[aria-pressed="true"] + .plan-outline polygon,
+.plan-room-action[aria-pressed="mixed"] + .plan-outline polygon { stroke: var(--power-on-border); }
+.plan-room-action[aria-busy="true"] + .plan-outline polygon { stroke: var(--power-pending-border); }
+.plan-room-action:focus-visible + .plan-outline polygon { stroke: #ffce83; stroke-width: 2px; }
 .plan-room-action[aria-pressed="true"], .plan-room-action[aria-pressed="mixed"] {
   border-color: var(--power-on-border);
   color: var(--power-on-text);
 }
-.plan-room-action[aria-pressed="true"] { background: var(--power-on-bg); }
-.plan-room-action[aria-pressed="mixed"] { background: #253c3d; }
+.plan-room-action[aria-pressed="true"] { background: #203a38; }
+.plan-room-action[aria-pressed="mixed"] { background: #1d3337; }
 .plan-lamps {
   position: absolute;
-  inset: 25px 3px 3px;
-  display: grid;
-  grid-template-columns: repeat(var(--plan-columns), minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  place-items: center;
+  inset: 18px 3px 1px;
   pointer-events: none;
 }
 .plan-lamp {
+  position: absolute;
+  left: clamp(16px, var(--lamp-x), calc(100% - 16px));
+  top: clamp(16px, var(--lamp-y), calc(100% - 16px));
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 1px solid #7b90a6;
+  border: 1px solid #566d84;
   border-radius: 50%;
   color: #c0ccda;
   background: #17283a;
@@ -194,6 +196,7 @@
 .plan-lamp[aria-busy="true"]::before { background: transparent; border-width: 2px; }
 .plan-lamp:disabled:not([aria-busy="true"]), .plan-room-action:disabled:not([aria-busy="true"]) {
   color: #a7b6c8;
+  opacity: 1;
   cursor: default;
 }
 .apartment-plan button:focus-visible, .plan-cards-toggle:focus-visible { outline: 2px solid #ffce83; outline-offset: 1px; }
@@ -203,7 +206,7 @@
   touch-action: none;
   box-shadow: 0 0 0 1px #ffce83;
 }
-.plan-lamp:active { z-index: 1; }
+.apartment-plan .plan-lamp-moving { z-index: 2; cursor: grabbing; }
 .plan-editor { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 8px; margin-top: 10px; }
 .plan-editor p { grid-column: 1 / -1; margin: 0; font-size: 12px; color: #b9c7d7; }
 .plan-editor label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }

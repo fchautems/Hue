@@ -1,3 +1,8 @@
+## v0.15.1 — Plan redessiné et repères libres — 2026-11-10
+
+- **Code concret :** le plan reprend le croquis de l’appartement, avec le couloir en L et le vide central sans encadré. Les lampes se déplacent librement au doigt dans leur pièce.
+- Les cinq repères du salon peuvent être touchés séparément sur un petit écran. Modifier le plan conserve les positions dans le navigateur.
+
 ## v0.15.0 — Plan interactif de l’appartement — 2026-11-10
 
 - **Code concret :** dans Pièces, touche une pièce pour commander ses lampes ou un repère pour commander une seule ampoule. Les parties communes restent inactives.

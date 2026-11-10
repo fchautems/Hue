@@ -1,5 +1,12 @@
 # PROJECT_STATE — Philips Hue Web
 
+## v0.15.1 — Tracé de l’appartement et déplacement libre — 2026-11-10
+- Retour sur Pixel : le plan v0.15.0 ne reproduit pas la forme des pièces, l’encadré des parties communes est superflu et le déplacement par cases manque de finesse. Trois lampes sont prévues en plus des deux du salon.
+- Tracé repris du croquis sans échelle : salon et cuisine ouverts en haut, chambre et bureau avec décroché, couloir en L à droite, salle de bain en bas à droite. Le rectangle extérieur au centre reste vide et inactif.
+- Déplacement continu au doigt, limité au contour de la pièce et sans déplacement des voisins. Les positions sont conservées dans le navigateur. Si une ancienne position tombe dans un décroché, le repère reprend une place valide. Les repères trop rapprochés restent séparés pour garder des cibles tactiles distinctes.
+- Contrôles prévus en CI : écran 320 et 393 px, vide central inactif, précision du glissement, persistance après rechargement et cinq ampoules accessibles dans le salon à 320 px.
+- Prochaine action : valider la CI, publier via Mises à jour et essayer sur le Pixel.
+
 ## v0.15.0 — Plan interactif — PR #31 — 2026-11-10
 - Accueil Pièces : plan schématique de six pièces, sans échelle. Le couloir et les escaliers communs au centre sont signalés et ne commandent aucune lampe. Un appui sur la surface d’une pièce commande ses lampes ; un appui sur un repère commande la lampe correspondante.
 - Les positions sont réparties sur deux rangées dans chaque pièce. En édition, déplacer un repère au doigt ou au clavier échange les places si nécessaire. L’affectation et les positions sont conservées dans le navigateur par adresse de pont. La liste repliée donne accès aux lampes hors plan ou en surnombre.
