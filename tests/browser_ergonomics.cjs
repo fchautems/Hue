@@ -11,8 +11,9 @@ const assert=require('node:assert/strict');
  await page.goto('http://127.0.0.1:8766');
  await page.locator('.light-card').first().waitFor({state:'attached'});
  const nav=tab=>page.locator('.nav [data-tab="'+tab+'"]');
+ const panel=tab=>page.locator('.settings-nav [data-tab="'+tab+'"]');
  const check=async(condition,msg)=>assert.ok(await condition,msg);
- await check(page.locator('#update-badge').isVisible(),'permanent update badge');
+ await check(page.locator('#settings-update-dot').isVisible(),'update indicator in navigation');
  assert.equal(writes.length,0,'opening the app must not command lamps');
  const plan=page.getByRole('region',{name:'Plan de l’appartement'});
  const lamp=plan.locator('[data-plan-lamp="light-0"]');
@@ -160,9 +161,7 @@ const assert=require('node:assert/strict');
  assert.ok((await acknowledged).ok());
  assert.equal(await salon.getAttribute('aria-busy'),'true','HTTP acceptance is not lamp confirmation');
  await nav('dashboard').click();
- const dashboardSwitch=page.locator('.light-card[data-id="light-1"] .switch');
- assert.equal(await dashboardSwitch.getAttribute('aria-busy'),'true','the other view shows the same pending command');
- assert.equal(await dashboardSwitch.locator('input').isChecked(),false);
+ assert.equal(await page.locator('#tab-dashboard input[type="checkbox"].light-switch').count(),0);
  await nav('rooms').click();
  stale=false;
  await salon.and(page.locator('[aria-pressed="true"][aria-busy="false"]')).waitFor();
@@ -184,7 +183,7 @@ const assert=require('node:assert/strict');
  // Layout and reachable daily activities at phone/tablet/desktop widths.
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
-  for(const tab of ['rooms','dashboard','profiles','presence','settings','updates']){
+  for(const tab of ['rooms','dashboard','profiles','simulation','settings']){
    await nav(tab).click();
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
    assert.equal(overflow,false,`${tab} overflow at ${width}`);
@@ -204,17 +203,19 @@ const assert=require('node:assert/strict');
       noHorizontalScroll:nav.scrollWidth===nav.clientWidth,
      };
     });
-    assert.deepEqual(layout,{rows:2,buttons:6,allVisible:true,title:true,noHorizontalScroll:true},
+    assert.deepEqual(layout,{rows:2,buttons:5,allVisible:true,title:true,noHorizontalScroll:true},
       `${tab}: two rows with all tabs and Hue Lab visible at ${width}px`);
    }
+   if(tab==='simulation')await check(page.locator('#clock-svg').isVisible(),'clock visible');
    if(tab==='profiles'){
-    await check(page.locator('#clock-svg').isVisible(),'clock visible');
+    await check(page.locator('#clock-svg').isHidden(),'clock is separate');
     await check(page.locator('#profile-chart').isVisible(),'curve visible');
    }
   }
   await nav('profiles').click();
   await page.screenshot({path:`/tmp/hue-ergonomics-${width}.png`,fullPage:true});
  }
+ await nav('simulation').click();
  // Clock source has one location and is absent from technical panels.
  assert.equal(await page.locator('#clock-source').count(),1);
  await page.locator('#clock-source').selectOption('accelere');
@@ -241,13 +242,15 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>state.simulation.seconds_per_day===60);
  await page.locator('#clock-source').selectOption('reel');
  await page.waitForFunction(()=>state.clock_mode==='reel');
+ await nav('profiles').click();
+ await page.locator('.legacy-options > summary').click();
  // Custom curve: cancellation, navigation protection and explicit save.
  await page.locator('#v051-level-number').fill('27');
  await page.locator('#v051-level-number').press('Tab');
  await page.waitForFunction(()=>profileDirty);
  page.once('dialog',d=>d.dismiss());
- await nav('updates').click();
- assert.equal(await page.evaluate(()=>activeTab),'profiles','update shortcut respects dirty curve');
+ await nav('settings').click();
+ assert.equal(await page.evaluate(()=>activeTab),'profiles','navigation respects dirty curve');
  await page.locator('#cancel-profile').click();
  await page.locator('#v051-level-number').fill('28');
  await page.locator('#v051-level-number').press('Tab');
@@ -263,6 +266,7 @@ const assert=require('node:assert/strict');
  await nav('settings').click();
  assert.equal(await page.evaluate(()=>activeTab),'profiles');
  await page.locator('#v052-cancel').click();
+ await nav('simulation').click();
  // Saved server target must stay authoritative across both periodic callbacks,
  // simple/custom editor switches and unsaved drafts (old UI alternated values).
  await page.locator('#clock-source').selectOption('accelere');
@@ -273,6 +277,7 @@ const assert=require('node:assert/strict');
  });
  // refresh() may already be awaiting a response sampled before the pause.
  await page.waitForFunction(()=>!state.simulation.running&&Math.abs(state.minute-720)<.01);
+ await nav('profiles').click();
  const activeTarget=await page.evaluate(()=>Math.round(state.lights.find(l=>l.id===selectedId).target));
  const expectTarget=`Cible active ${activeTarget} %`;
  await page.evaluate(()=>{
@@ -282,26 +287,28 @@ const assert=require('node:assert/strict');
  });
  await page.locator('#v052-max_brightness').fill('92');
  await page.waitForTimeout(2300);
- await page.locator('.v052-mode[data-type="custom"]').click();
+ await page.locator('.v052-mode[data-type="solar"]').click();
  assert.equal(await page.locator('.profile-card').getAttribute('data-v052-view'),'simple','field edits remain guarded');
  await page.locator('#v052-cancel').click();
- await page.locator('.v052-mode[data-type="custom"]').click();
+ await page.locator('.v052-mode[data-type="solar"]').click();
  await page.waitForTimeout(1100);
  const values=await page.evaluate(()=>{window.targetObserver.disconnect();return window.targetValues;});
  assert.ok(values.length>5,'sample several timer updates');
  assert.ok(values.every(v=>v===expectTarget),`conflicting target writers: ${values.join(', ')}`);
- // Return to the saved simple profile; its cancel button is hidden in custom view.
- await page.locator('.v052-mode[data-type="simple"]').click();
+ // Return to the saved simple profile.
+ await page.locator('#v052-return').click();
  await page.waitForFunction(()=>!window.HueProfiles.hasUnsaved());
+ await nav('simulation').click();
  await page.locator('#clock-source').selectOption('reel');
  await page.waitForFunction(()=>state.clock_mode==='reel');
+ await nav('profiles').click();
  // Colors remain editable; cancelling a navigation retains the draft.
  await page.locator('#profile-colors > summary').click();
  await page.waitForFunction(()=>document.querySelector('#rgb-status').textContent.includes('RGB')||document.querySelector('#rgb-status').textContent.includes('Configuration'));
  await page.locator('#rgb-manual').click();
  await page.locator('#rgb-presets button[data-h="0"]').click();
  page.once('dialog',d=>d.dismiss());
- await nav('presence').click();
+ await nav('settings').click();
  assert.equal(await page.evaluate(()=>activeTab),'profiles');
  await page.locator('#rgb-save').click();
  await page.waitForFunction(()=>!window.HueRGB.hasChanges());
@@ -310,6 +317,9 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>selectedId==='light-1'&&window.HueRGB.currentId()==='light-1');
  // Daily solar settings: date is preview-only; activation persists the rhythm.
  await page.locator('.v052-mode[data-type="solar"]').click();
+ assert.equal(await page.locator('#solar-preview').getAttribute('open'),null);
+ await page.locator('#v052-solar-editor .profile-options > summary').first().click();
+ await page.locator('#solar-preview > summary').click();
  await page.locator('#solar-wake').fill('05:15');
  await page.locator('#solar-bed').fill('22:30');
  await page.locator('#solar-date').fill('2026-11-06');
@@ -327,25 +337,30 @@ const assert=require('node:assert/strict');
    await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
    await page.screenshot({path:`/tmp/hue-ergonomics-solar-${width}.png`,fullPage:true});
  }
- // Both copy operations retain their distinct behavior and confirmation.
+ // The displayed lamp is the copy source.
  await page.locator('.profile-copy > summary').click();
- await page.locator('#v062-copy-source').selectOption('light-0');
+ await page.locator('#profile-copy-target').selectOption('light-0');
  page.once('dialog',d=>d.accept());
  await page.locator('#v063-copy-full').click();
  await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Profil complet copié'));
- page.once('dialog',d=>d.accept());
- await page.locator('#v062-copy').click();
- await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Courbe copiée'));
- // Settings and updates are separate destinations, even when returning from History.
- await nav('presence').click();
- await nav('updates').click();
- assert.equal(await page.locator('#tab-updates').isVisible(),true);
- assert.equal(await page.locator('.settings-nav').isVisible(),false);
- assert.deepEqual(await page.locator('.nav [aria-current="page"]').evaluateAll(nodes=>nodes.map(node=>node.dataset.tab)),['updates']);
- // Technical functions live under Settings, without the clock source.
+ assert.deepEqual(writes.find(r=>r.url==='/api/profile/copy/light-0').data,{source_uid:'light-1'});
+ await nav('simulation').click();
+ assert.match(await page.locator('#simulation-lamp').textContent(), /Salon/);
+ // Settings includes History, updates and the shared city.
  await nav('settings').click();
- assert.equal(await page.locator('#tab-updates').isVisible(),false);
+ assert.equal(await page.locator('#update-version').textContent(),'old12345');
+ await panel('presence').click();
+ await check(page.locator('#presence-rows').isVisible(),'history');
+ await panel('updates').click();
+ await check(page.locator('#tab-updates').isVisible(),'updates inside settings');
  assert.deepEqual(await page.locator('.nav [aria-current="page"]').evaluateAll(nodes=>nodes.map(node=>node.dataset.tab)),['settings']);
+ await panel('location').click();
+ await page.locator('#solar-place').selectOption('lausanne');
+ await page.locator('#solar-location-save').click();
+ await page.waitForFunction(()=>document.querySelector('#toast').textContent==='Ville enregistrée.');
+ const solarAtHome=await page.evaluate(()=>api('/api/profile/solar/light-1'));
+ assert.equal(solarAtHome.config.latitude,46.5197);
+ assert.equal(solarAtHome.config.wake,315);
  await check(page.locator('#clock-source').isHidden(),'no clock source in settings');
  await page.locator('.settings-nav [data-tab="setup"]').click();
  assert.equal(await page.locator('#setup-ip').inputValue(),'10.0.0.12');
@@ -380,6 +395,7 @@ const assert=require('node:assert/strict');
  await nav('dashboard').click();
  // Dawn settings are saved once, and show the alarm confirmed by the Raspberry.
  await page.setViewportSize({width:320,height:1000});
+ await page.getByText('Réveil lumineux',{exact:true}).click();
  await page.locator('#dawn-save').waitFor();
  await page.locator('#dawn-enabled').check();
  await page.locator('#dawn-light').selectOption('light-0');
@@ -397,14 +413,19 @@ const assert=require('node:assert/strict');
  await page.locator('#dawn-save').click();
  await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent==='Désactivé.');
  await page.setViewportSize({width:1320,height:1000});
- // Vacations, manual commands, history and advanced diagnostics remain reachable.
- await page.locator('.light-card').first().locator('.switch').click();
- await page.waitForFunction(()=>!state.lights[0].on);
- await page.locator('.light-card').first().locator('.switch').click();
- await page.locator('.light-card').first().locator('[data-control="auto"]').click();
- await page.locator('.light-card').first().locator('.light-rgb').click();
- await check(page.locator('#rgb-wheel').isVisible(),'color shortcut opens disclosure');
- await nav('dashboard').click();
+ // Manual brightness is disclosed on the lamp name and Auto closes it.
+ await page.getByText('Modes des lampes',{exact:true}).click();
+ const row=page.locator('.mode-row').first();
+ await row.locator('[data-control="manuel"]').click();
+ await row.locator('[data-control="manuel"][aria-pressed="true"]').waitFor();
+ await row.locator('.lamp-name').click();
+ await row.locator('.light-brightness').fill('42');
+ await page.waitForFunction(()=>state.lights[0].brightness===42);
+ await row.locator('[data-control="auto"]').click();
+ await row.locator('[data-control="auto"][aria-pressed="true"]').waitFor();
+ assert.equal(await row.locator('.light-brightness').isHidden(),true);
+ assert.equal(await row.locator('.light-curve,.light-rgb,.light-details,.light-switch').count(),0);
+ await page.locator('.vacation-summary').click();
  await page.locator('#vacation-lights input').first().check();
  await page.locator('#vacation-toggle').click();
  await page.waitForFunction(()=>document.querySelector('#vacation-status').textContent==='ACTIF');
@@ -414,7 +435,8 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#vacation-test-toggle').dataset.running==='false');
  await page.locator('#vacation-toggle').click();
  await page.waitForFunction(()=>document.querySelector('#vacation-status').textContent!=='ACTIF');
- await nav('presence').click();
+ await nav('settings').click();
+ await panel('presence').click();
  await check(page.locator('#presence-rows').isVisible(),'history preserved');
  await nav('settings').click();
  await page.locator('.settings-nav [data-tab="diagnostics"]').click();
@@ -427,7 +449,7 @@ const assert=require('node:assert/strict');
  assert.ok((await download).suggestedFilename().endsWith('.json'));
  await page.locator('#refresh-logs').click();
  await check(page.locator('#log-display').isVisible(),'logs preserved');
- await nav('updates').click();
+ await panel('updates').click();
  await check(page.locator('#update-apply').isEnabled(),'installation remains accessible');
  // First installation: no made-up IP and association opens inside Settings.
  const first=await browser.newPage();
@@ -450,6 +472,6 @@ const assert=require('node:assert/strict');
  assert.equal(await first.locator('#setup-ip').inputValue(),'10.0.0.99');
  await first.close();
  assert.equal(errors.length,0,errors.join('\n'));
- console.log('PASS: responsive navigation, clock, curve/simple/RGB saves and guards, both copies, async discovery, pairing, manual/Auto, vacation test, history, powerup, export, logs, update badge.');
+ console.log('PASS: responsive navigation, clock, curve/simple/RGB saves and guards, full copy, async discovery, pairing, manual/Auto, vacation test, history, powerup, export, logs, update badge.');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

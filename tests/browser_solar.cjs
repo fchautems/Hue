@@ -10,6 +10,8 @@ const assert=require('node:assert/strict');
  await page.locator('.nav [data-tab="profiles"]').click();
  await page.waitForFunction(()=>selectedId==='light-0'&&!document.querySelector('#v052-wake').disabled);
  await page.locator('.v052-mode[data-type="solar"]').click();
+ await page.locator('#v052-solar-editor .profile-options > summary').first().click();
+ await page.locator('#solar-preview > summary').click();
  await page.locator('#solar-results').waitFor({state:'visible'});
  await page.locator('#solar-wake').fill('05:15');
  await page.locator('#solar-bed').fill('22:30');
@@ -48,6 +50,7 @@ const assert=require('node:assert/strict');
  await page.locator('#profile-light').selectOption('light-1');
  await page.waitForFunction(()=>selectedId==='light-1'&&!document.querySelector('#solar-wake').disabled);
  await page.locator('.v052-mode[data-type="solar"]').click();
+ await page.locator('#v052-solar-editor .profile-options > summary').first().click();
  await page.locator('#solar-wake').fill('07:10');await page.locator('#solar-save').click();
  await page.waitForFunction(()=>!window.HueSolar.isBusy()&&document.querySelector('#v052-type-status').textContent.includes('Soleil actif'));
  await page.locator('#profile-light').selectOption('light-0');
@@ -55,6 +58,8 @@ const assert=require('node:assert/strict');
  // Profile selection persists after reload. No activation based on the preview date.
  await page.reload();await page.locator('.light-card').first().waitFor({state:'attached'});await page.locator('.nav [data-tab="profiles"]').click();
  await page.waitForFunction(()=>document.querySelector('.profile-card').dataset.v052View==='solar'&&!document.querySelector('#solar-wake').disabled&&document.querySelector('#solar-wake').value==='05:15');
+ assert.equal(await page.locator('#solar-preview').getAttribute('open'),null);
+ await page.locator('#v052-solar-editor .profile-options > summary').first().click();
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
@@ -89,6 +94,8 @@ const assert=require('node:assert/strict');
  },{times:1});
  await page.reload();await page.locator('.light-card').first().waitFor({state:'attached'});await page.locator('.nav [data-tab="profiles"]').click();
  try{await page.waitForFunction(()=>!document.querySelector('#solar-wake').disabled&&document.querySelector('#solar-comfort').value==='62');}catch(e){console.error('Reload state',await page.evaluate(()=>({selectedId,activeTab,status:document.querySelector('#solar-save-status').textContent,value:document.querySelector('#solar-comfort').value,disabled:document.querySelector('#solar-wake').disabled})),errors,await page.evaluate(()=>api('/api/profile/solar/light-0')));throw e;}
+ await page.locator('#v052-solar-editor .profile-options > summary').first().click();
+ await page.locator('#solar-preview > summary').click();
  assert.equal(await page.locator('#solar-transition').inputValue(),'45');assert.equal(await page.locator('#solar-day_kelvin').inputValue(),'4500');
  await page.locator('#solar-wake').fill('02:00');await page.locator('#solar-transition').fill('180');assert.equal(await page.locator('#solar-save').isDisabled(),true,'overlapping night ramps rejected');
  await page.locator('#solar-cancel').click();assert.equal(await page.locator('#solar-transition').inputValue(),'45');
@@ -98,34 +105,31 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#solar-status').textContent.includes('Vérifie'));
  assert.equal(await page.locator('#solar-results').isVisible(),false);
  await page.locator('#solar-cancel').click();
- await page.locator('#solar-place').selectOption('custom');await page.locator('#solar-zone').fill('No/SuchZone');
- await page.waitForFunction(()=>document.querySelector('#solar-status').textContent.includes('indisponible'));
- await page.locator('#solar-zone').fill('Europe/Zurich');await page.locator('#solar-lat').fill('78.22');await page.locator('#solar-lon').fill('15.65');
+ // Settings validate the shared city before replacing the per-lamp location.
+ await page.locator('.nav [data-tab="settings"]').click();
+ await page.locator('.settings-nav [data-tab="location"]').click();
+ await page.locator('#solar-place').selectOption('custom');
+ await page.locator('#solar-zone').fill('No/SuchZone');
+ await page.locator('#solar-location-save').click();
+ await page.getByText('Fuseau horaire inconnu.',{exact:true}).waitFor();
+ assert.equal((await page.evaluate(()=>api('/api/solar/location'))).location,null);
+ await page.locator('#solar-zone').fill('Europe/Zurich');
+ await page.locator('#solar-lat').fill('78.22');
+ await page.locator('#solar-lon').fill('15.65');
+ await page.locator('#solar-location-save').click();
+ await page.getByText('Ville enregistrée.',{exact:true}).waitFor();
+ await page.locator('.nav [data-tab="profiles"]').click();
  await page.locator('#solar-date').fill('2027-06-21');
  await page.waitForFunction(()=>document.querySelector('#solar-draft-hours').textContent.includes('Soleil absent'));
- await page.locator('#solar-cancel').click();
- // A fixed brightness copy preserves destination colours and remains editable.
- await page.locator('#profile-light').selectOption('light-1');
- await page.waitForFunction(()=>selectedId==='light-1'&&!document.querySelector('#solar-wake').disabled);
- const colorsBefore=(await page.evaluate(()=>api('/api/rgb/light-1'))).colors;
- await page.locator('.profile-copy > summary').click();await page.locator('#v062-copy-source').selectOption('light-0');
- page.once('dialog',d=>d.accept());await page.locator('#v062-copy').click();
- await page.waitForFunction(()=>document.querySelector('.profile-card').dataset.v052View==='simple'&&!document.querySelector('#v052-max_brightness').disabled);
- const copied=await page.evaluate(()=>api('/api/profile/simple/light-1'));
- assert.equal(copied.params.solar_colors,false);
- assert.equal(copied.params.solar_rhythm.comfort,62);
- assert.deepEqual((await page.evaluate(()=>api('/api/rgb/light-1'))).colors,colorsBefore);
- await page.locator('#v052-max_brightness').fill('91');await page.locator('#v052-save').click();
- await page.waitForFunction(()=>!window.HueProfiles.hasUnsaved());
- assert.equal('solar_rhythm' in (await page.evaluate(()=>api('/api/profile/simple/light-1'))).params,false,'editing a fixed copy adopts the visible simple controls');
- await page.locator('#profile-light').selectOption('light-0');
- await page.waitForFunction(()=>selectedId==='light-0'&&document.querySelector('.profile-card').dataset.v052View==='solar'&&!document.querySelector('#solar-wake').disabled);
- // Switching away from Soleil keeps its options for a later return.
- await page.locator('.v052-mode[data-type="custom"]').click();
- await page.locator('#v052-activate-custom').click();
- await page.waitForFunction(()=>document.querySelector('#v052-type-status').textContent.includes('personnalisé actif'));
+ for (const id of ['light-0','light-1']) {
+   assert.equal((await page.evaluate(uid=>api('/api/profile/solar/'+uid),id)).config.latitude,78.22);
+ }
+ // Save a Simple profile while keeping Soleil's settings for a later return.
+ await page.locator('.v052-mode[data-type="simple"]').click();
+ await page.locator('#v052-save').click();
+ await page.waitForFunction(()=>document.querySelector('#v052-type-status').textContent.includes('Profil simple actif'));
  assert.equal((await page.evaluate(()=>api('/api/profile/solar/light-0'))).config.wake,315);
  assert.equal(errors.length,0,errors.join('\n'));
- console.log('PASS: persistent daily solar per lamp, read-only seasonal dates, reload, drafts/guards, RGB source preservation, polar/validation, 320/390/1320 px.');
+ console.log('PASS: shared city, daily solar settings, seasonal dates, drafts, reload and responsive layouts.');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

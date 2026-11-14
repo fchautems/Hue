@@ -45,6 +45,31 @@ class DailySolarTests(TestCase):
             self.assertEqual(rebooted._effective_simple('light-0'),s._effective_simple('light-0'))
         self.assertEqual(rebooted.settings['profile_types']['light-0'],'solar')
 
+    def test_shared_location_migrates_effective_profiles_and_survives_restart(self):
+        s = self.server
+        s.set_solar_profile('light-0', self.config)
+        other = dict(self.config, latitude=46.3833, longitude=6.2333, wake=380)
+        s.set_solar_profile('light-1', other)
+        self.assertIsNone(s.get_solar_location())
+        self.assertEqual(s.solar_profile('light-1')['config'], other)
+        s._effective_simple('light-0')
+        location = {'latitude': 46.5197, 'longitude': 6.6323, 'tz': 'Europe/Zurich'}
+        with patch.object(s, 'save', side_effect=OSError('disk')):
+            with self.assertRaises(OSError):
+                s.set_solar_location(location)
+        self.assertIsNone(s.get_solar_location())
+        s.set_solar_location(location)
+        self.assertEqual(self.bridge.calls, [])
+        self.assertEqual(s.settings['solar_profiles']['light-1'], other)
+        for uid, original in [('light-0', self.config), ('light-1', other)]:
+            expected = {**original, **location}
+            self.assertEqual(s.solar_profile(uid)['config'], expected)
+            self.assertEqual(s._effective_simple(uid), draft_profile(self.instant.date(), **expected)['params'])
+        rebooted = HueServer(self.bridge, self.path, logging.getLogger('shared-location'))
+        rebooted.poll()
+        self.assertEqual(rebooted.get_solar_location(), location)
+        self.assertEqual(rebooted.solar_profile('light-1')['config'], {**other, **location})
+
     def test_dst_and_local_day_not_host_timezone(self):
         s=self.server;s.set_solar_profile('light-0',self.config)
         for instant in ['2027-03-28T01:30:00+01:00','2027-03-28T03:30:00+02:00',

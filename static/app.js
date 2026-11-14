@@ -4,7 +4,7 @@ const $$ = s => [...document.querySelectorAll(s)];
 let state = null;
 let selectedId = null;
 let editingPoints = [];
-let cardIds = "";
+let cardIds = null;
 let lastStateAt = performance.now();
 let activeTab = "rooms";
 let powerupId = null;
@@ -19,7 +19,6 @@ let setupFirstShown = false;
 let setupCancelled = false;
 let setupInitDone = false;
 let updaterWasBusy = false;
-let settingsPanel = "setup";
 let setupIpEdited = false;
 const pendingPower = new Map();
 const POWER_CONFIRM_MS = 12000;
@@ -35,7 +34,6 @@ async function api(url, method="GET", data=undefined, extraHeaders={}) {
 }
 async function safe(fn) { try {await fn();} catch(e) {showToast(e.message,true);} }
 function renderPower() {
-  updateLights(state.lights);
   if(activeTab==='rooms')window.HueRooms?.render(state);
 }
 function confirmPower(snapshot) {
@@ -143,35 +141,54 @@ function addLightCards(lights) {
   const ids=lights.map(l=>l.id).join("|");
   if (ids===cardIds) return;
   cardIds=ids;
-  $("#light-grid").innerHTML=lights.length?lights.map(l=>`<article class="card light-card" data-id="${escapeHtml(l.id)}"><div class="light-top"><div class="light-icon">☀</div><label class="switch"><input class="light-switch" type="checkbox" aria-label="Allumer ou éteindre ${escapeHtml(l.name)}"><span></span></label></div><h3>${escapeHtml(l.name)}</h3><div class="subline">${escapeHtml(l.model)}</div><div class="lamp-control"><div class="lamp-control-label">Pilotage de cette lampe</div><div class="lamp-mode-buttons" role="group" aria-label="Pilotage de ${escapeHtml(l.name)}"><button type="button" class="lamp-mode-btn" data-control="manuel" aria-pressed="false">Manuel</button><button type="button" class="lamp-mode-btn" data-control="auto" aria-pressed="false">Auto</button></div><small class="lamp-mode-help"></small></div><div class="light-bottom"><div class="light-level"><span>Luminosité</span><strong class="light-value">— %</strong></div><input class="range light-brightness" type="range" min="1" max="100" step="1"><div class="light-foot"><span class="pill light-status">…</span><div class="light-foot-actions"><button class="tiny light-curve" type="button">Courbe →</button>${l.capabilities?.color?`<button class="tiny light-rgb" type="button">Couleurs →</button>`:``}<button class="tiny light-details" type="button">Diagnostic →</button></div></div></div></article>`).join(''):'<div class="empty">Aucune ampoule trouvée.</div>';
-  $$(".light-card").forEach(card=>{
-    const id=card.dataset.id;
-    card.querySelector(".light-switch").addEventListener("change",e=>{
-      const on=e.target.checked;
-      e.target.checked=!!state.lights.find(light=>light.id===id)?.on;
-      changePower([id],on);
-    });
+  $("#light-grid").innerHTML=lights.length?lights.map(light=>{
+    const id=escapeHtml(light.id),name=escapeHtml(light.name);
+    return `<article class="light-card mode-row" data-id="${id}">
+      <button type="button" class="lamp-name" aria-expanded="false">${name}</button>
+      <div class="lamp-mode-buttons" role="group" aria-label="Pilotage de ${name}">
+        <button type="button" class="lamp-mode-btn" data-control="auto" aria-pressed="false">Auto</button>
+        <button type="button" class="lamp-mode-btn" data-control="manuel" aria-pressed="false">Manuel</button>
+      </div>
+      <div class="lamp-brightness" hidden>
+        <label>Luminosité <output class="light-value">— %</output>
+          <input class="range light-brightness" type="range" min="1" max="100" step="1">
+        </label>
+        <small class="brightness-status"></small>
+      </div>
+      <small class="lamp-override" hidden>Manuel jusqu’au rallumage</small>
+    </article>`;
+  }).join(''):'<div class="empty">Aucune ampoule trouvée.</div>';
+  $$(".mode-row").forEach(card=>{
+    const path=`/api/light/${encodeURIComponent(card.dataset.id)}`;
+    const name=card.querySelector(".lamp-name");
+    const brightness=card.querySelector(".lamp-brightness");
     const slider=card.querySelector(".light-brightness");
-    slider.addEventListener("input",e=>{card.querySelector(".light-value").textContent=`${e.target.value} %`;});
-    slider.addEventListener("change",e=>safe(async()=>{await api(`/api/light/${encodeURIComponent(id)}/brightness`,"POST",{brightness:Number(e.target.value)});showToast('Luminosité demandée');await refresh();}));
-    card.querySelectorAll(".lamp-mode-btn").forEach(btn=>btn.addEventListener("click",()=>safe(async()=>{
-      const mode=btn.dataset.control;
-      card.querySelectorAll(".lamp-mode-btn").forEach(b=>b.disabled=true);
+    const value=card.querySelector(".light-value");
+    const modes=[...card.querySelectorAll(".lamp-mode-btn")];
+    name.onclick=()=>{
+      brightness.hidden=!brightness.hidden;
+      name.setAttribute('aria-expanded',String(!brightness.hidden));
+    };
+    slider.oninput=()=>{value.textContent=`${slider.value} %`;};
+    slider.onchange=()=>safe(async()=>{
+      slider.dataset.saving='true';
+      slider.disabled=true;
       try{
-        await api(`/api/light/${encodeURIComponent(id)}/control-mode`,"POST",{mode});
-        showToast(mode==='auto'?'Cette lampe suit maintenant sa courbe.':'Cette lampe est maintenant indépendante.');
+        await api(path+'/brightness',"POST",{brightness:Number(slider.value)});
+        showToast('Luminosité demandée');
+      }finally{
+        delete slider.dataset.saving;
         await refresh();
-      }finally{card.querySelectorAll(".lamp-mode-btn").forEach(b=>b.disabled=false);}
-    })));
-    card.querySelector(".light-curve").addEventListener("click",()=>{
-      if(window.HueMerged){window.HueMerged.openCurve(id);return;}
-      setTab("profiles");selectedId=id;$('#profile-light').value=id;loadProfile();
+        updateLights(state.lights);
+      }
     });
-    card.querySelector(".light-rgb")?.addEventListener("click",()=>{
-      if(window.HueMerged){window.HueMerged.openColors(id);return;}
-      setTab("profiles");window.HueRGB?.open(id);
-    });
-    card.querySelector(".light-details").addEventListener("click",()=>{setTab("diagnostics");});
+    modes.forEach(btn=>btn.onclick=()=>safe(async()=>{
+      modes.forEach(b=>b.disabled=true);
+      try{
+        await api(path+'/control-mode',"POST",{mode:btn.dataset.control});
+        await refresh();
+      }finally{modes.forEach(b=>b.disabled=false);}
+    }));
   });
   const select=$("#profile-light"); const was=selectedId;
   select.innerHTML=lights.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
@@ -179,34 +196,35 @@ function addLightCards(lights) {
   if(selectedId){select.value=selectedId;loadProfile();}
 }
 function updateLights(lights) {
-  for(const light of lights){
-    const card=$$(".light-card").find(c=>c.dataset.id===light.id); if(!card)continue;
-    const cb=card.querySelector('.light-switch'); const slider=card.querySelector('.light-brightness');
-    cb.checked=!!light.on;
-    const waiting=pendingPower.has(light.id);
-    cb.closest('.switch').setAttribute('aria-busy',String(waiting));
+  const byId=new Map(lights.map(light=>[light.id,light]));
+  for(const card of $$('.mode-row')){
+    const light=byId.get(card.dataset.id);
+    if(!light)continue;
+    const name=card.querySelector('.lamp-name');
+    const brightness=card.querySelector('.lamp-brightness');
+    const slider=card.querySelector('.light-brightness');
     const isAuto=light.control_mode==='auto';
-    if(document.activeElement!==slider){slider.value=Math.max(1,Math.round(light.brightness??1));card.querySelector('.light-value').textContent=light.brightness==null?'Non disponible':`${Math.round(light.brightness)} %`;}
-    slider.disabled=isAuto||!light.capabilities.dimming||!light.on||light.status==='disconnected';
-    slider.title=isAuto?'Luminosité réglée par la courbe : passe en Manuel pour la modifier.':'Régler la luminosité';
-    cb.disabled=waiting||!state.connected||light.status==='disconnected'||!light.capabilities.on;
+    name.disabled=isAuto||!light.capabilities.dimming;
+    if(name.disabled){brightness.hidden=true;name.setAttribute('aria-expanded','false');}
+    const offline=!state.connected||light.status==='disconnected';
+    const reason=offline?'Lampe hors ligne':!light.on?'Allume la lampe dans Pièces.':'';
+    card.querySelector('.brightness-status').textContent=reason;
+    if(document.activeElement!==slider&&!slider.dataset.saving){
+      slider.value=Math.max(1,Math.round(light.brightness??1));
+      card.querySelector('.light-value').textContent=light.brightness==null?'— %':`${Math.round(light.brightness)} %`;
+    }
+    slider.disabled=name.disabled||!!reason||!!slider.dataset.saving;
     card.querySelectorAll('.lamp-mode-btn').forEach(btn=>{
       const chosen=btn.dataset.control===light.control_mode;
       btn.classList.toggle('active',chosen);
       btn.setAttribute('aria-pressed',String(chosen));
     });
-    card.querySelector('.lamp-mode-help').textContent=light.manual_override?'Manuel temporaire · Auto au rallumage':isAuto?`Courbe horaire active · cible ${Math.round(light.target)} %`:'Luminosité libre · indépendante de l’horloge';
-    const status=card.querySelector('.light-status');
-    status.className='pill light-status'+(light.status==='connected'?' ok':light.status==='disconnected'?' bad':'');
-    status.textContent=light.status==='connected'?'● En ligne':light.status==='disconnected'?'● Hors ligne':`● ${light.status}`;
+    card.querySelector('.lamp-override').hidden=!light.manual_override;
   }
 }
 function setTab(tab) {
   if(tab==="colors")tab="profiles";
-  const panels=['setup','diagnostics'];
-  if(tab==='settings')tab=settingsPanel;
-  const inSettings=panels.includes(tab);
-  if(inSettings)settingsPanel=tab;
+  const inSettings=['settings','location','setup','diagnostics','presence','updates'].includes(tab);
   activeTab=tab;
   document.body.classList.toggle('rooms-page',tab==='rooms');
   $$('.tab').forEach(x=>x.classList.toggle('hidden', x.id!==`tab-${inSettings?'settings':tab}`));
@@ -216,8 +234,19 @@ function setTab(tab) {
     x.classList.toggle('active',chosen);
     x.setAttribute('aria-current',chosen?'page':'false');
   });
-  const titles={rooms:['Pièces','Commande une pièce ou une lampe.'],dashboard:['Lampes & vacances','Tes lampes au quotidien et ton programme de présence.'],profiles:['Profils & simulation','Horloge & lumières : courbes, couleurs et simulation pour chaque lampe.'],presence:['Historique','Allumages, extinctions et connexions observés.'],diagnostics:['Paramètres avancés','Capacités des lampes, démarrage, diagnostics et logs.'],setup:['Paramètres · Pont Hue','Adresse et association locale ; à utiliser lors de l’installation ou d’un changement de pont.'],updates:['Mises à jour','Vérifier et installer les nouvelles versions depuis GitHub.']};
-  $('#page-title').textContent=titles[tab][0]; $('#page-subtitle').textContent=titles[tab][1];
+  const titles={
+    rooms:['Pièces','Commande une pièce ou une lampe.'],
+    dashboard:['Automatisations',''],
+    profiles:['Profil',''],
+    simulation:['Simulation',''],
+    settings:['Paramètres','']
+  };
+  const [title,subtitle]=titles[inSettings?'settings':tab];
+  $('#page-title').textContent=title;
+  $('#page-subtitle').textContent=subtitle;
+  $('#page-subtitle').hidden=!subtitle;
+  if(tab==='location')window.HueSolar?.openLocation();
+  if(tab==='simulation')renderSimulationLamp();
   if(tab==='rooms' && state)window.HueRooms?.update(state);
   if(tab==='presence')window.HuePresence?.refresh();
   if(tab==='profiles' && state?.lights?.length)window.HueRGB?.open(selectedId,false,true);
@@ -243,20 +272,22 @@ async function refresh() {
     if(activeTab==='rooms')window.HueRooms?.update(s);
     $('#error-banner').classList.toggle('hidden', !s.error || s.needs_setup);
     $('#error-banner').textContent=s.error||'';
-    $('#stat-count').textContent=s.lights.length;
-    $('#stat-online').textContent=s.lights.filter(l=>l.status==='connected').length;
-    $('#stat-mode').textContent=`${s.auto_count} / ${s.lights.length}`;
-    $('#light-updated').textContent=s.last_poll?`Pont actualisé : ${s.last_poll.replace('T',' ').slice(11,19)}`:'En attente du pont';
     if(document.activeElement!==$('#clock-source'))$('#clock-source').value=s.clock_mode;
     renderSimulationControls();
     $('#clock-mode').textContent=s.clock_mode==='accelere'?'TEMPS ACCÉLÉRÉ':'HEURE RÉELLE';
     $('#sim-notice').textContent=s.clock_mode==='accelere'?'L’horloge accélérée agit seulement sur les lampes en Auto.':'L’horloge réelle agit seulement sur les lampes en Auto.';
     addLightCards(s.lights);
     updateLights(s.lights);
+    if(activeTab==='simulation')renderSimulationLamp();
     window.HueSolar?.refreshStatus();
     tickClock();
   } catch(e){$('#bridge-label').textContent='Serveur indisponible';$('#error-banner').classList.remove('hidden');$('#error-banner').textContent=e.message;}
   finally{refreshBusy=false;}
+}
+function renderSimulationLamp() {
+  const light=state?.lights.find(l=>l.id===selectedId);
+  const value=Number.isFinite(light?.target)?` · cible ${Math.round(light.target)} %`:'';
+  $('#simulation-lamp').textContent=light?`Lampe sélectionnée · ${light.name}${value}`:'';
 }
 function renderSimulationControls() {
   const simulation=state?.simulation;
@@ -448,10 +479,12 @@ async function refreshUpdater(){
   $('#footer-version').textContent=revision?'Hue Lab · révision '+revision.slice(0,8):'Hue Lab · révision inconnue';
   label.textContent=status.message||(status.configured?'Prêt pour la vérification GitHub.':'Migration initiale requise via Termux.');
   renderUpdateChanges(status);
+  $('#update-version').textContent=revision?revision.slice(0,8):'Version inconnue';
   const badge=$('#update-badge');
   badge.hidden=!status.available&&!status.busy;
   badge.textContent=status.busy?'En cours…':'Disponible';
-  $('.update-shortcut').setAttribute('aria-label',status.available?'Mises à jour : une version est disponible':'Mises à jour');
+  $('.update-shortcut').setAttribute('aria-label',status.available?'Mises à jour disponibles':'Mises à jour');
+  $('#settings-update-dot').hidden=!status.available&&!status.busy;
   const blocked=!status.configured||!!status.busy;
   $('#update-check').disabled=blocked;
   $('#update-apply').disabled=blocked||!status.available;

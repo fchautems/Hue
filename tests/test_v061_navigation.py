@@ -47,10 +47,10 @@ class UnifiedInterfaceTests(unittest.TestCase):
         cls.parser = NodeParser()
         cls.parser.feed(cls.template)
 
-    def test_a_single_combined_navigation_entry(self):
+    def test_separate_profile_and_simulation_entries(self):
         self.assertEqual(self.parser.nav.count("profiles"), 1)
         self.assertEqual(self.parser.nav.count("colors"), 0)
-        self.assertIn("Profils & simulation", self.template)
+        self.assertEqual(self.parser.nav.count("simulation"), 1)
 
     def test_clock_is_preserved_and_rgb_nested_in_same_tab(self):
         p = self.parser
@@ -59,21 +59,21 @@ class UnifiedInterfaceTests(unittest.TestCase):
         self.assertEqual(len(p.ids["rgb-wheel"]), 1)
         self.assertIn("tab-profiles", p.ids["tab-colors"][0][2])
         self.assertNotIn("tab", p.ids["tab-colors"][0][1].get("class", "").split())
-        self.assertIn("tab-profiles", p.ids["v061-advanced"][0][2])
+        self.assertIn("tab-simulation", p.ids["clock-svg"][0][2])
 
     def test_common_lamp_selector_and_advanced_editor(self):
         p = self.parser
         self.assertEqual(len(p.ids["profile-light"]), 1)
         self.assertIn("tab-profiles", p.ids["profile-light"][0][2])
-        self.assertIn("v061-advanced", p.ids["point-rows"][0][2])
-        self.assertIn("v061-advanced", p.ids["v052-simple-editor"][0][2])
-        self.assertEqual(p.ids["v061-advanced"][0][0], "details")
+        self.assertIn("tab-profiles", p.ids["point-rows"][0][2])
+        self.assertIn("tab-profiles", p.ids["v052-simple-editor"][0][2])
+        self.assertNotIn("custom", [attrs.get("data-type") for _, attrs, _ in p.nodes])
         self.assertIn("#tab-profiles #tab-colors .rgb-lamp-row{display:none", self.css)
 
     def test_clock_not_hidden_on_mobile(self):
-        self.assertIn("#tab-profiles .two-col.top-section{display:grid!important", self.css)
-        self.assertIn("#tab-profiles #v061-sim-options{display:none}", self.css)
-        self.assertIn("body.v051-show-simulator #tab-profiles #v061-sim-options{display:block}", self.css)
+        self.assertIn("#tab-simulation .two-col.top-section{display:grid!important", self.css)
+        self.assertIn("#tab-simulation #v061-sim-options{display:none}", self.css)
+        self.assertIn("body.v051-show-simulator #tab-simulation #v061-sim-options{display:block}", self.css)
 
     def test_preserves_unsaved_changes_and_navigation(self):
         self.assertIn("window.HueRGB?.hasChanges()", self.ui)
