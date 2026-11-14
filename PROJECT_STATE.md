@@ -4,7 +4,7 @@
 - Cinq onglets sur deux rangées en mobile. Automatisations regroupe les modes par lampe, le réveil lumineux et Vacances dans des sections repliables. Le plan Pièces garde les commandes marche/arrêt.
 - Profil affiche la courbe de la lampe sélectionnée, avec réglages et aperçu détaillé repliables. L’option Personnalisée disparaît du choix des profils ; les courbes existantes restent consultables et éditables tant qu’elles sont actives. La copie complète part de la lampe affichée. Simulation a son onglet et reprend la lampe sélectionnée.
 - Paramètres regroupe la ville, l’historique, les mises à jour, le pont et les diagnostics. La ville s’enregistre sur le serveur et s’applique à tous les profils Soleil. Avant le premier choix, chaque profil conserve son lieu.
-- Contrôles locaux : suites Python et Node. Chromium local est bloqué par l’environnement ; les parcours navigateur sur pont simulé passent par la CI. Prochaine action : vérifier les parcours mobiles en CI, puis essayer sur le Pixel avec le pont réel.
+- Contrôles : 223 tests Python, parité et suites Node réussis. Le parcours Chromium Soleil passe en CI dans la PR #34. Le test de navigation attend désormais la réponse de l’API avant de vérifier l’adresse du pont. Prochaine action : terminer la validation du parcours complet en CI, puis essayer sur le Pixel avec le pont réel.
 
 ## v0.15.2 — Lisibilité du plan sur Pixel — 2026-11-10
 - Capture Pixel sur la v0.15.1 : le plan tient sur l’écran, mais sa hauteur fixe aplatit le croquis et les doubles cercles dominent visuellement.
