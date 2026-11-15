@@ -56,12 +56,13 @@ body.v051-show-simulator #tab-simulation #v061-sim-options{display:block}
 #tab-dashboard .activity-details{margin:0 0 10px}
 #tab-dashboard .vacation-card{margin:0;border:0;border-radius:0}
 .vacation-summary .chip{margin-left:8px}
-#tab-dashboard .light-grid{display:block}
-#tab-dashboard .mode-row{
+.lamp-modes{max-width:540px;margin:10px auto}
+.lamp-modes .light-grid{display:block}
+.lamp-modes .mode-row{
   display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
   gap:0 8px;padding:2px 12px;min-height:0;border-top:1px solid var(--border)
 }
-#tab-dashboard .mode-row::after{content:none}
+.lamp-modes .mode-row::after{content:none}
 #lamp-modes-title{
   background:var(--panel-2);font-size:14px;font-weight:650;margin:0;padding:12px
 }

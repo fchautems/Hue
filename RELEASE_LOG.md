@@ -1,3 +1,8 @@
+## v0.16.2 — Jonctions du plan et commandes des lampes — 2026-11-15
+
+- Dans Pièces, les murs se rejoignent aux mêmes coordonnées. Les bords du couloir, du bureau et de la salle de bain forment des lignes continues et les quatre coins extérieurs sont arrondis.
+- Les modes Auto et Manuel sont disponibles juste sous le plan. Le curseur de luminosité apparaît en Manuel.
+
 ## v0.16.1 — Commandes directes des lampes — 2026-11-15
 
 - **Code concret :** dans Automatisations, la liste Auto/Manuel est toujours ouverte. Le curseur apparaît en Manuel, affiche le pourcentage pendant le geste et envoie les niveaux au pont pendant le glissement.
