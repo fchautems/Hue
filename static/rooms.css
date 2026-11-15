@@ -118,6 +118,7 @@
   color: #c2cddd;
   font-size: 12px;
 }
+.plan-room-layer { position: absolute; inset: 0; clip-path: url(#plan-outer-clip); }
 .plan-room { position: absolute; }
 .plan-room-action {
   position: absolute;
@@ -127,8 +128,8 @@
   justify-items: start;
   align-content: start;
   padding: 5px 4px 0 7px;
-  border: 1px solid #516780;
-  border-radius: 6px;
+  border: 0;
+  border-radius: 0;
   background: #192b3e;
   color: #edf4fb;
   font: inherit;
@@ -137,19 +138,13 @@
   text-align: left;
   cursor: pointer;
 }
-.plan-room[data-plan-room="salon"] .plan-room-action { border-right: 0; border-radius: 8px 0 0 0; }
-.plan-room[data-plan-room="cuisine"] .plan-room-action { border-left-style: dashed; border-radius: 0 8px 0 0; }
-.plan-room[data-plan-room="bain"] .plan-room-action { border-radius: 0 0 8px 0; font-size: 11px; padding-inline: 4px; }
+.plan-room[data-plan-room="bain"] .plan-room-action { font-size: 11px; padding-inline: 4px; }
 .plan-room-label-short { display: none; }
-.plan-room-shaped { border: 0; border-radius: 0; }
-.plan-outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.plan-outline polygon { fill: none; stroke: #516780; stroke-width: 1px; }
-.plan-room-action[aria-pressed="true"] + .plan-outline polygon,
-.plan-room-action[aria-pressed="mixed"] + .plan-outline polygon { stroke: var(--power-on-border); }
-.plan-room-action[aria-busy="true"] + .plan-outline polygon { stroke: var(--power-pending-border); }
-.plan-room-action:focus-visible + .plan-outline polygon { stroke: #ffce83; stroke-width: 2px; }
+.plan-walls { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.plan-walls > rect, .plan-walls path { fill: none; stroke: #516780; stroke-width: 1px; }
+.plan-walls .plan-open-divider { stroke-dasharray: 3 3; }
+.plan-room-shaped:focus-visible { filter: brightness(1.35); }
 .plan-room-action[aria-pressed="true"], .plan-room-action[aria-pressed="mixed"] {
-  border-color: var(--power-on-border);
   color: var(--power-on-text);
 }
 .plan-room-action[aria-pressed="true"] { background: #1d3637; }
@@ -191,7 +186,6 @@
 .plan-room-action[aria-busy="true"] {
   color: var(--power-pending-text);
   background: var(--power-pending-bg);
-  border-color: var(--power-pending-border);
   cursor: wait;
 }
 .plan-lamp[aria-busy="true"] { color: var(--power-pending-text); cursor: wait; }

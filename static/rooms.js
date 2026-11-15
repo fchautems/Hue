@@ -1,6 +1,7 @@
 "use strict";
 (() => {
   const grid = $("#room-grid");
+  const planHost = $("#room-plan");
   const notice = $("#room-notice");
   let groups = [];
   let bridge = null;
@@ -10,20 +11,72 @@
   let loaded = false;
   let layout = "";
   let controls = [];
-  // Proportions reprises du croquis, sans échelle. Le vide central n’est pas une pièce.
+  // Un seul repère pour les pièces et leurs murs, en pourcentage de la surface.
+  const left = 1, right = 99, top = 1, bottom = 99.5;
+  const kitchenX = 55, bedroomRight = 53, voidLeft = 28, officeRight = 74;
+  const upperY = 29, voidTop = 54.3, bedroomBottom = 62, voidBottom = 71, bathTop = 84;
   const planRooms = [
-    {key: "salon", label: "Salon", x: 1, y: 1, w: 54, h: 28, columns: 4,
+    {key: "salon", label: "Salon", x: left, y: top, right: kitchenX, bottom: upperY, columns: 4,
       anchors: [{x: 44, y: 23}, {x: 15, y: 76}]},
-    {key: "cuisine", label: "Cuisine", x: 55, y: 1, w: 44, h: 28, columns: 3},
-    {key: "chambre", label: "Chambre", x: 1, y: 29, w: 52, h: 33, columns: 3,
-      outline: [[0, 0], [100, 0], [100, 76], [52, 76], [52, 100], [0, 100]], anchors: [{x: 62, y: 17}]},
-    {key: "couloir", label: "Couloir", x: 53, y: 29, w: 46, h: 55, columns: 3,
-      outline: [[0, 0], [100, 0], [100, 100], [46, 100], [46, 46], [0, 46]],
+    {key: "cuisine", label: "Cuisine", x: kitchenX, y: top, right, bottom: upperY, columns: 3},
+    {key: "chambre", label: "Chambre", x: left, y: upperY, right: bedroomRight, bottom: bedroomBottom, columns: 3,
+      points: [[left, upperY], [bedroomRight, upperY], [bedroomRight, voidTop],
+        [voidLeft, voidTop], [voidLeft, bedroomBottom], [left, bedroomBottom]], anchors: [{x: 62, y: 17}]},
+    {key: "couloir", label: "Couloir", x: bedroomRight, y: upperY, right, bottom: bathTop, columns: 3,
+      points: [[bedroomRight, upperY], [right, upperY], [right, bathTop],
+        [officeRight, bathTop], [officeRight, voidTop], [bedroomRight, voidTop]],
       anchors: [{x: 63, y: 23}, {x: 78, y: 73}]},
-    {key: "bureau", label: "Bureau", x: 1, y: 62, w: 73, h: 37, columns: 5,
-      outline: [[0, 0], [37, 0], [37, 24], [100, 24], [100, 100], [0, 100]]},
-    {key: "bain", label: "Salle de bain", shortLabel: "Bain", x: 74, y: 84, w: 25, h: 16, columns: 2},
-  ];
+    {key: "bureau", label: "Bureau", x: left, y: bedroomBottom, right: officeRight, bottom, columns: 5,
+      points: [[left, bedroomBottom], [voidLeft, bedroomBottom], [voidLeft, voidBottom],
+        [officeRight, voidBottom], [officeRight, bottom], [left, bottom]]},
+    {key: "bain", label: "Salle de bain", shortLabel: "Bain", x: officeRight, y: bathTop, right, bottom, columns: 2},
+  ].map(room => {
+    const w = room.right - room.x;
+    const h = room.bottom - room.y;
+    const outline = room.points?.map(([x, y]) => [(x - room.x) / w * 100, (y - room.y) / h * 100]);
+    return {...room, w, h, outline};
+  });
+
+  function drawWalls() {
+    const namespace = "http://www.w3.org/2000/svg";
+    const walls = document.createElementNS(namespace, "svg");
+    walls.classList.add("plan-walls");
+    walls.setAttribute("viewBox", "0 0 100 100");
+    walls.setAttribute("preserveAspectRatio", "none");
+    walls.setAttribute("aria-hidden", "true");
+
+    const perimeter = document.createElementNS(namespace, "rect");
+    for (const [name, value] of Object.entries({
+      x: left, y: top, width: right - left, height: bottom - top, rx: 2, ry: 2,
+    })) perimeter.setAttribute(name, value);
+    perimeter.setAttribute("vector-effect", "non-scaling-stroke");
+
+    const clip = document.createElementNS(namespace, "clipPath");
+    clip.id = "plan-outer-clip";
+    clip.setAttribute("clipPathUnits", "objectBoundingBox");
+    const clipRect = perimeter.cloneNode();
+    clipRect.setAttribute("transform", "scale(.01)");
+    clip.append(clipRect);
+    const defs = document.createElementNS(namespace, "defs");
+    defs.append(clip);
+
+    const solid = document.createElementNS(namespace, "path");
+    solid.setAttribute("d", [
+      `M ${left} ${upperY} H ${right}`,
+      `M ${bedroomRight} ${upperY} V ${voidTop}`,
+      `M ${left} ${bedroomBottom} H ${voidLeft}`,
+      `M ${voidLeft} ${voidBottom} H ${officeRight}`,
+      `M ${voidLeft} ${voidBottom} V ${voidTop} H ${officeRight} V ${bottom}`,
+      `M ${officeRight} ${bathTop} H ${right}`,
+    ].join(" "));
+    const divider = document.createElementNS(namespace, "path");
+    divider.classList.add("plan-open-divider");
+    divider.setAttribute("d", `M ${kitchenX} ${top} V ${upperY}`);
+    for (const path of [solid, divider]) path.setAttribute("vector-effect", "non-scaling-stroke");
+    walls.append(defs, perimeter, solid, divider);
+    return walls;
+  }
+
   let editMode = false;
   let showCards = false;
   let planConfig = {};
@@ -41,7 +94,7 @@
   function redraw(focusSelector) {
     layout = "";
     render(state);
-    if (focusSelector) grid.querySelector(focusSelector)?.focus({preventScroll: true});
+    if (focusSelector) (planHost.querySelector(focusSelector) || grid.querySelector(focusSelector))?.focus({preventScroll: true});
   }
 
   function saveConfig(focusSelector) {
@@ -210,6 +263,8 @@
     header.append(title, edit);
     const surface = document.createElement("div");
     surface.className = "apartment-plan-surface";
+    const roomLayer = document.createElement("div");
+    roomLayer.className = "plan-room-layer";
     const feedback = document.createElement("p");
     feedback.className = "plan-feedback";
     feedback.setAttribute("role", "status");
@@ -238,20 +293,8 @@
       if (room.outline) {
         roomButton.classList.add("plan-room-shaped");
         roomButton.style.clipPath = `polygon(${room.outline.map(([x, y]) => `${x}% ${y}%`).join(", ")})`;
-        const namespace = "http://www.w3.org/2000/svg";
-        const outline = document.createElementNS(namespace, "svg");
-        outline.classList.add("plan-outline");
-        outline.setAttribute("viewBox", "0 0 100 100");
-        outline.setAttribute("preserveAspectRatio", "none");
-        outline.setAttribute("aria-hidden", "true");
-        const wall = document.createElementNS(namespace, "polygon");
-        wall.setAttribute("points", room.outline.map(point => point.join(",")).join(" "));
-        wall.setAttribute("vector-effect", "non-scaling-stroke");
-        outline.append(wall);
-        area.append(roomButton, outline);
-      } else {
-        area.append(roomButton);
       }
+      area.append(roomButton);
       roomButton.setAttribute("aria-label", `Allumer ou éteindre la pièce · ${room.label}`);
       const layer = document.createElement("div");
       layer.className = "plan-lamps";
@@ -266,8 +309,9 @@
         layer.append(lamp);
       }
       area.append(layer);
-      surface.append(area);
+      roomLayer.append(area);
     }
+    surface.append(roomLayer, drawWalls());
     plan.append(header);
     if (editMode) plan.append(feedback);
     plan.append(surface);
@@ -324,7 +368,8 @@
       toggle.setAttribute("aria-expanded", String(showCards));
       toggle.addEventListener("click", () => { showCards = !showCards; redraw(".plan-cards-toggle"); });
       grid.classList.toggle("plan-cards-expanded", showCards);
-      grid.replaceChildren(plan, toggle, ...visibleCards.map(group => {
+      planHost.replaceChildren(plan);
+      grid.replaceChildren(toggle, ...visibleCards.map(group => {
         const card = document.createElement("article");
         card.className = "room-card";
         const heading = document.createElement("h2");

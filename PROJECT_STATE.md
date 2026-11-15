@@ -1,5 +1,10 @@
 # PROJECT_STATE — Philips Hue Web
 
+## v0.16.2 — Jonctions du plan et commandes des lampes — 2026-11-15
+- Retour Pixel : murs décalés ou doublés aux jonctions de la chambre, du couloir, du bureau et de la salle de bain. Les limites des pièces et les traits utilisent les mêmes coordonnées. Chaque mur est tracé une seule fois. Le contour et le fond partagent les quatre coins arrondis. La surface garde ses dimensions.
+- Les modes Auto et Manuel sont directement sous le plan dans Pièces. Les positions et affectations gardent leur clé de stockage. Fréd a confirmé que son affectation du Salon survit au rechargement de la v0.16.1.
+- Contrôles locaux réussis : 224 tests Python, suites Node et vérification des coordonnées partagées, du tracé et de la clé de sauvegarde. Chromium est bloqué localement au démarrage. Fréd autorise l’envoi de la branche et réalisera l’essai sur son Pixel. Prochaine action : vérifier les contrôles navigateur dans la CI et préparer l’installation.
+
 ## v0.16.1 — Commandes directes des lampes — 2026-11-15
 - Retour Pixel sur v0.16.0 : les modes par lampe doivent rester visibles et le curseur apparaître dès le passage en Manuel. Le navigateur attendait le relâchement du curseur, puis le serveur demandait une transition de 400 ms.
 - Automatisations affiche les modes sans repli. Le curseur met à jour son pourcentage en local et envoie des niveaux successifs au pont à intervalles de 150 ms, avec priorité à la dernière valeur au relâchement. La transition Hue interactive vaut 100 ms.

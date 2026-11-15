@@ -28,8 +28,24 @@ const assert=require('node:assert/strict');
  for(const width of [320,393]){
   await page.setViewportSize({width,height:680});
   await page.screenshot({path:`/tmp/hue-ergonomics-rooms-${width}.png`});
-  const pageHeight=await page.evaluate(()=>document.documentElement.scrollHeight);
-  assert.ok(pageHeight<=680,`room home fits the phone at ${width}px (page height ${pageHeight}px)`);
+  const bounds=await surface.boundingBox();
+  const modes=await page.getByRole('region',{name:'Modes des lampes'}).boundingBox();
+  assert.ok(bounds.y+bounds.height<=680,`the plan fits at ${width}px`);
+  assert.ok(modes.y>=bounds.y+bounds.height && modes.y-bounds.y-bounds.height<=12,'modes sit just below the plan');
+  const edges=await plan.locator('[data-plan-room]').evaluateAll(rooms=>Object.fromEntries(
+   rooms.map(room=>[room.dataset.planRoom,room.getBoundingClientRect().toJSON()])));
+  const aligned=(a,b)=>Math.abs(a-b)<0.05;
+  assert.ok(aligned(edges.salon.left,edges.chambre.left) && aligned(edges.chambre.left,edges.bureau.left));
+  assert.ok(aligned(edges.salon.bottom,edges.chambre.top) && aligned(edges.chambre.top,edges.couloir.top));
+  assert.ok(aligned(edges.couloir.right,edges.bain.right) && aligned(edges.couloir.bottom,edges.bain.top));
+  assert.ok(aligned(edges.bureau.right,edges.bain.left) && aligned(edges.bureau.bottom,edges.bain.bottom));
+  assert.equal(await plan.locator('.plan-walls path:not(.plan-open-divider)').count(),1);
+  const outer = plan.locator('.plan-walls > rect');
+  const clip = plan.locator('#plan-outer-clip rect');
+  for(const attribute of ['x','y','width','height','rx','ry']){
+   assert.equal(await outer.getAttribute(attribute),await clip.getAttribute(attribute));
+  }
+  assert.ok(Number(await outer.getAttribute('rx'))>0,'all four outer corners are rounded');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
   assert.ok(await plan.locator('[data-plan-room="bain"] .plan-room-action').evaluate(button=>button.scrollWidth<=button.clientWidth),
    'the bathroom label fits');
@@ -43,7 +59,7 @@ const assert=require('node:assert/strict');
  const compactHeight=(await surface.boundingBox()).height;
  await page.setViewportSize({width:393,height:830});
  assert.ok((await surface.boundingBox()).height>compactHeight+50,'a tall phone preserves the plan proportions');
- assert.ok(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),'the plan still fits without scrolling');
+ assert.ok((await surface.boundingBox()).y+(await surface.boundingBox()).height<=830,'the plan still fits without scrolling');
  await page.screenshot({path:'/tmp/hue-ergonomics-plan-pixel.png'});
  await page.setViewportSize({width:393,height:680});
  const planBox=await surface.boundingBox();
@@ -413,6 +429,7 @@ const assert=require('node:assert/strict');
  await page.locator('#dawn-save').click();
  await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent==='Désactivé.');
  await page.setViewportSize({width:1320,height:1000});
+ await nav('rooms').click();
  // The list is visible on entry, and the slider follows the mode directly.
  const row=page.locator('.mode-row').first();
  const slider=row.locator('.light-brightness');
@@ -458,6 +475,7 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>state.lights[0].control_mode==='auto');
  assert.equal(await slider.isHidden(),true);
  assert.equal(await row.locator('.light-curve,.light-rgb,.light-details,.light-switch').count(),0);
+ await nav('dashboard').click();
  await page.locator('.vacation-summary').click();
  await page.locator('#vacation-lights input').first().check();
  await page.locator('#vacation-toggle').click();
