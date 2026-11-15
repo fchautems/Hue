@@ -22,10 +22,9 @@ class ErgonomicsTests(unittest.TestCase):
     def test_activity_navigation_and_settings(self):
         nav = [attrs['data-tab'] for tag, attrs, ancestors in self.parser.nodes
                if 'nav-item' in attrs.get('class', '').split()]
-        self.assertEqual(nav, ['rooms', 'dashboard', 'profiles', 'presence', 'settings', 'updates'])
-        for uid in ('tab-setup', 'tab-diagnostics'):
+        self.assertEqual(nav, ['rooms', 'dashboard', 'profiles', 'simulation', 'settings'])
+        for uid in ('tab-setup', 'tab-diagnostics', 'tab-location', 'tab-presence', 'tab-updates'):
             self.assertIn('tab-settings', self.parser.ids[uid][0][2])
-        self.assertNotIn('tab-settings', self.parser.ids['tab-updates'][0][2])
 
     def test_single_clock_and_existing_capabilities_preserved(self):
         for uid in ('clock-source', 'clock-svg', 'sim-play', 'sim-speed', 'time-slider',
@@ -36,7 +35,9 @@ class ErgonomicsTests(unittest.TestCase):
                     'refresh-logs', 'setup-pair', 'update-check', 'update-apply'):
             with self.subTest(uid=uid):
                 self.assertEqual(len(self.parser.ids[uid]), 1)
-        self.assertIn('tab-profiles', self.parser.ids['clock-source'][0][2])
+        self.assertIn('tab-simulation', self.parser.ids['clock-source'][0][2])
+        self.assertIn('tab-location', self.parser.ids['solar-place'][0][2])
+        self.assertNotIn('open', self.parser.ids['solar-preview'][0][1])
         self.assertIn('tab-diagnostics', self.parser.ids['diag-lights'][0][2])
 
     def test_ip_is_not_filled_with_a_fictional_discovery(self):

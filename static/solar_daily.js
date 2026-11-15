@@ -6,16 +6,17 @@
   const places={muids:[46.46,6.22],nyon:[46.3833,6.2333],lausanne:[46.5197,6.6323]};
   const defaults={latitude:46.46,longitude:6.22,tz:'Europe/Zurich',wake:420,bed:1350,low:10,high:85,transition:30,comfort:55,saturation:45,morning_hue:34,evening_hue:28,night_hue:16,day_kelvin:5000};
   const rhythmIds=['transition','comfort','saturation','morning_hue','evening_hue','night_hue','day_kelvin'];
-  const fieldIds=['wake','bed','low','high','place','lat','lon','zone',...rhythmIds];
+  const fieldIds=['wake','bed','low','high',...rhythmIds];
   let uid=null,saved=null,loading=false,saving=false,view='custom',active='custom',legacy=false;
+  let location={latitude:defaults.latitude,longitude:defaults.longitude,tz:defaults.tz};
+  let locationSaving=false;
   let loadToken=0,previewToken=0,preview=null,timer=null,followToday=true;
   const fmt=raw=>{const m=((raw%1440)+1440)%1440;return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;};
   const minutes=v=>/^\d{2}:\d{2}$/.test(v)?Number(v.slice(0,2))*60+Number(v.slice(3)):NaN;
   const today=zone=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   function config(){
-    const coords=places[$('place').value];
-    return {...Object.fromEntries(rhythmIds.map(k=>[k,Number($(k).value)])),latitude:coords?coords[0]:Number($('lat').value),longitude:coords?coords[1]:Number($('lon').value),
-      tz:coords?'Europe/Zurich':$('zone').value.trim(),wake:minutes($('wake').value),bed:minutes($('bed').value),low:Number($('low').value),high:Number($('high').value)};
+    return {...location,...Object.fromEntries(rhythmIds.map(k=>[k,Number($(k).value)])),
+      wake:minutes($('wake').value),bed:minutes($('bed').value),low:Number($('low').value),high:Number($('high').value)};
   }
   function valid(c){
     return Number.isInteger(c.wake)&&Number.isInteger(c.bed)&&c.wake>=0&&c.bed<1440&&c.bed-c.wake>=180&&
@@ -23,8 +24,7 @@
       rhythmIds.every(k=>Number.isInteger(c[k])&&$(k).value!=='')&&c.transition>=1&&c.transition<=180&&2*c.transition<=1440-(c.bed-c.wake)&&
       c.comfort>=c.low&&c.comfort<=c.high&&c.saturation>=0&&c.saturation<=100&&
       ['morning_hue','evening_hue','night_hue'].every(k=>c[k]>=0&&c[k]<=359)&&c.day_kelvin>=4000&&c.day_kelvin<=6500&&
-      Number.isFinite(c.latitude)&&Math.abs(c.latitude)<=90&&Number.isFinite(c.longitude)&&Math.abs(c.longitude)<=180&&!!c.tz&&
-      ($('place').value!=='custom'||($('lat').value!==''&&$('lon').value!==''));
+      Number.isFinite(c.latitude)&&Math.abs(c.latitude)<=90&&Number.isFinite(c.longitude)&&Math.abs(c.longitude)<=180&&!!c.tz;
   }
   const dirty=()=>!!saved&&Object.keys(defaults).some(k=>config()[k]!==saved[k]);
   function fill(c){
@@ -33,9 +33,7 @@
     rhythmIds.forEach(k=>$(k).value=c[k]);
     if($('day_kelvin').value===''){const o=new Option(`${c.day_kelvin} K`,c.day_kelvin);$('day_kelvin').add(o);$('day_kelvin').value=c.day_kelvin;}
     $('wake').value=fmt(c.wake);$('bed').value=fmt(c.bed);$('low').value=c.low;$('high').value=c.high;
-    $('lat').value=c.latitude;$('lon').value=c.longitude;$('zone').value=c.tz;
-    $('place').value=Object.keys(places).find(k=>places[k][0]===c.latitude&&places[k][1]===c.longitude&&c.tz==='Europe/Zurich')||'custom';
-    $('coordinates').hidden=$('place').value!=='custom';
+    location={latitude:c.latitude,longitude:c.longitude,tz:c.tz};
   }
   function lightColorNote(){const light=state?.lights.find(l=>l.id===uid);return light&&!light.capabilities?.color?'Cette lampe ne gère pas les couleurs : seule la luminosité sera appliquée.':'Choisis des couleurs pleines ; le profil règle leur saturation. Le blanc de journée est indépendant. Rendu écran indicatif.';}
   function status(){
@@ -52,7 +50,7 @@
     $('save-status').classList.toggle('unsaved',changed);
     fieldIds.forEach(id=>$(id).disabled=loading||saving);
   }
-  function invalidate(){previewToken++;preview=null;$('results').hidden=true;clearTimeout(timer);}
+  function invalidate(){previewToken++;preview=null;$('results').hidden=true;$('graph').hidden=true;clearTimeout(timer);}
   function sample(){
     if(!preview)return;
     const minute=Number($('sample').value);
@@ -79,15 +77,61 @@
       $('saturation-line').setAttribute('points',d.samples.map(s=>`${s.minute/2},${120-s.color.s}`).join(' '));
       const p=d.params;
       $('draft-hours').textContent=`Réveil ${fmt(c.wake-c.transition)}–${fmt(c.wake)} · journée dès ${fmt(p.morning_end)} · soirée dès ${fmt(p.evening_start)} · nuit ${fmt(c.bed)}–${fmt(c.bed+c.transition)}. ${d.polar_fallback?'Soleil absent : rythme personnel utilisé.':d.timing_note||''}`;
-      $('results').hidden=false;sample();
+      $('results').hidden=false;$('graph').hidden=false;sample();
       $('status').textContent=`Aperçu du ${d.day.split('-').reverse().join('.')} · ${d.timezone}. La date ne modifie pas le suivi quotidien.`;
     }catch(e){if(token===previewToken)$('status').textContent='Aperçu indisponible. '+e.message;}
   }
   function schedule(){invalidate();status();if(view==='solar')timer=setTimeout(renderPreview,250);}
   for(const id of fieldIds){
     $(id).addEventListener('input',schedule);
-    $(id).addEventListener('change',()=>{$('coordinates').hidden=$('place').value!=='custom';schedule();});
+    $(id).addEventListener('change',schedule);
   }
+  function locationFields() {
+    const custom=$('place').value==='custom';
+    $('coordinates').hidden=!custom;
+    for(const id of ['lat','lon','zone']) $(id).required=custom;
+    $('location-save').disabled=locationSaving||!$('place').value;
+  }
+  $('place').addEventListener('change',locationFields);
+  function locationStatus(shared) {
+    $('location-status').textContent=shared?'Cette ville sert au calcul du lever et du coucher du soleil pour toutes les lampes.':
+      'Choisis une ville commune. Chaque profil Soleil utilise actuellement son lieu enregistré.';
+  }
+  async function openLocation() {
+    if(locationSaving)return;
+    $('place').disabled=true;
+    $('location-save').disabled=true;
+    try{
+      const {location:shared}=await api('/api/solar/location');
+      const place=shared||location;
+      $('lat').value=place.latitude;$('lon').value=place.longitude;$('zone').value=place.tz;
+      $('place').value=shared?(Object.keys(places).find(key=>places[key][0]===place.latitude&&
+        places[key][1]===place.longitude&&place.tz==='Europe/Zurich')||'custom'):'';
+      locationStatus(shared);
+      $('place').disabled=false;
+      locationFields();
+    }catch(error){$('location-status').textContent=error.message;}
+  }
+  $('location-form').onsubmit=event=>{
+    event.preventDefault();
+    if(locationSaving||$('place').disabled||!$('place').value)return;
+    safe(async()=>{
+      const coords=places[$('place').value];
+      const data=coords?{latitude:coords[0],longitude:coords[1],tz:'Europe/Zurich'}:
+        {latitude:Number($('lat').value),longitude:Number($('lon').value),tz:$('zone').value.trim()};
+      locationSaving=true;
+      $('place').disabled=true;
+      locationFields();
+      try{
+        const {location:shared}=await api('/api/solar/location','PUT',data);
+        locationStatus(shared);
+        await window.HueProfiles?.reload();
+        await refresh();
+        showToast('Ville enregistrée.');
+      }catch(error){$('location-status').textContent=error.message;}
+      finally{locationSaving=false;$('place').disabled=false;locationFields();}
+    });
+  };
   $('date').addEventListener('input',()=>{followToday=false;schedule();});
   $('today').onclick=()=>{try{$('date').value=today(config().tz);followToday=true;renderPreview();}catch(e){$('status').textContent='Fuseau horaire inconnu.';}};
   $('sample').addEventListener('input',sample);
@@ -116,7 +160,7 @@
   });
   const originalLoad=loadProfile;
   loadProfile=async function(){const id=selectedId;await originalLoad();if(id===selectedId)await reload(id);};
-  window.HueSolar={hasChanges:dirty,isBusy:()=>saving,discard,refreshStatus:status,
+  window.HueSolar={hasChanges:dirty,isBusy:()=>saving||locationSaving,discard,openLocation,refreshStatus:status,
     setView(next,kind){const changed=view!==next;view=next;active=kind;status();if(changed&&view==='solar'&&saved)renderPreview();}};
   fill(defaults);status();
   setInterval(()=>{

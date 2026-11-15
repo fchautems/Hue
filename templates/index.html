@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="/static/v052.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/v06.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/v061.css?rev={{ asset_rev }}">
-  <link rel="stylesheet" href="/static/v062.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/presence.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/vacation.css?rev={{ asset_rev }}">
   <link rel="stylesheet" href="/static/solar.css?rev={{ asset_rev }}">
@@ -25,7 +24,6 @@
   <script src="/static/v052.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v06.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v061.js?rev={{ asset_rev }}" defer></script>
-  <script src="/static/v062.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/v063.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/solar_daily.js?rev={{ asset_rev }}" defer></script>
   <script src="/static/presence.js?rev={{ asset_rev }}" defer></script>
@@ -38,11 +36,10 @@
     <div class="brand"><div class="brand-symbol">✳</div><div><strong>HUE LAB</strong><span id="brand-version">Commande locale · révision en cours de lecture</span></div></div>
     <nav class="nav" aria-label="Navigation">
       <button class="nav-item active" data-tab="rooms" aria-current="page"><span aria-hidden="true">◫</span> Pièces</button>
-      <button class="nav-item" data-tab="dashboard"><span aria-hidden="true">☀</span> Lampes & vacances</button>
-      <button class="nav-item" data-tab="profiles"><span aria-hidden="true">◷</span> Profils & simulation</button>
-      <button class="nav-item" data-tab="presence"><span aria-hidden="true">◴</span> Historique</button>
-      <button class="nav-item secondary-nav" data-tab="settings"><span aria-hidden="true">⚙</span> Paramètres</button>
-      <button class="nav-item update-shortcut" data-tab="updates"><span aria-hidden="true">↻</span> Mises à jour <small id="update-badge" hidden>Disponible</small></button>
+      <button class="nav-item" data-tab="dashboard"><span aria-hidden="true">☀</span> Automatisations</button>
+      <button class="nav-item" data-tab="profiles"><span aria-hidden="true">◷</span> Profil</button>
+      <button class="nav-item" data-tab="simulation"><span aria-hidden="true">◴</span> Simulation</button>
+      <button class="nav-item secondary-nav" data-tab="settings"><span aria-hidden="true">⚙</span> Paramètres <i id="settings-update-dot" class="status-dot online" hidden aria-label="Mise à jour disponible"></i></button>
     </nav>
     <div class="sidebar-bottom"><span class="status-dot" id="bridge-dot"></span><span id="bridge-label">Connexion en cours…</span><small id="bridge-ip">Pont Hue</small></div>
   </aside>
@@ -59,18 +56,13 @@
     </section>
 
     <section id="tab-dashboard" class="tab hidden">
-      <div class="stat-strip">
-        <div><span>AMPOULES</span><strong id="stat-count">—</strong><small>sur le pont</small></div>
-        <div><span>CONNECTÉES</span><strong id="stat-online">—</strong><small>selon Zigbee</small></div>
-        <div><span>LAMPES EN AUTO</span><strong id="stat-mode">0 / —</strong><small>les autres restent indépendantes</small></div>
-      </div>
-      <div class="section-title"><h2>Mes lumières</h2><span id="light-updated">Actualisation…</span></div>
-      <div id="light-grid" class="light-grid"><div class="empty">Recherche des ampoules…</div></div>
-      <section class="card vacation-card" aria-labelledby="dawn-title">
-        <div class="vacation-heading">
-          <div><h2 id="dawn-title">Réveil lumineux</h2>
-            <p>La lampe s’allume doucement avant le prochain réveil de ton téléphone Android.</p></div>
-        </div>
+      <details class="activity-details">
+        <summary>Modes des lampes</summary>
+        <div id="light-grid" class="light-grid"><div class="empty">Recherche des ampoules…</div></div>
+      </details>
+      <details class="activity-details">
+        <summary>Réveil lumineux</summary>
+        <section class="card vacation-card" aria-label="Réveil lumineux">
         <form id="dawn-form">
           <label><input type="checkbox" id="dawn-enabled"> Activer le réveil lumineux</label>
           <div class="dawn-fields" id="dawn-fields" hidden>
@@ -85,13 +77,11 @@
           </div>
           <p id="dawn-status" role="status" aria-live="polite">Chargement…</p>
         </form>
-      </section>
-      <section class="card vacation-card" aria-labelledby="vacation-title">
-        <div class="vacation-heading">
-          <div><div class="eyebrow">SIMULATEUR DE PRÉSENCE</div><h2 id="vacation-title">Mode Vacances</h2>
-            <p>Horaires variables d'après les habitudes enregistrées, même sans connexion Internet.</p></div>
-          <span id="vacation-status" class="chip">Chargement…</span>
-        </div>
+        </section>
+      </details>
+      <details class="activity-details">
+        <summary class="vacation-summary">Vacances <span id="vacation-status" class="chip">Chargement…</span></summary>
+        <section class="card vacation-card" aria-label="Vacances">
         <div id="vacation-lights" class="vacation-lights" aria-label="Lampes à inclure dans le mode Vacances"></div>
         <div class="vacation-actions"><button id="vacation-toggle" class="btn primary" type="button" disabled>Activer Vacances</button>
           <span id="vacation-feedback" role="status" aria-live="polite">Laisse les interrupteurs muraux sous tension.</span></div>
@@ -121,12 +111,12 @@
           <div class="vacation-time-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
         </div>
         <p class="vacation-note">Pendant Vacances, un allumage manuel avec la télécommande Hue a priorité pendant 10 minutes sur la lampe concernée, puis le programme reprend. Les événements de connexion Zigbee ne sont pas des pressions sur la télécommande.</p>
-      </section>
+        </section>
+      </details>
     </section>
 
-    <section id="tab-profiles" class="tab hidden">
-<div class="card v061-lamp-bar"><div class="profile-bar"><label for="profile-light">Lampe à configurer</label><select id="profile-light" class="field"></select><span class="chip" id="profile-target">Cible active — %</span></div><p id="profile-live-status" class="profile-live-status">Choisis une lampe pour voir son état.</p><small>La cible correspond au profil enregistré. Les aperçus ci-dessous ne commandent aucune lampe.</small></div>
-      <div class="profile-workspace"><div class="simulation-column">
+    <section id="tab-simulation" class="tab hidden">
+      <p id="simulation-lamp" class="simulation-lamp"></p>
       <div class="two-col top-section" id="v051-simulator">
         <div class="card clock-card">
           <div class="card-head"><div><div class="eyebrow">HORLOGE DES PROFILS</div><h2>Horloge 24 heures</h2></div><span class="chip" id="clock-mode">TEMPS RÉEL</span></div>
@@ -158,17 +148,28 @@
           <label class="field-label" for="sim-speed">Durée d'une journée simulée</label><select id="sim-speed" class="field"><option value="30">30 secondes</option><option value="60">1 minute</option><option selected value="120">2 minutes</option><option value="300">5 minutes</option><option value="600">10 minutes</option></select>
           <div class="notice" id="sim-notice">La simulation agit seulement sur les lampes placées en Auto.</div>
         </div>
-      </div>      </div><div class="curve-column">
-<details id="v061-advanced" class="v061-advanced" open><summary><span><strong>Profil de lumière</strong><small>Simple, personnalisé ou Soleil · aperçu et enregistrement</small></span><span class="v061-chevron" aria-hidden="true">⌄</span></summary>
-      <div class="card profile-card">
+      </div>
+    </section>
 
-        <div class="v052-type-picker"><strong>Profil</strong><div class="v052-tabs" role="group" aria-label="Type de courbe horaire"><button type="button" class="v052-mode active" data-type="custom" aria-pressed="true">Personnalisée</button><button type="button" class="v052-mode" data-type="simple" aria-pressed="false">Simple</button><button type="button" class="v052-mode" data-type="solar" aria-pressed="false">Soleil</button></div></div>
+    <section id="tab-profiles" class="tab hidden">
+      <div class="card profile-card">
+        <div class="profile-bar">
+          <label for="profile-light">Lampe</label>
+          <select id="profile-light" class="field"></select>
+          <span class="chip" id="profile-target">Cible active — %</span>
+        </div>
+        <p id="profile-live-status" class="profile-live-status"></p>
+        <div class="v052-tabs" role="group" aria-label="Type de profil">
+          <button type="button" class="v052-mode" data-type="simple" aria-pressed="false">Simple</button>
+          <button type="button" class="v052-mode" data-type="solar" aria-pressed="false">Soleil</button>
+        </div>
         <span id="v052-type-status" role="status" aria-live="polite">Chargement…</span>
-        <button id="v052-activate-custom" class="btn muted" type="button" hidden>Activer cette courbe personnalisée</button>
+        <button id="v052-return" class="btn muted" type="button" hidden>Revenir au profil actif</button>
         <div id="v052-simple-editor" hidden>
-          <p class="v052-intro">Une montée continue le matin, un plateau stable en journée, une descente douce le soir et une luminosité nocturne constante. Le lever marque le début de la montée.</p>
           <svg id="v052-chart" viewBox="0 0 840 260" role="img" aria-label="Prévisualisation de la courbe simple sur 24 heures"></svg>
           <div class="v052-chart-times" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+          <details class="profile-options">
+          <summary>Réglages du profil</summary>
           <div class="v052-form">
             <div class="v052-field"><label for="v052-wake">Début de montée · lever</label><input type="time" id="v052-wake" step="60" value="06:15"><small>À cette heure, la lumière est encore au minimum.</small></div>
             <div class="v052-field"><label for="v052-morning_end">Fin de montée</label><input type="time" id="v052-morning_end" step="60" value="13:00"><small>Le maximum est atteint en douceur.</small></div>
@@ -181,10 +182,16 @@
           </div>
           <div id="v052-error" role="alert" hidden></div>
           <div class="v052-actions"><button id="v052-cancel" type="button" class="btn muted">Annuler</button><button id="v052-save" type="button" class="btn primary">Enregistrer et activer</button></div>
+          </details>
         </div>
         <div id="v052-solar-editor" class="solar-card" hidden>
-          <h3 id="solar-title">Soleil, chaque jour</h3>
-          <p>La lumière est déjà confortable à ton réveil et le reste jusqu’à ton coucher. Ces réglages sont mémorisés pour cette lampe, toute l’année.</p>
+          <div id="solar-graph" hidden>
+              <svg id="solar-curve" viewBox="0 0 720 130" role="img" aria-label="Courbe solaire de luminosité sur vingt-quatre heures"><polyline id="solar-curve-line" fill="none" stroke="#efbf6d" stroke-width="3"/><polyline id="solar-saturation-line" fill="none" stroke="#85d5c0" stroke-width="2" stroke-dasharray="5 3"/></svg>
+              <div class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+              <p class="solar-legend"><span>Luminosité</span><span>Saturation</span></p>
+          </div>
+          <details class="profile-options">
+            <summary>Réglages du profil</summary>
           <div class="solar-routine">
             <label>Mon réveil<input id="solar-wake" class="field" type="time" step="60"></label>
             <label>Mon coucher<input id="solar-bed" class="field" type="time" step="60"></label>
@@ -215,37 +222,38 @@
             </div>
             <small id="solar-color-note">Choisis des couleurs pleines ; le profil règle leur saturation et leur luminosité. Le blanc de journée est indépendant. Le rendu sur écran est indicatif.</small>
           </fieldset>
-          <label>Lieu<select id="solar-place" class="field"><option value="muids">Le Muids / Arzier</option><option value="nyon">Nyon</option><option value="lausanne">Lausanne</option><option value="custom">Autre lieu</option></select></label>
-          <div id="solar-coordinates" class="solar-routine" hidden>
-            <label>Latitude<input id="solar-lat" class="field" type="number" min="-90" max="90" step="any"></label>
-            <label>Longitude<input id="solar-lon" class="field" type="number" min="-180" max="180" step="any"></label>
-            <label>Fuseau horaire<input id="solar-zone" class="field" placeholder="Europe/Zurich"></label>
-          </div>
           <p id="solar-save-status" role="status" aria-live="polite"></p>
           <div class="solar-actions"><button id="solar-cancel" type="button" class="btn muted" disabled>Annuler</button><button id="solar-save" type="button" class="btn primary" disabled>Enregistrer et activer Soleil</button></div>
-          <p class="solar-follow-note">En Auto, la lampe suit ce profil. Manuel suspend le suivi ; Vacances reste prioritaire. Pour quitter Soleil, enregistre un profil Simple ou active Personnalisée.</p>
-          <section class="solar-preview" aria-labelledby="solar-preview-title">
-            <h3 id="solar-preview-title">Aperçu de la journée</h3>
+          </details>
+          <details class="solar-preview profile-options" id="solar-preview">
+            <summary>Aperçu de la journée</summary>
             <div class="solar-routine"><label>Date de l’aperçu · sans modifier la lampe<input id="solar-date" class="field" type="date"></label><button id="solar-today" class="btn muted" type="button">Aujourd’hui</button></div>
             <p id="solar-status" class="solar-status" role="status" aria-live="polite"></p>
             <div id="solar-results" hidden>
               <div class="solar-stats"><div><span>LEVER DU SOLEIL</span><strong id="solar-rise">—</strong></div><div><span>COUCHER DU SOLEIL</span><strong id="solar-set">—</strong></div></div>
-              <svg id="solar-curve" viewBox="0 0 720 130" role="img" aria-label="Courbe solaire de luminosité sur vingt-quatre heures"><polyline id="solar-curve-line" fill="none" stroke="#efbf6d" stroke-width="3"/><polyline id="solar-saturation-line" fill="none" stroke="#85d5c0" stroke-width="2" stroke-dasharray="5 3"/></svg>
-              <div class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
-              <p class="solar-legend"><span>Luminosité</span><span>Saturation</span></p><p id="solar-draft-hours"></p>
+<p id="solar-draft-hours"></p>
               <label>Heure de l’aperçu<input id="solar-sample" type="range" min="0" max="1440" step="1" value="720"></label>
               <p id="solar-sample-label"></p><div id="solar-swatch" aria-hidden="true"></div>
               <small>Calcul local approximatif, sans météo ni relief. La simulation accélérée utilise le profil solaire d’aujourd’hui.</small>
             </div>
-          </section>
+          </details>
         </div>
         <svg id="profile-chart" viewBox="0 0 840 260" preserveAspectRatio="none" role="img" aria-label="Courbe de luminosité entre minuit et minuit"></svg>
         <div class="profile-foot"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+        <details class="profile-options legacy-options"><summary>Réglages de la courbe active</summary>
         <div class="profile-help">Sélectionne un point ci-dessous, ou déplace-le directement sur la courbe. Les ampoules ne changent pas avant l’enregistrement.</div>
         <div id="point-rows" class="point-rows"></div>
         <div class="profile-actions"><button id="add-point" class="btn muted">+ Ajouter un point</button><span id="profile-edit-status" role="status" aria-live="polite">✓ Courbe enregistrée</span><button id="cancel-profile" class="btn muted" type="button">Annuler</button><button id="save-profile" class="btn primary" type="button">Enregistrer</button></div>
+        </details>
+        <details class="profile-copy">
+          <summary>Copier le profil vers…</summary>
+          <div class="profile-copy-fields">
+            <label for="profile-copy-target">Lampe de destination</label>
+            <select id="profile-copy-target" class="field"></select>
+            <button id="v063-copy-full" type="button" class="btn muted" disabled>Copier le profil complet</button>
+          </div>
+        </details>
       </div>
-      </details>      </div></div>
       <details class="activity-details" id="profile-colors"><summary>Couleurs du profil</summary>
     <section id="tab-colors" class="rgb-integrated" aria-labelledby="rgb-heading">
       <div class="rgb-header card">
@@ -350,7 +358,36 @@
 
 
 
-    <section id="tab-presence" class="tab hidden">
+    <section id="tab-settings" class="tab hidden">
+      <div class="settings-nav" role="group" aria-label="Rubriques des paramètres">
+        <button type="button" class="btn muted" data-tab="location">Ville</button>
+        <button type="button" class="btn muted" data-tab="presence">Historique</button>
+        <button type="button" class="btn muted update-shortcut" data-tab="updates">
+          <span>Mises à jour</span><small id="update-version"></small><small id="update-badge" hidden>Disponible</small>
+        </button>
+        <button type="button" class="btn muted" data-tab="setup">Pont Hue</button>
+        <button type="button" class="btn muted" data-tab="diagnostics">Diagnostics et journaux</button>
+      </div>
+      <section id="tab-location" class="settings-panel card hidden">
+        <form id="solar-location-form">
+          <label for="solar-place" class="field-label">Ville du logement</label>
+          <select id="solar-place" class="field" disabled>
+            <option value="" disabled>Choisir une ville</option>
+            <option value="muids">Le Muids / Arzier</option>
+            <option value="nyon">Nyon</option>
+            <option value="lausanne">Lausanne</option>
+            <option value="custom">Autre ville</option>
+          </select>
+          <div id="solar-coordinates" class="solar-routine" hidden>
+            <label>Latitude<input id="solar-lat" class="field" type="number" min="-90" max="90" step="any"></label>
+            <label>Longitude<input id="solar-lon" class="field" type="number" min="-180" max="180" step="any"></label>
+            <label>Fuseau horaire<input id="solar-zone" class="field" placeholder="Europe/Zurich"></label>
+          </div>
+          <p id="solar-location-status" role="status" aria-live="polite"></p>
+          <button class="btn primary" id="solar-location-save" type="submit" disabled>Enregistrer la ville</button>
+        </form>
+      </section>
+    <section id="tab-presence" class="settings-panel hidden">
       <div class="card presence-card">
         <div class="presence-head">
           <div><h2>Historique des lumières</h2><p>Derniers changements observés sur le pont Hue</p></div>
@@ -372,12 +409,7 @@
       <p class="presence-note">Les connexions et déconnexions Zigbee sont des observations du pont : elles ne prouvent pas une action sur l’interrupteur mural.</p>
     </section>
 
-    <section id="tab-settings" class="tab hidden">
-      <div class="settings-nav" role="group" aria-label="Rubriques des paramètres">
-        <button type="button" class="btn muted" data-tab="setup">Pont Hue</button>
-        <button type="button" class="btn muted" data-tab="diagnostics">Avancé · diagnostics & logs</button>
-      </div>
-    <section id="tab-setup" class="settings-panel">
+    <section id="tab-setup" class="settings-panel hidden">
       <div class="setup-hero"><div class="eyebrow">CONNEXION LOCALE</div><h2>Connecter le pont Philips Hue</h2><p>Tout se fait ici. Aucun fichier de configuration à modifier et aucune commande à saisir.</p></div>
       <div class="card setup-card">
         <div class="setup-step"><div class="step-n">1</div><div><h3>Découvrir ton pont</h3><p>La recherche utilise le service Hue puis, si nécessaire, le réseau local. Tu peux aussi indiquer directement son adresse IP.</p>
@@ -403,8 +435,7 @@
       <div class="section-title space-top"><h2>Journal des événements</h2><span>Connexion, commandes, erreurs, démarrages</span></div>
       <div class="card log-card"><div class="log-controls"><span>Dernières 150 lignes · fichier logs/hue.log</span><button id="refresh-logs" class="btn muted">↻ Rafraîchir</button></div><pre id="log-display">Chargement…</pre></div>
     </section>
-    </section>
-    <section id="tab-updates" class="tab hidden">
+    <section id="tab-updates" class="settings-panel hidden">
       <div class="section-title"><h2>Mises à jour GitHub</h2><span>Raspberry Pi · sans PC</span></div>
       <div class="card update-card">
         <div class="update-versions">
@@ -424,6 +455,7 @@
         </div>
         <div class="hint">Les courbes et la clé Hue restent sur le Raspberry. Une sauvegarde est créée avant l'installation. Si le serveur ne redémarre pas, l'ancienne version est rétablie. La recherche automatique n'installe jamais les mises à jour sans ton accord. Aucun code n'est nécessaire depuis ton réseau local.</div>
       </div>
+    </section>
     </section>
     <footer><span id="footer-version">Hue Lab · révision inconnue</span> · Service Python local · API Philips Hue v2 · Configuration privée sur le Raspberry</footer>
   </main>

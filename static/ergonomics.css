@@ -1,53 +1,43 @@
 /* v0.8: activity navigation; existing components and data contracts are retained. */
 [hidden]{display:none!important}
 .nav .secondary-nav{margin-top:24px;border-top:1px solid var(--border);border-radius:0 0 10px 10px}
-.nav .update-shortcut{font-size:12px;flex-wrap:wrap;gap:8px}
+.settings-nav .update-shortcut{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+#update-version{color:var(--muted)}
+#settings-update-dot{flex:none;width:6px;height:6px}
 #update-badge{font-size:10px;color:var(--mint);border:1px solid #317a6d;border-radius:12px;padding:3px 6px}
 .settings-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
 .settings-nav .active{border-color:var(--gold);color:var(--gold)}
 .settings-panel{min-width:0}
 .setup-result{padding:20px 5px;color:var(--muted);font-size:13px;line-height:1.6}
-.profile-workspace{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(0,1.5fr);gap:18px;align-items:start}
-.profile-workspace>div{min-width:0}
 .profile-live-status{margin:12px 0 6px;color:var(--mint);font-size:14px;font-variant-numeric:tabular-nums}
-.v061-lamp-bar>small{display:block;color:var(--muted);line-height:1.5}
 #solar-draft{border-top:1px solid var(--border);margin-top:20px;padding-top:12px}
 #solar-draft>label{margin-top:20px}
 #solar-apply-status:empty{display:none}
 #solar-apply-status{padding:12px;border-left:3px solid var(--mint);background:var(--panel-2)}
-#tab-profiles .profile-workspace .two-col.top-section{display:grid!important;grid-template-columns:minmax(0,1fr)}
-#tab-profiles #v061-advanced{margin-top:0}
-#tab-profiles .mode-control{display:block;margin:12px 0 20px;padding:12px;background:var(--panel-2)}
-#tab-profiles .mode-control small{display:block;margin-top:6px;color:var(--muted);line-height:1.5}
-#tab-profiles .mode-control select{width:100%;max-width:none}
-#tab-profiles #v061-sim-options{display:none}
-body.v051-show-simulator #tab-profiles #v061-sim-options{display:block}
+#tab-simulation .mode-control{display:block;margin:12px 0 20px;padding:12px;background:var(--panel-2)}
+#tab-simulation .mode-control small{display:block;margin-top:6px;color:var(--muted);line-height:1.5}
+#tab-simulation .mode-control select{width:100%;max-width:none}
+#tab-simulation #v061-sim-options{display:none}
+body.v051-show-simulator #tab-simulation #v061-sim-options{display:block}
 #v051-simulation-toggle{display:block;width:100%;min-height:44px}
 .activity-details{border:1px solid var(--border);border-radius:14px;margin:18px 0;min-width:0;overflow:clip}
 .activity-details>summary,.profile-copy>summary{cursor:pointer;padding:16px;color:var(--text);min-height:48px}
 .activity-details>summary{font-weight:650;background:var(--panel-2)}
 #tab-profiles .activity-details .solar-card,#tab-profiles .activity-details .rgb-header{margin:0;border:0;border-radius:0}
-.profile-copy{margin-top:12px;border-top:1px solid var(--border)}
-.profile-copy>summary{font-size:12px;padding:12px 0}
-#tab-profiles .profile-copy .v062-copy-row{margin:0 0 10px;padding-top:0;border:0}
 .nav button:focus-visible,summary:focus-visible,.settings-nav button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-@media(max-width:1200px){.profile-workspace{grid-template-columns:minmax(0,1fr)} }
 @media(max-width:700px){
  .sidebar{position:sticky;top:0;z-index:10;padding:10px 14px;border-bottom:1px solid var(--border)}
  .sidebar .brand{margin-bottom:8px}
  .sidebar .nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible}
- .sidebar .nav-item{white-space:normal;justify-content:center;text-align:center;gap:5px;padding:10px 4px;font-size:11px;min-height:48px}
+ .sidebar .nav-item{white-space:normal;justify-content:center;text-align:center;gap:3px;flex-direction:column;padding:4px;font-size:11px;min-height:48px}
  .sidebar .nav .secondary-nav,.sidebar .nav .update-shortcut{margin:0;border:0}
  .sidebar .nav-item>span{font-size:16px;width:auto}
  .main{padding-top:18px}
  .topbar h1{font-size:27px}
  .top-time{padding:8px 13px}
- .profile-workspace{gap:14px}
  .settings-nav{display:grid;grid-template-columns:1fr}
  .settings-nav button{text-align:left;min-height:44px}
- #tab-profiles .v061-lamp-bar .profile-bar{display:grid;grid-template-columns:minmax(0,1fr)}
- #tab-profiles .v061-lamp-bar #profile-target{justify-self:start}
- #tab-profiles .clock-card{padding:14px}
+ #tab-simulation .clock-card{padding:14px}
  #tab-settings .auto-card{flex-direction:column;padding:18px}
  .toast{left:14px;right:14px;max-width:none}
 }
@@ -62,3 +52,48 @@ body.v051-show-simulator #tab-profiles #v061-sim-options{display:block}
 .dawn-fields .field { display:block; width:100%; min-width:0; margin-top:4px; }
 #dawn-color { height:42px; }
 #dawn-status { margin-bottom:0; }
+
+#tab-dashboard .activity-details{margin:0 0 10px}
+#tab-dashboard .vacation-card{margin:0;border:0;border-radius:0}
+.vacation-summary .chip{margin-left:8px}
+#tab-dashboard .light-grid{display:block}
+#tab-dashboard .mode-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  gap:0 8px;padding:2px 12px;min-height:0;border-top:1px solid var(--border)
+}
+#tab-dashboard .mode-row::after{content:none}
+.mode-row .lamp-name{
+  text-align:left;overflow-wrap:anywhere;min-height:44px;padding:6px 0;
+  background:none;border:0;color:var(--text);font-weight:600
+}
+.mode-row .lamp-name:disabled{cursor:default}
+.mode-row .lamp-name:not(:disabled)::after{content:" ⌄";color:var(--muted)}
+.mode-row .lamp-mode-buttons{display:flex;gap:3px}
+.mode-row .lamp-mode-btn{min-height:44px;padding:5px 8px;font-size:12px}
+.lamp-brightness,.lamp-override{grid-column:1/-1;padding:5px 0 8px}
+.lamp-brightness output{float:right}
+.lamp-brightness input{margin:0;min-height:36px}
+.lamp-override,.brightness-status,.simulation-lamp{color:var(--muted)}
+
+#tab-simulation .two-col.top-section{display:grid!important;grid-template-columns:minmax(0,1fr);max-width:620px}
+#tab-profiles .profile-card{padding:14px}
+#tab-profiles .profile-bar{margin:0;gap:8px}
+#tab-profiles .profile-bar label{font-size:13px}
+#tab-profiles .profile-bar select{flex:1;min-width:0}
+#tab-profiles .profile-live-status{margin:6px 0 12px}
+#tab-profiles .v052-tabs{width:fit-content;display:flex}
+#tab-profiles .profile-card #profile-chart{height:clamp(120px,26vw,240px)}
+#tab-profiles .profile-card:not([data-v052-view="custom"])>.legacy-options{display:none}
+#tab-profiles .solar-card{padding:0;border:0;margin:0;background:transparent}
+#tab-profiles #solar-curve{height:auto}
+#tab-profiles .solar-preview:not([open]){padding-bottom:0}
+.profile-options,.profile-copy{margin-top:10px;border-top:1px solid var(--border)}
+.profile-options>summary,.profile-copy>summary{
+  cursor:pointer;min-height:44px;padding:12px 0;font-size:14px;color:var(--text)
+}
+.profile-copy-fields{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding-bottom:8px}
+.profile-copy-fields select{width:auto;max-width:100%}
+#tab-location{max-width:560px;padding:16px}
+#solar-location-status{margin:8px 0}
+#solar-coordinates{margin-top:10px}
+.profile-copy-fields :is(button,select){min-height:44px}

@@ -1,3 +1,9 @@
+## v0.16.0 — Interface compacte — 2026-11-15
+
+- **Code concret :** cinq onglets sur deux rangées sur mobile. Automatisations regroupe Auto/Manuel par lampe, le réveil lumineux et Vacances. Touche le nom d’une lampe en Manuel pour régler sa luminosité.
+- Profil affiche la courbe de la lampe choisie, avec une copie complète vers une autre lampe. Simulation reprend cette sélection dans son propre onglet.
+- Paramètres rassemble l’historique, les mises à jour et la ville utilisée par tous les profils Soleil.
+
 ## v0.15.2 — Plan plus lisible sur téléphone — 2026-11-10
 
 - **Code concret :** le plan profite de la hauteur disponible sur les téléphones, ses repères sont plus discrets et la salle de bain affiche son nom complet quand la place le permet.

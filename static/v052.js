@@ -17,7 +17,7 @@
   const formError = document.querySelector('#v052-error');
   const save = document.querySelector('#v052-save');
   const cancel = document.querySelector('#v052-cancel');
-  const activateCustom = document.querySelector('#v052-activate-custom');
+  const returnButton = document.querySelector('#v052-return');
   const originalLoad = loadProfile;
   let activeType = 'custom';
   let viewType = 'custom';
@@ -81,14 +81,14 @@
     container.hidden=viewType!=='simple';
     document.querySelector('#v052-solar-editor').hidden=viewType!=='solar';
     window.HueSolar?.setView(viewType,activeType);
-    activateCustom.hidden=viewType!=='custom' || activeType==='custom';
+    returnButton.hidden=viewType===activeType;
     typeStatus.textContent = loading?'Chargement…':
-      simpleDirty?'● Modifications non enregistrées — les lampes ne changent pas avant validation':
-      (activeType==='solar'?'✓ Soleil actif · recalcul quotidien':activeType==='simple'?'✓ Profil simple actif':'✓ Profil personnalisé actif');
+      simpleDirty?'Aperçu · modifications non enregistrées':
+      (activeType==='solar'?'✓ Soleil actif · recalcul quotidien':activeType==='simple'?'✓ Profil simple actif':'✓ Courbe enregistrée active');
     typeStatus.classList.toggle('unsaved',simpleDirty);
     save.disabled=saving||loading||!selectedId||viewType!=='simple'||!simpleDirty||!!error;
     cancel.disabled=saving||loading||!simpleDirty;
-    activateCustom.disabled=saving||loading||profileDirty;
+    returnButton.disabled=saving||loading||!!window.HueSolar?.isBusy();
     for(const field of Object.values(fields)) field.disabled=saving||loading;
   }
   function fillFields() {
@@ -137,6 +137,7 @@
     }
     viewType=btn.dataset.type;
     if(viewType==='simple')draw();else updateUI();
+    if(viewType==='simple')container.querySelector('details').open=true;
   }));
   cancel.onclick=()=>{
     if(saving)return;
@@ -156,14 +157,12 @@
       window.HueRGB?.reloadIfClean(id);
     } finally {saving=false;updateUI(validate(params));}
   });
-  activateCustom.onclick=()=>safe(async()=>{
-    if(saving||loading||viewType!=='custom'||profileDirty||!selectedId)return;
-    const id=selectedId;saving=true;updateUI();
-    try{
-      await api(`/api/profile/type/${encodeURIComponent(id)}`,'POST',{type:'custom'});
-      if(selectedId===id){activeType='custom';viewType='custom';showToast('Courbe personnalisée réactivée.');await refresh();window.HueRGB?.reloadIfClean(id);}
-    } finally {saving=false;updateUI();}
-  });
+  returnButton.onclick=()=>{
+    if((window.HueSolar?.hasChanges()||JSON.stringify(params)!==JSON.stringify(saved)) &&
+        !window.confirm('Abandonner les modifications du profil ?'))return;
+    window.HueSolar?.discard();
+    params={...saved};viewType=activeType;fillFields();draw();
+  };
   const previousLampChange=lampSelect.onchange;
   lampSelect.onchange=e=>{
     if(window.HueSolar?.isBusy()){e.target.value=selectedId;return;}
@@ -171,6 +170,7 @@
       e.target.value=selectedId;return;
     }
     window.HueSolar?.discard();
+    card.querySelectorAll('.profile-options').forEach(details=>{details.open=false;});
     simpleDirty=false;
     previousLampChange?.call(lampSelect,e);
   };

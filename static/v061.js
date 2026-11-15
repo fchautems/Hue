@@ -3,10 +3,9 @@
 (() => {
   const profiles = document.querySelector('#tab-profiles');
   const lamp = document.querySelector('#profile-light');
-  const advanced = document.querySelector('#v061-advanced');
   const toggle = document.querySelector('#v051-simulation-toggle');
   const rgbSection = document.querySelector('#tab-colors');
-  if (!profiles || !lamp || !advanced || !toggle || !rgbSection) return;
+  if (!profiles || !lamp || !toggle || !rgbSection) return;
 
   // La v0.5.1 cachait tout le simulateur sur mobile.
   // Désormais, seule sa carte de commandes est repliable ; l'horloge reste visible.
@@ -36,34 +35,7 @@
     }
   });
 
-  function selectLamp(id) {
-    if (!id || ![...lamp.options].some(option => option.value === id)) return false;
-    if (lamp.value !== id) {
-      lamp.value = id;
-      lamp.dispatchEvent(new Event('change', {bubbles:true}));
-    }
-    return lamp.value === id && selectedId === id;
-  }
-
-  function reveal(node) {
-    if (!node) return;
-    requestAnimationFrame(() => node.scrollIntoView({behavior:'smooth', block:'start'}));
-  }
-
   window.HueMerged = {
-    openCurve(id) {
-      if(setTab('profiles')===false)return;
-      if (!selectLamp(id)) return;
-      advanced.open = true;
-      reveal(advanced);
-    },
-    openColors(id) {
-      if(setTab('profiles')===false)return;
-      if (!selectLamp(id)) return;
-      document.querySelector('#profile-colors').open=true;
-      window.HueRGB?.open(id, true);
-      reveal(rgbSection);
-    },
     afterRgbSave(id) {
       // Le mode Auto RGB peut activer la courbe Simple ; mettre à jour
       // l'ancien éditeur uniquement en l'absence d'un brouillon non sauvé.

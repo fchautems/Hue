@@ -11,9 +11,12 @@ LEGACY_SOLAR_CONFIG = dict(latitude=46.46, longitude=6.22, tz="Europe/Zurich",
 DEFAULT_SOLAR_CONFIG = dict(LEGACY_SOLAR_CONFIG, **RHYTHM_DEFAULTS)
 
 
-def validate_solar_config(raw):
-    if not isinstance(raw, dict) or set(raw) not in (set(LEGACY_SOLAR_CONFIG), set(DEFAULT_SOLAR_CONFIG)):
-        raise ValueError("Renseigne le lieu, le réveil, le coucher et les deux niveaux lumineux.")
+SOLAR_LOCATION_KEYS = ("latitude", "longitude", "tz")
+
+
+def validate_solar_location(raw):
+    if not isinstance(raw, dict) or set(raw) != set(SOLAR_LOCATION_KEYS):
+        raise ValueError("Renseigne les coordonnées et le fuseau horaire.")
     for key, bound in (("latitude", 90), ("longitude", 180)):
         value = raw[key]
         if type(value) not in (int, float) or not isfinite(value) or not -bound <= value <= bound:
@@ -24,6 +27,13 @@ def validate_solar_config(raw):
         ZoneInfo(raw['tz'])
     except (ZoneInfoNotFoundError, ValueError):
         raise ValueError("Fuseau horaire inconnu.") from None
+    return dict(raw)
+
+
+def validate_solar_config(raw):
+    if not isinstance(raw, dict) or set(raw) not in (set(LEGACY_SOLAR_CONFIG), set(DEFAULT_SOLAR_CONFIG)):
+        raise ValueError("Renseigne le lieu, le réveil, le coucher et les deux niveaux lumineux.")
+    validate_solar_location({key: raw[key] for key in SOLAR_LOCATION_KEYS})
     wake, bed, low, high = (raw[k] for k in ('wake', 'bed', 'low', 'high'))
     if (type(wake) is not int or type(bed) is not int or
             not 0 <= wake < bed <= 1439 or bed - wake < 180):
