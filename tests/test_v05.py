@@ -95,6 +95,14 @@ class IndependentLamps(unittest.TestCase):
         self.assertEqual(saved["light_modes"]["light-0"], "manuel")
         self.assertTrue(saved["profiles"])
 
+    def test_interactive_brightness_shortens_transition_and_saves_level(self):
+        self.srv.set_brightness("light-0", 17)
+        self.assertEqual(self.bridge.calls[-1][1]["dynamics"]["duration"], 400)
+        self.srv.set_brightness("light-0", 53, interactive=True)
+        self.assertEqual(self.bridge.calls[-1][1]["dynamics"]["duration"], 100)
+        saved = json.loads(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(saved["manual_states"]["light-0"]["brightness"], 53)
+
     def test_manual_switch_on_uses_manual_brightness_not_profile(self):
         self.srv.set_brightness("light-2", 18)
         self.srv.switch("light-2", False)

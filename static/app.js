@@ -11,7 +11,7 @@ let powerupId = null;
 let toastTimeout;
 let seekDragging = false;
 let simulationBusy = false;
-let simulationGeneration = 0;
+let stateGeneration = 0;
 let refreshBusy = false;
 let profileDirty = false;
 let setupInProgress = false;
@@ -21,6 +21,9 @@ let setupInitDone = false;
 let updaterWasBusy = false;
 let setupIpEdited = false;
 const pendingPower = new Map();
+const lampControls = new WeakMap();
+const DIM_INTERVAL_MS = 150;
+const DIM_CONFIRM_MS = 3000;
 const POWER_CONFIRM_MS = 12000;
 
 function escapeHtml(text) { return String(text ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -138,84 +141,136 @@ function renderProfileTarget() {
   if(state.error)status.textContent+=' · lecture du pont indisponible';
 }
 function addLightCards(lights) {
-  const ids=lights.map(l=>l.id).join("|");
+  const ids=JSON.stringify([state.bridge_ip,lights.map(light=>light.id)]);
   if (ids===cardIds) return;
   cardIds=ids;
   $("#light-grid").innerHTML=lights.length?lights.map(light=>{
     const id=escapeHtml(light.id),name=escapeHtml(light.name);
     return `<article class="light-card mode-row" data-id="${id}">
-      <button type="button" class="lamp-name" aria-expanded="false">${name}</button>
+      <span class="lamp-name">${name}</span>
       <div class="lamp-mode-buttons" role="group" aria-label="Pilotage de ${name}">
         <button type="button" class="lamp-mode-btn" data-control="auto" aria-pressed="false">Auto</button>
         <button type="button" class="lamp-mode-btn" data-control="manuel" aria-pressed="false">Manuel</button>
       </div>
       <div class="lamp-brightness" hidden>
         <label>Luminosité <output class="light-value">— %</output>
-          <input class="range light-brightness" type="range" min="1" max="100" step="1">
+          <input class="range light-brightness" type="range" min="1" max="100" step="1" aria-label="Luminosité de ${name}">
         </label>
         <small class="brightness-status"></small>
       </div>
       <small class="lamp-override" hidden>Manuel jusqu’au rallumage</small>
     </article>`;
   }).join(''):'<div class="empty">Aucune ampoule trouvée.</div>';
-  $$(".mode-row").forEach(card=>{
-    const path=`/api/light/${encodeURIComponent(card.dataset.id)}`;
-    const name=card.querySelector(".lamp-name");
-    const brightness=card.querySelector(".lamp-brightness");
-    const slider=card.querySelector(".light-brightness");
-    const value=card.querySelector(".light-value");
-    const modes=[...card.querySelectorAll(".lamp-mode-btn")];
-    name.onclick=()=>{
-      brightness.hidden=!brightness.hidden;
-      name.setAttribute('aria-expanded',String(!brightness.hidden));
-    };
-    slider.oninput=()=>{value.textContent=`${slider.value} %`;};
-    slider.onchange=()=>safe(async()=>{
-      slider.dataset.saving='true';
-      slider.disabled=true;
-      try{
-        await api(path+'/brightness',"POST",{brightness:Number(slider.value)});
-        showToast('Luminosité demandée');
-      }finally{
-        delete slider.dataset.saving;
-        await refresh();
-        updateLights(state.lights);
-      }
-    });
-    modes.forEach(btn=>btn.onclick=()=>safe(async()=>{
-      modes.forEach(b=>b.disabled=true);
-      try{
-        await api(path+'/control-mode',"POST",{mode:btn.dataset.control});
-        await refresh();
-      }finally{modes.forEach(b=>b.disabled=false);}
-    }));
-  });
+  $$(".mode-row").forEach(bindLampControls);
   const select=$("#profile-light"); const was=selectedId;
   select.innerHTML=lights.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
   selectedId=lights.some(l=>l.id===was)?was:(lights[0]?.id||null);
   if(selectedId){select.value=selectedId;loadProfile();}
 }
+function bindLampControls(card) {
+  const id=card.dataset.id;
+  const bridge=state.bridge_ip;
+  const path=`/api/light/${encodeURIComponent(id)}`;
+  const slider=card.querySelector('.light-brightness');
+  const value=card.querySelector('.light-value');
+  const command={draft:null, queued:null, inFlight:null, timer:null, sentAt:-Infinity,
+    confirmUntil:0, mode:null, flush:false};
+  lampControls.set(card,command);
+
+  function pump() {
+    if(command.inFlight || command.queued===null)return;
+    if(!card.isConnected || state.bridge_ip!==bridge || slider.disabled){
+      command.queued=null;
+      command.flush=false;
+      return;
+    }
+    clearTimeout(command.timer);
+    const delay=DIM_INTERVAL_MS-(performance.now()-command.sentAt);
+    if(!command.flush && delay>0){
+      command.timer=setTimeout(pump,delay);
+      return;
+    }
+    const brightness=command.queued;
+    command.queued=null;
+    command.flush=false;
+    command.sentAt=performance.now();
+    command.inFlight=api(path+'/brightness','POST',{brightness,interactive:true});
+    void command.inFlight.then(()=>{
+      command.confirmUntil=performance.now()+DIM_CONFIRM_MS;
+    },error=>{
+      if(command.queued===null && !command.mode){
+        command.draft=null;
+        showToast(error.message,true);
+      }
+    }).finally(()=>{
+      command.inFlight=null;
+      if(command.queued!==null)pump();
+      else if(!command.mode && card.isConnected){
+        updateLights(state.lights);
+        void refresh();
+      }
+    });
+  }
+  slider.oninput=()=>{
+    command.draft=Number(slider.value);
+    command.queued=command.draft;
+    value.textContent=`${slider.value} %`;
+    pump();
+  };
+  slider.onchange=()=>{
+    if(command.queued===null)return;
+    command.flush=true;
+    pump();
+  };
+  card.querySelectorAll('.lamp-mode-btn').forEach(btn=>btn.onclick=()=>safe(async()=>{
+    if(command.mode)return;
+    command.mode=btn.dataset.control;
+    command.queued=null;
+    command.flush=false;
+    clearTimeout(command.timer);
+    updateLights(state.lights);
+    try{
+      await command.inFlight?.catch(()=>{});
+      if(!card.isConnected || state.bridge_ip!==bridge)return;
+      const result=await api(path+'/control-mode','POST',{mode:command.mode});
+      if(!card.isConnected || state.bridge_ip!==bridge)return;
+      stateGeneration++;
+      const light=state.lights.find(item=>item.id===id);
+      if(light){light.control_mode=result.mode;light.manual_override=false;}
+    }finally{
+      command.mode=null;
+      command.draft=null;
+      updateLights(state.lights);
+      void refresh();
+    }
+  }));
+}
+
 function updateLights(lights) {
   const byId=new Map(lights.map(light=>[light.id,light]));
   for(const card of $$('.mode-row')){
     const light=byId.get(card.dataset.id);
     if(!light)continue;
-    const name=card.querySelector('.lamp-name');
+    const command=lampControls.get(card);
     const brightness=card.querySelector('.lamp-brightness');
     const slider=card.querySelector('.light-brightness');
-    const isAuto=light.control_mode==='auto';
-    name.disabled=isAuto||!light.capabilities.dimming;
-    if(name.disabled){brightness.hidden=true;name.setAttribute('aria-expanded','false');}
+    const mode=command.mode??light.control_mode;
+    brightness.hidden=mode==='auto'||!light.capabilities.dimming;
     const offline=!state.connected||light.status==='disconnected';
     const reason=offline?'Lampe hors ligne':!light.on?'Allume la lampe dans Pièces.':'';
     card.querySelector('.brightness-status').textContent=reason;
-    if(document.activeElement!==slider&&!slider.dataset.saving){
-      slider.value=Math.max(1,Math.round(light.brightness??1));
-      card.querySelector('.light-value').textContent=light.brightness==null?'— %':`${Math.round(light.brightness)} %`;
+    const observed=light.brightness==null?null:Math.round(light.brightness);
+    if(!command.inFlight && command.queued===null &&
+        (observed===command.draft || performance.now()>=command.confirmUntil)){
+      command.draft=null;
     }
-    slider.disabled=name.disabled||!!reason||!!slider.dataset.saving;
+    const shown=command.draft??observed;
+    slider.value=Math.max(1,shown??1);
+    card.querySelector('.light-value').textContent=shown===null?'— %':`${shown} %`;
+    slider.disabled=brightness.hidden||!!reason||!!command.mode;
     card.querySelectorAll('.lamp-mode-btn').forEach(btn=>{
-      const chosen=btn.dataset.control===light.control_mode;
+      const chosen=btn.dataset.control===mode;
+      btn.disabled=!!command.mode;
       btn.classList.toggle('active',chosen);
       btn.setAttribute('aria-pressed',String(chosen));
     });
@@ -258,10 +313,10 @@ function setTab(tab) {
 
 async function refresh() {
   if(refreshBusy)return; refreshBusy=true;
-  const generation=simulationGeneration;
+  const generation=stateGeneration;
   try{
     const s=await api('/api/state');
-    if(generation!==simulationGeneration)return;
+    if(generation!==stateGeneration)return;
     confirmPower(s);
     state=s;lastStateAt=performance.now();
     window.HueDawn?.refresh(s.lights);
@@ -304,7 +359,7 @@ async function updateSimulation(change) {
   renderSimulationControls();
   try {
     const simulation=await api('/api/simulation','POST',change);
-    simulationGeneration++;
+    stateGeneration++;
     state.simulation=simulation;
     lastStateAt=performance.now();
     await refresh();

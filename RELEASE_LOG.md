@@ -1,3 +1,7 @@
+## v0.16.1 — Commandes directes des lampes — 2026-11-15
+
+- **Code concret :** dans Automatisations, la liste Auto/Manuel est toujours ouverte. Le curseur apparaît en Manuel, affiche le pourcentage pendant le geste et envoie les niveaux au pont pendant le glissement.
+
 ## v0.16.0 — Interface compacte — 2026-11-15
 
 - **Code concret :** cinq onglets sur deux rangées sur mobile. Automatisations regroupe Auto/Manuel par lampe, le réveil lumineux et Vacances. Touche le nom d’une lampe en Manuel pour régler sa luminosité.

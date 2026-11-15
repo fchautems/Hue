@@ -1,5 +1,11 @@
 # PROJECT_STATE — Philips Hue Web
 
+## v0.16.1 — Commandes directes des lampes — 2026-11-15
+- Retour Pixel sur v0.16.0 : les modes par lampe doivent rester visibles et le curseur apparaître dès le passage en Manuel. Le serveur attendait le relâchement du curseur, puis demandait une transition de 400 ms.
+- Automatisations affiche les modes sans repli. Le curseur met à jour son pourcentage en local et envoie des niveaux successifs au pont à intervalles de 150 ms, avec priorité à la dernière valeur au relâchement. La transition Hue interactive vaut 100 ms.
+- APK : la version 0.3 à synchronisation manuelle a été préparée séparément selon l’historique de l’audit. Elle n’est pas intégrée sur `main`. La cause des redémarrages du Pixel est indéterminée. La présente version web ne requiert pas de réinstallation.
+- Prochaine action : valider le parcours Chromium sur pont simulé, puis mesurer la réactivité sur le pont réel.
+
 ## v0.16.0 — Interface compacte de Hue Lab — 2026-11-15
 - Cinq onglets sur deux rangées en mobile. Automatisations regroupe les modes par lampe, le réveil lumineux et Vacances dans des sections repliables. Le plan Pièces garde les commandes marche/arrêt.
 - Profil affiche la courbe de la lampe sélectionnée, avec réglages et aperçu détaillé repliables. L’option Personnalisée disparaît du choix des profils ; les courbes existantes restent consultables et éditables tant qu’elles sont actives. La copie complète part de la lampe affichée. Simulation a son onglet et reprend la lampe sélectionnée.
