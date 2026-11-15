@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 28210)
-Total output lines: 2261
-
 """Hue Web: interface locale, automatismes et diagnostics. Ne modifie pas hue.py."""
 from __future__ import annotations
 
@@ -931,7 +928,244 @@ class HueServer:
                 return None
             light = next((item for item in self.lights if item["id"] == uid), None)
             if (not light or "color" not in light or "dimming" not in light
-                    or self.previous_online.get(uid…3210 tokens truncated…)
+                    or self.previous_online.get(uid) is False):
+                return uid
+            on = light.get("on", {}).get("on") is True
+            if not run or run["alarm"] != alarm:
+                current = light["dimming"].get("brightness") if on else None
+                run = {"uid": uid, "alarm": alarm, "seen_on": on, "last": None,
+                       "initial": min(config["brightness"], current or 1)}
+                self.dawn_run = run
+            if run["seen_on"] and not on:
+                self._skip_dawn_locked(uid)
+                return None
+            run["seen_on"] |= on
+            final = config["brightness"]
+            progress = smootherstep(min(1, (now - start) / (wake - start)))
+            brightness = round(run["initial"] + (final - run["initial"]) * progress, 1)
+            last = run["last"]
+            if last is not None and abs(brightness - last) < 0.5 and (brightness != final or last == final):
+                return uid
+            hex_color = config["color"]
+            h, s, _ = colorsys.rgb_to_hsv(*(int(hex_color[i:i + 2], 16) for i in (1, 3, 5)))
+            xy = hsv_to_xy({"h": h * 360, "s": s * 100}, light["color"].get("gamut"))
+            payload = {"dimming": {"brightness": brightness}, "color": {"xy": xy}}
+            if last is None and not on:
+                payload["on"] = {"on": True}
+            if "dynamics" in light:
+                payload["dynamics"] = {"duration": 1000}
+            try:
+                self.client.resource(f"light/{uid}", "PUT", payload)
+            except HueError as exc:
+                self.log.warning("RÉVEIL LUMINEUX | %s | %s", uid, exc)
+                return uid
+            run["last"] = brightness
+            self.manual_restore_pending.discard(uid)
+            self.last_sent.pop(uid, None)
+            return uid
+
+    def _ensure_vacation_plan(self, when):
+        """Appelé sous self.lock ; une nouvelle journée recalcule 7 jours à l'avance."""
+        day = when.astimezone(LOCAL_TZ).date().isoformat()
+        if self.vacation["plan_date"] != day or not self.vacation["schedule"]:
+            self.vacation["seed"] = self.vacation["seed"] or uuid4().hex
+            self.vacation["schedule"] = build_schedule(
+                self.vacation["light_ids"], self.presence_log.path,
+                self.vacation["seed"], when)
+            self.vacation["plan_date"] = day
+            self.save()
+
+    def set_vacation(self, enabled, light_ids=None):
+        if type(enabled) is not bool:
+            raise ValueError("enabled doit être true ou false.")
+        with self._automation_lock:
+            with self.lock:
+                if enabled:
+                    if self.vacation_test and self.vacation_test["running"]:
+                        raise ValueError("Arrêter le test rapide avant de reconfigurer Vacances.")
+                    if self.client is None or self.last_poll is None or self.last_error:
+                        raise ValueError("Pont Hue non connecté.")
+                    if self.clock_mode != "reel":
+                        raise ValueError("Repasser l'horloge en heure réelle avant Vacances.")
+                    known = {light["id"] for light in self.lights}
+                    chosen = validate_selection(light_ids, known)
+                    # L'activation explicite (ou la modification de sélection) renouvelle le scénario.
+                    self.vacation = {"enabled": True, "light_ids": chosen, "seed": uuid4().hex,
+                                     "plan_date": "", "schedule": [], "overrides": {}}
+                    self.manual_restore_pending.difference_update(chosen)
+                    self.auto_transition_pending.difference_update(chosen)
+                    self._ensure_vacation_plan(datetime.now(LOCAL_TZ))
+                else:
+                    if self.vacation["enabled"]:
+                        # Les commandes Vacances peuvent encore parvenir du pont après
+                        # l'arrêt : exclure 45 s pour ne pas fausser les habitudes.
+                        self._history_resume_after = max(
+                            self._history_resume_after, time.monotonic() + 45)
+                    self.vacation["enabled"] = False
+                    self.vacation["overrides"] = {}
+                    if self.vacation_test and self.vacation_test["running"]:
+                        self.vacation_test["running"] = False
+                        self.vacation_test["status"] = "interrompu"
+                        self.vacation_test["log_block_until"] = time.monotonic() + 45
+                self.vacation_last_commands.clear()
+                self.save()
+        self.log.info("VACANCES | %s", "activé" if enabled else "désactivé")
+        self._event_wakeup.set()
+        return self.vacation_state()
+
+    def vacation_state(self):
+        with self.lock:
+            now = datetime.now(LOCAL_TZ)
+            if self.vacation["enabled"]:
+                self._ensure_vacation_plan(now)
+            upcoming = []
+            if self.vacation["enabled"]:
+                for item in self.vacation["schedule"]:
+                    if not isinstance(item, dict):
+                        continue
+                    try:
+                        scheduled_time = datetime.fromisoformat(item["at"])
+                    except (KeyError, TypeError, ValueError):
+                        continue
+                    if scheduled_time.timestamp() >= now.timestamp():
+                        upcoming.append(item)
+                        if len(upcoming) >= 16:
+                            break
+            return {
+                "enabled": self.vacation["enabled"],
+                "light_ids": list(self.vacation["light_ids"]),
+                "test": self._vacation_test_status_locked(),
+                "plan_date": self.vacation["plan_date"] if self.vacation["enabled"] else None,
+                "next_actions": upcoming,
+                "overrides": {uid: val["until"] for uid, val in
+                              self.vacation["overrides"].items()
+                              if val["until"] > time.time()},
+            }
+
+
+    def vacation_schedule(self):
+        """Planning complet sur sept jours, lecture seule, pour la frise compacte."""
+        with self.lock:
+            if not self.vacation["enabled"]:
+                return {"plan_date": None, "light_ids": [], "events": []}
+            self._ensure_vacation_plan(datetime.now(LOCAL_TZ))
+            selected = set(self.vacation["light_ids"])
+            events = [
+                {"at": event["at"], "light_id": event["light_id"],
+                 "on": event["on"]}
+                for event in self.vacation["schedule"]
+                if isinstance(event, dict) and event.get("light_id") in selected
+                and isinstance(event.get("at"), str)
+                and type(event.get("on")) is bool
+            ]
+            return {"plan_date": self.vacation["plan_date"],
+                    "light_ids": list(self.vacation["light_ids"]), "events": events}
+
+
+    def set_vacation_test(self, action):
+        """Test de 24 h en 60 secondes sur les lampes réelles, sans modifier le planning."""
+        if action not in ("start", "stop"):
+            raise ValueError("Action de test inconnue.")
+        with self._automation_lock:
+            with self.lock:
+                if action == "stop":
+                    if self.vacation_test and self.vacation_test["running"]:
+                        self.vacation_test["running"] = False
+                        self.vacation_test["status"] = "interrompu"
+                        self.vacation_test["log_block_until"] = time.monotonic() + 45
+                    self._event_wakeup.set()
+                    return self._vacation_test_status_locked()
+
+                if not self.vacation["enabled"]:
+                    raise ValueError("Activer le mode Vacances avant le test rapide.")
+                if self.clock_mode != "reel":
+                    raise ValueError("Le test exige l'horloge en temps réel.")
+                if self.vacation_test and self.vacation_test["running"]:
+                    raise ValueError("Un test est déjà en cours.")
+                if self.last_error or not self.client:
+                    raise ValueError("Pont Hue indisponible.")
+                now = datetime.now(LOCAL_TZ)
+                self._ensure_vacation_plan(now)
+                # Journée complète du lendemain, même si l'on lance le test le soir.
+                tomorrow = now.date() + timedelta(days=1)
+                full_day = []
+                for item in self.vacation["schedule"]:
+                    if item.get("light_id") not in self.vacation["light_ids"]:
+                        continue
+                    try:
+                        at = datetime.fromisoformat(item["at"])
+                    except (KeyError, TypeError, ValueError):
+                        continue
+                    if at.astimezone(LOCAL_TZ).date() == tomorrow:
+                        full_day.append((at.timestamp(), item["light_id"], item["on"] is True))
+                if not full_day:
+                    raise ValueError("Aucun événement disponible pour le test.")
+                full_day.sort()
+                # Premier allumage dans environ 3 s, plutôt que 20 à 30 s de silence.
+                origin = full_day[0][0] - 72 * 60
+                events = []
+                for item in self.vacation["schedule"]:
+                    try:
+                        at = datetime.fromisoformat(item["at"]).timestamp()
+                    except (KeyError, TypeError, ValueError):
+                        continue
+                    if origin <= at < origin + 86400 and item.get("light_id") in self.vacation["light_ids"]:
+                        events.append({"due": (at - origin) / 1440.0,
+                                       "at": item["at"], "light_id": item["light_id"],
+                                       "on": item["on"] is True})
+                events.sort(key=lambda e: (e["due"], e["light_id"]))
+                # À vitesse ×1440, une session de 20 min durerait 0,8 s.
+                # Préserver au moins 2 s allumées par lampe pour voir le résultat.
+                last_on_due = {}
+                for event in events:
+                    uid = event["light_id"]
+                    if event["on"]:
+                        last_on_due[uid] = event["due"]
+                    elif uid in last_on_due:
+                        event["due"] = max(event["due"], last_on_due[uid] + 2)
+                events.sort(key=lambda e: (e["due"], e["light_id"]))
+                started = time.monotonic()
+                self.vacation_test = {
+                    "running": True, "status": "en cours", "started_monotonic": started,
+                    "origin": origin, "events": events, "index": 0, "duration": 60,
+                    "initialized": False, "last_event": None,
+                    "last_commands": {},
+                    "light_ids": list(self.vacation["light_ids"]),
+                    # Le pont peut annoncer les transitions après la fin de la démo.
+                    # Conserver 45 s de marge pour ne pas polluer l'historique.
+                    "log_block_until": started + 60 + 45,
+                }
+                self.log.info("VACANCES TEST | démarrage 24 heures simulées en 60 secondes")
+                self._event_wakeup.set()
+                return self._vacation_test_status_locked()
+
+    def _vacation_test_status_locked(self):
+        test = self.vacation_test
+        if test is None:
+            return {"running": False, "status": "inactif", "duration_seconds": 60}
+        elapsed = max(0, min(60, time.monotonic() - test["started_monotonic"]))
+        simulated = datetime.fromtimestamp(test["origin"] + elapsed * 1440, LOCAL_TZ)
+        return {
+            "running": bool(test["running"]), "status": test["status"],
+            "elapsed_seconds": round(elapsed, 1), "duration_seconds": test["duration"],
+            "simulated_time": simulated.isoformat(timespec="seconds"),
+            "processed": test["index"], "total": len(test["events"]),
+            "last_event": copy.deepcopy(test["last_event"]),
+        }
+
+    def _vacation_test_tick_locked(self):
+        """Traite toutes les actions échues ; aucune transition courte n'est sautée."""
+        with self.lock:
+            test = self.vacation_test
+            if not test or not test["running"]:
+                return
+            elapsed = time.monotonic() - test["started_monotonic"]
+            if elapsed >= 60:
+                test["running"] = False
+                test["status"] = "terminé"
+                test["log_block_until"] = max(test.get("log_block_until", 0),
+                                               time.monotonic() + 45)
+                self.log.info("VACANCES TEST | terminé, reprise du planning réel")
                 return
             lights = {light["id"]: light for light in self.lights}
             connected = {c.get("owner", {}).get("rid"): c.get("status")
