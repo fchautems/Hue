@@ -1,10 +1,11 @@
 # PROJECT_STATE — Philips Hue Web
 
-## Interface compacte de Hue Lab — 2026-11-15
+## v0.16.0 — Interface compacte de Hue Lab — 2026-11-15
 - Cinq onglets sur deux rangées en mobile. Automatisations regroupe les modes par lampe, le réveil lumineux et Vacances dans des sections repliables. Le plan Pièces garde les commandes marche/arrêt.
 - Profil affiche la courbe de la lampe sélectionnée, avec réglages et aperçu détaillé repliables. L’option Personnalisée disparaît du choix des profils ; les courbes existantes restent consultables et éditables tant qu’elles sont actives. La copie complète part de la lampe affichée. Simulation a son onglet et reprend la lampe sélectionnée.
 - Paramètres regroupe la ville, l’historique, les mises à jour, le pont et les diagnostics. La ville s’enregistre sur le serveur et s’applique à tous les profils Soleil. Avant le premier choix, chaque profil conserve son lieu.
-- Contrôles sur la PR #34 : CI 43655593245 réussie. 223 tests Python, parité, suites Node et parcours Chromium sur pont simulé, dont navigation à 320/390/1320 px, luminosité manuelle, copie complète et ville commune. Le scénario de connexion attend la réponse de l’API avant de vérifier l’adresse du pont. Prochaine action : essayer sur le Pixel avec le pont réel après intégration.
+- Contrôles sur la PR #34 : CI 43655593245 réussie. 223 tests Python, parité, suites Node et parcours Chromium sur pont simulé, dont navigation à 320/390/1320 px, luminosité manuelle, copie complète et ville commune. Le scénario de connexion attend la réponse de l’API avant de vérifier l’adresse du pont.
+- Publication : PR #34 fusionnée sur `main` au commit `b6a2fe7`. Une installation de test en v0.15.2 détecte v0.16.0 via le vérificateur de mise à jour. Prochaine action : installer depuis Hue Lab, puis essayer sur le Pixel avec le pont réel.
 
 ## v0.15.2 — Lisibilité du plan sur Pixel — 2026-11-10
 - Capture Pixel sur la v0.15.1 : le plan tient sur l’écran, mais sa hauteur fixe aplatit le croquis et les doubles cercles dominent visuellement.
