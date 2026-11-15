@@ -413,17 +413,50 @@ const assert=require('node:assert/strict');
  await page.locator('#dawn-save').click();
  await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent==='Désactivé.');
  await page.setViewportSize({width:1320,height:1000});
- // Manual brightness is disclosed on the lamp name and Auto closes it.
- await page.getByText('Modes des lampes',{exact:true}).click();
+ // The list is visible on entry, and the slider follows the mode directly.
  const row=page.locator('.mode-row').first();
- await row.locator('[data-control="manuel"]').click();
- await row.locator('[data-control="manuel"][aria-pressed="true"]').waitFor();
- await row.locator('.lamp-name').click();
- await row.locator('.light-brightness').fill('42');
- await page.waitForFunction(()=>state.lights[0].brightness===42);
+ const slider=row.locator('.light-brightness');
+ assert.equal(await row.isVisible(),true);
+ assert.equal(await page.locator('details:has(#light-grid)').count(),0);
+ assert.equal(await row.locator('button.lamp-name').count(),0);
  await row.locator('[data-control="auto"]').click();
- await row.locator('[data-control="auto"][aria-pressed="true"]').waitFor();
- assert.equal(await row.locator('.light-brightness').isHidden(),true);
+ await page.waitForFunction(()=>state.lights[0].control_mode==='auto');
+ assert.equal(await slider.isHidden(),true);
+ await row.locator('[data-control="manuel"]').click();
+ await slider.waitFor();
+ await page.waitForFunction(()=>state.lights[0].control_mode==='manuel');
+ const brightnessUrl='**/api/light/light-0/brightness';
+ let allowBrightness;
+ let firstRequest;
+ const firstBrightness=new Promise(resolve=>{firstRequest=resolve;});
+ await page.route(brightnessUrl,async route=>{
+   const gate=new Promise(release=>{allowBrightness=release;});
+   firstRequest(route.request().postDataJSON());
+   await gate;
+   await route.continue();
+ },{times:1});
+ async function moveBrightness(percent) {
+   await slider.evaluate((input,level)=>{
+     input.value=level;
+     input.dispatchEvent(new Event('input',{bubbles:true}));
+   },percent);
+   assert.equal(await row.locator('.light-value').textContent(),percent+' %');
+ }
+ await moveBrightness(42);
+ assert.deepEqual(await firstBrightness,{brightness:42,interactive:true});
+ const requestsBefore=writes.filter(request=>request.url.endsWith('/brightness')).length;
+ await moveBrightness(48);
+ await moveBrightness(53);
+ await slider.dispatchEvent('change');
+ assert.equal(await slider.isEnabled(),true,'slow bridge leaves the slider usable');
+ await page.evaluate(()=>refresh());
+ assert.equal(await row.locator('.light-value').textContent(),'53 %','stale polling preserves the latest input');
+ allowBrightness();
+ await page.waitForFunction(()=>state.lights[0].brightness===53);
+ assert.deepEqual(writes.filter(request=>request.url.endsWith('/brightness')).slice(requestsBefore).map(request=>request.data.brightness),[53]);
+ await row.locator('[data-control="auto"]').click();
+ await page.waitForFunction(()=>state.lights[0].control_mode==='auto');
+ assert.equal(await slider.isHidden(),true);
  assert.equal(await row.locator('.light-curve,.light-rgb,.light-details,.light-switch').count(),0);
  await page.locator('.vacation-summary').click();
  await page.locator('#vacation-lights input').first().check();

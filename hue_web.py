@@ -1712,7 +1712,7 @@ class HueServer:
         self.log.info("COMMANDE | %s | %s", name, payload)
         self._event_wakeup.set()
 
-    def set_brightness(self, uid, brightness):
+    def set_brightness(self, uid, brightness, *, interactive=False):
         if isinstance(brightness, bool) or not isinstance(brightness, (float, int)) or not 1 <= brightness <= 100:
             raise ValueError("La luminosité doit être entre 1 et 100 %.")
         with self._automation_lock:
@@ -1724,7 +1724,7 @@ class HueServer:
                     raise ValueError("Cette ampoule ne propose pas le réglage de luminosité.")
             payload = {"dimming": {"brightness": float(brightness)}}
             if "dynamics" in light:
-                payload["dynamics"] = {"duration": 400}
+                payload["dynamics"] = {"duration": 100 if interactive else 400}
             self.client.resource(f"light/{uid}", "PUT", payload)
             with self.lock:
                 self._skip_dawn_locked(uid)
@@ -2161,7 +2161,7 @@ def switch(uid: str, data: dict = Body(...)):
 
 @app.post("/api/light/{uid}/brightness")
 def set_brightness(uid: str, data: dict = Body(...)):
-    controller.set_brightness(uid, data.get("brightness"))
+    controller.set_brightness(uid, data.get("brightness"), interactive=data.get("interactive") is True)
     return ok()
 
 

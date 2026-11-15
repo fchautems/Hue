@@ -62,12 +62,10 @@ body.v051-show-simulator #tab-simulation #v061-sim-options{display:block}
   gap:0 8px;padding:2px 12px;min-height:0;border-top:1px solid var(--border)
 }
 #tab-dashboard .mode-row::after{content:none}
-.mode-row .lamp-name{
-  text-align:left;overflow-wrap:anywhere;min-height:44px;padding:6px 0;
-  background:none;border:0;color:var(--text);font-weight:600
+#lamp-modes-title{
+  background:var(--panel-2);font-size:14px;font-weight:650;margin:0;padding:12px
 }
-.mode-row .lamp-name:disabled{cursor:default}
-.mode-row .lamp-name:not(:disabled)::after{content:" ⌄";color:var(--muted)}
+.mode-row .lamp-name{overflow-wrap:anywhere;padding:6px 0;font-weight:600}
 .mode-row .lamp-mode-buttons{display:flex;gap:3px}
 .mode-row .lamp-mode-btn{min-height:44px;padding:5px 8px;font-size:12px}
 .lamp-brightness,.lamp-override{grid-column:1/-1;padding:5px 0 8px}
