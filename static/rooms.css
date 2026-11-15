@@ -118,7 +118,6 @@
   color: #c2cddd;
   font-size: 12px;
 }
-.plan-room-layer { position: absolute; inset: 0; clip-path: url(#plan-outer-clip); }
 .plan-room { position: absolute; }
 .plan-room-action {
   position: absolute;

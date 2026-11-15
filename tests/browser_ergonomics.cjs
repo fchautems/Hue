@@ -41,20 +41,23 @@ const assert=require('node:assert/strict');
   assert.ok(aligned(edges.bureau.right,edges.bain.left) && aligned(edges.bureau.bottom,edges.bain.bottom));
   assert.equal(await plan.locator('.plan-walls path:not(.plan-open-divider)').count(),1);
   const outer = plan.locator('.plan-walls > rect');
-  const clip = plan.locator('#plan-outer-clip rect');
-  for(const attribute of ['x','y','width','height','rx','ry']){
-   assert.equal(await outer.getAttribute(attribute),await clip.getAttribute(attribute));
+  assert.ok(Number(await outer.getAttribute('rx'))>0,'the outline has rounded corners');
+  for(const [key,corner] of [['salon','TopLeft'],['cuisine','TopRight'],['bureau','BottomLeft'],['bain','BottomRight']]){
+   const fillRadius=await plan.locator(`[data-plan-room="${key}"] .plan-room-action`).evaluate(
+    (button,corner)=>parseFloat(getComputedStyle(button)[`border${corner}Radius`]),corner);
+   assert.ok(fillRadius>0,`the ${key} background follows the rounded outline`);
   }
-  assert.ok(Number(await outer.getAttribute('rx'))>0,'all four outer corners are rounded');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
   assert.ok(await plan.locator('[data-plan-room="bain"] .plan-room-action').evaluate(button=>button.scrollWidth<=button.clientWidth),
    'the bathroom label fits');
-  assert.ok(await plan.locator('.plan-lamp').evaluateAll(markers=>markers.every(marker=>{
+  const blockedMarkers=await plan.locator('.plan-lamp').evaluateAll(markers=>markers.flatMap(marker=>{
    const {left,top,right,bottom,width,height}=marker.getBoundingClientRect();
    const room=marker.closest('.plan-room').getBoundingClientRect();
+   const hit=document.elementFromPoint(left+width/2,top+height/2);
    return width>=32&&height>=32&&left>=room.left&&right<=room.right&&top>=room.top&&bottom<=room.bottom
-    &&document.elementFromPoint(left+width/2,top+height/2)===marker;
-  })),'markers are touchable and stay within their rooms');
+    &&hit===marker ? [] : [{id:marker.dataset.planLamp,hit:hit?.className,room:room.toJSON(),left,top,right,bottom}];
+  }));
+  assert.deepEqual(blockedMarkers,[],'markers are touchable and stay within their rooms');
  }
  const compactHeight=(await surface.boundingBox()).height;
  await page.setViewportSize({width:393,height:830});

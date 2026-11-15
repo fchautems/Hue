@@ -12,7 +12,7 @@
   let layout = "";
   let controls = [];
   // Un seul repère pour les pièces et leurs murs, en pourcentage de la surface.
-  const left = 1, right = 99, top = 1, bottom = 99.5;
+  const left = 1, right = 99, top = 1, bottom = 99.5, cornerRadius = 2;
   const kitchenX = 55, bedroomRight = 53, voidLeft = 28, officeRight = 74;
   const upperY = 29, voidTop = 54.3, bedroomBottom = 62, voidBottom = 71, bathTop = 84;
   const planRooms = [
@@ -47,18 +47,9 @@
 
     const perimeter = document.createElementNS(namespace, "rect");
     for (const [name, value] of Object.entries({
-      x: left, y: top, width: right - left, height: bottom - top, rx: 2, ry: 2,
+      x: left, y: top, width: right - left, height: bottom - top, rx: cornerRadius, ry: cornerRadius,
     })) perimeter.setAttribute(name, value);
     perimeter.setAttribute("vector-effect", "non-scaling-stroke");
-
-    const clip = document.createElementNS(namespace, "clipPath");
-    clip.id = "plan-outer-clip";
-    clip.setAttribute("clipPathUnits", "objectBoundingBox");
-    const clipRect = perimeter.cloneNode();
-    clipRect.setAttribute("transform", "scale(.01)");
-    clip.append(clipRect);
-    const defs = document.createElementNS(namespace, "defs");
-    defs.append(clip);
 
     const solid = document.createElementNS(namespace, "path");
     solid.setAttribute("d", [
@@ -73,7 +64,7 @@
     divider.classList.add("plan-open-divider");
     divider.setAttribute("d", `M ${kitchenX} ${top} V ${upperY}`);
     for (const path of [solid, divider]) path.setAttribute("vector-effect", "non-scaling-stroke");
-    walls.append(defs, perimeter, solid, divider);
+    walls.append(perimeter, solid, divider);
     return walls;
   }
 
@@ -263,8 +254,6 @@
     header.append(title, edit);
     const surface = document.createElement("div");
     surface.className = "apartment-plan-surface";
-    const roomLayer = document.createElement("div");
-    roomLayer.className = "plan-room-layer";
     const feedback = document.createElement("p");
     feedback.className = "plan-feedback";
     feedback.setAttribute("role", "status");
@@ -280,6 +269,11 @@
       area.dataset.planRoom = room.key;
       Object.assign(area.style, {left: `${room.x}%`, top: `${room.y}%`, width: `${room.w}%`, height: `${room.h}%`});
       const roomButton = button(room.label, roomLamps.map(light => light.id), true, "plan-room-action");
+      const radius = `${cornerRadius / room.w * 100}% ${cornerRadius / room.h * 100}%`;
+      if (room.x === left && room.y === top) roomButton.style.borderTopLeftRadius = radius;
+      if (room.right === right && room.y === top) roomButton.style.borderTopRightRadius = radius;
+      if (room.x === left && room.bottom === bottom) roomButton.style.borderBottomLeftRadius = radius;
+      if (room.right === right && room.bottom === bottom) roomButton.style.borderBottomRightRadius = radius;
       roomButton.textContent = room.label;
       if (room.shortLabel) {
         const full = document.createElement("span");
@@ -309,9 +303,9 @@
         layer.append(lamp);
       }
       area.append(layer);
-      roomLayer.append(area);
+      surface.append(area);
     }
-    surface.append(roomLayer, drawWalls());
+    surface.append(drawWalls());
     plan.append(header);
     if (editMode) plan.append(feedback);
     plan.append(surface);
