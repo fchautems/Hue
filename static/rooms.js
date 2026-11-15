@@ -12,7 +12,7 @@
   let layout = "";
   let controls = [];
   // Un seul repère pour les pièces et leurs murs, en pourcentage de la surface.
-  const left = 1, right = 99, top = 1, bottom = 99.5, cornerRadius = 2;
+  const left = 1, right = 99, top = 1, bottom = 100, cornerRadius = 2;
   const kitchenX = 55, bedroomRight = 53, voidLeft = 28, officeRight = 74;
   const upperY = 29, voidTop = 54.3, bedroomBottom = 62, voidBottom = 71, bathTop = 84;
   const planRooms = [
