@@ -1,5 +1,13 @@
 # PROJECT_STATE — Philips Hue Web
 
+## Réveil Android 0.3 — variante de test et diagnostic — 2026-11-18
+- La PR brouillon #37 (https://github.com/fchautems/Hue/pull/37) contient maintenant une APK « Hue Lab Test » séparée (package `ch.huelab.mobile.test`), créée avec `HUE_ANDROID_TEST_VARIANT=1`. Elle conserve son espace de données indépendant de l'APK standard. Le serveur Hue peut toutefois être partagé ; une synchronisation de test peut commander les vraies lampes.
+- Journal Android local horodaté et borné : ouverture de l'application, appui sur le bouton, recherche ponctuelle de la prochaine alarme, heure lue, confirmation ou échec d'envoi. Depuis le menu Retour Android → Journal du réveil, consultation et partage via ACTION_SEND. Pas de serveur de logs ni de nouvelle tâche de fond.
+- Vérifications CI réelles sur le commit `866e91254348` : [compilation et signature des deux APK réussies](https://github.com/fchautems/Hue/actions/runs/44252504353), [suite de tests Python, JS et parcours navigateur réussie](https://github.com/fchautems/Hue/actions/runs/44252504349). Artefact `hue-lab-android`, contenant `Hue-Lab-Test-0.3.apk` et `Hue-Lab-0.3.apk`, dans le run Android.
+- Sécurité pour essai : **Forcer l'arrêt** de l'ancienne application Hue Lab avant de tester la variante séparée, car son ancien JobScheduler subsiste dans l'application d'origine ; la nouvelle variante ne peut pas annuler les tâches de l'autre package. L'essai Pixel n'a pas été effectué ; la cause des anciens redémarrages est inconnue. Ne pas confondre tests CI et validation sur téléphone réel.
+- Décision : conserver la PR en brouillon et ne pas déployer sur le Raspberry ni sur le téléphone. Prochaine action : installation manuelle de `Hue Lab Test` depuis l'artefact vérifié, test sans modifications répétées, contrôle du journal et, ensuite seulement, essai de synchronisation vers le Raspberry si souhaité.
+
+
 ## Réveil Android 0.3 — synchronisation uniquement sur demande — 2026-11-18
 - Demande confirmée : lorsque Réveil lumineux est enregistré comme actif, seul le bouton « Synchroniser maintenant » dans l’APK doit consulter la prochaine alarme Android et l’envoyer au Raspberry. La page web du navigateur ne peut pas accéder aux alarmes Android ; le bouton reste réservé à l’APK.
 - Branche de correction : `fix/reveil-manuel-sans-boucle-20261118`. Retirés : réception des changements d'alarme, tâche JobScheduler périodique, synchronisation à l'ouverture/reprise, synchronisation automatique après l'enregistrement ou changement d'adresse. Les composants Android correspondants sont supprimés ; l'ancienne tâche ID 271 est annulée à l'ouverture de l'APK.
