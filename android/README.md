@@ -18,9 +18,12 @@ Wi-Fi local. Le Raspberry programme la montée avec l’heure reçue, même si l
 téléphone est ensuite hors ligne. Un changement hors ligne ne parvient au
 Raspberry qu’au retour sur le réseau local.
 
-Android lit aussi l’alarme à l’ouverture de Hue Lab, sur les notifications de
-changement reçues et via une tâche périodique de secours dont Android fixe
-l’heure réelle. Le niveau final est maintenu cinq minutes avant de rendre la
+Depuis la version 0.3, Android lit la prochaine alarme **uniquement** après un appui
+sur **Synchroniser maintenant** lorsque le réveil lumineux est activé. Modifier
+les réglages ou rouvrir l’application ne lance aucune lecture ni tâche périodique.
+Après une modification ou une annulation de l’alarme Android, appuie de nouveau
+sur Synchroniser pour mettre le Raspberry à jour. L’ancienne tâche planifiée
+est annulée au lancement de la nouvelle APK. Le niveau final est maintenu cinq minutes avant de rendre la
 main au mode précédent. Un arrêt manuel pendant la montée annule l’aube en
 cours pour cette lampe.
 
