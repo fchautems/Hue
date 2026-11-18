@@ -1,9 +1,6 @@
 package ch.huelab.mobile;
 
 import android.app.AlarmManager;
-import android.app.job.JobInfo;
-import android.app.job.JobScheduler;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.SharedPreferences;
 import java.io.ByteArrayOutputStream;
@@ -21,18 +18,12 @@ import java.util.function.Consumer;
 import org.json.JSONObject;
 
 final class AlarmSync {
-    private static final int JOB_ID = 271;
-    private static final String ENABLED = "dawn-enabled";
     private static final ExecutorService QUEUE = Executors.newSingleThreadExecutor();
 
     private AlarmSync() {}
 
     static SharedPreferences preferences(Context context) {
         return context.getSharedPreferences("MainActivity", Context.MODE_PRIVATE);
-    }
-
-    static boolean enabled(Context context) {
-        return preferences(context).getBoolean(ENABLED, false);
     }
 
     static Future<?> request(Context context, Consumer<Boolean> complete) {
@@ -55,20 +46,8 @@ final class AlarmSync {
         String server = LocalServer.normalize(preferences.getString("server", MainActivity.DEFAULT_SERVER));
         if (server == null) return;
         JSONObject config = send(server + "/api/dawn", null);
-        boolean active = config.getBoolean("enabled");
-        preferences.edit().putBoolean(ENABLED, active).apply();
-        JobScheduler jobs = context.getSystemService(JobScheduler.class);
-        if (!active) {
-            jobs.cancel(JOB_ID);
-            return;
-        }
-        if (jobs.getPendingJob(JOB_ID) == null) {
-            jobs.schedule(new JobInfo.Builder(JOB_ID, new ComponentName(context, AlarmSyncJob.class))
-                    .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                    .setPeriodic(15 * 60 * 1000L)
-                    .setPersisted(true)
-                    .build());
-        }
+        // No background polling: only an explicit UI tap reaches this method.
+        if (!config.getBoolean("enabled")) return;
         long observed = System.currentTimeMillis();
         AlarmManager.AlarmClockInfo alarm = context.getSystemService(AlarmManager.class).getNextAlarmClock();
         JSONObject report = new JSONObject();
