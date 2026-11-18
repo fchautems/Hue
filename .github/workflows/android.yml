@@ -32,8 +32,12 @@ jobs:
             -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 \
             -validity 10000 -dname 'CN=Hue Lab prototype'
           bash android/build.sh "$RUNNER_TEMP/Hue-Lab-0.3.apk"
+          HUE_ANDROID_TEST_VARIANT=1 bash android/build.sh "$RUNNER_TEMP/Hue-Lab-Test-0.3.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$RUNNER_TEMP/Hue-Lab-Test-0.3.apk" | grep -F "package: name='ch.huelab.mobile.test'"
       - uses: actions/upload-artifact@v4
         with:
           name: hue-lab-android
-          path: ${{ runner.temp }}/Hue-Lab-0.3.apk
+          path: |
+            ${{ runner.temp }}/Hue-Lab-0.3.apk
+            ${{ runner.temp }}/Hue-Lab-Test-0.3.apk
           if-no-files-found: error
