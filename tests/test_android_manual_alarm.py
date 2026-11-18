@@ -32,3 +32,18 @@ class AndroidManualAlarmTests(TestCase):
         self.assertIn('sync.addEventListener("click", askAndroid);', ui)
         self.assertNotIn("askAndroid();", ui)
         self.assertIn("sync.hidden = !native || !data.enabled;", ui)
+
+    def test_local_diagnostics_and_separate_test_apk(self):
+        activity = (ROOT / "android/src/ch/huelab/mobile/MainActivity.java").read_text(encoding="utf-8")
+        alarm = (ROOT / "android/src/ch/huelab/mobile/AlarmSync.java").read_text(encoding="utf-8")
+        build = (ROOT / "android/build.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        self.assertIn("AlarmSync.diagnosticLog(this)", activity)
+        self.assertIn("Journal du réveil", activity)
+        self.assertIn("Intent.ACTION_SEND", activity)
+        self.assertIn("DIAGNOSTICS_KEY", alarm)
+        self.assertIn("Prochaine alarme détectée", alarm)
+        self.assertIn("Synchronisation confirmée par le Raspberry", alarm)
+        self.assertIn("HUE_ANDROID_TEST_VARIANT", build)
+        self.assertIn('package="ch.huelab.mobile.test"', build)
+        self.assertIn("Hue-Lab-Test-0.3.apk", workflow)
