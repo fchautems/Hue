@@ -2,10 +2,9 @@ package ch.huelab.mobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.AlarmManager;
+import android.app.job.JobScheduler;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -31,7 +30,6 @@ public final class MainActivity extends Activity {
     private LinearLayout offline;
     private TextView offlineMessage;
     private volatile String server;
-    private final AlarmChangedReceiver alarmReceiver = new AlarmChangedReceiver();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -77,19 +75,10 @@ public final class MainActivity extends Activity {
         offline.addView(change);
         root.addView(offline, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
-        IntentFilter alarms = new IntentFilter(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED);
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(alarmReceiver, alarms, RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(alarmReceiver, alarms);
-        }
+        // Clean up the periodic task installed by older versions, without reading alarms.
+        JobScheduler jobs = getSystemService(JobScheduler.class);
+        if (jobs != null) jobs.cancel(271);
         loadServer();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        syncAlarm(false);
     }
 
     private void syncAlarm(boolean feedback) {
@@ -187,7 +176,6 @@ public final class MainActivity extends Activity {
             AlarmSync.preferences(this).edit().putString(SERVER_KEY, server).apply();
             dialog.dismiss();
             loadServer();
-            syncAlarm(false);
         }));
         dialog.show();
     }
@@ -203,7 +191,6 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        unregisterReceiver(alarmReceiver);
         web.destroy();
         super.onDestroy();
     }
