@@ -2,10 +2,9 @@ package ch.huelab.mobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.AlarmManager;
+import android.app.job.JobScheduler;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -31,7 +30,7 @@ public final class MainActivity extends Activity {
     private LinearLayout offline;
     private TextView offlineMessage;
     private volatile String server;
-    private final AlarmChangedReceiver alarmReceiver = new AlarmChangedReceiver();
+    private AlertDialog syncConfirmation;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -47,7 +46,7 @@ public final class MainActivity extends Activity {
         web = new WebView(this);
         web.setBackgroundColor(0xff142337);
         web.getSettings().setJavaScriptEnabled(true);
-        web.getSettings().setUserAgentString(web.getSettings().getUserAgentString() + " HueLabAndroid/0.2");
+        web.getSettings().setUserAgentString(web.getSettings().getUserAgentString() + " HueLabAndroid/0.3.1");
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
         web.getSettings().setAllowContentAccess(false);
@@ -77,29 +76,37 @@ public final class MainActivity extends Activity {
         offline.addView(change);
         root.addView(offline, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
-        IntentFilter alarms = new IntentFilter(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED);
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(alarmReceiver, alarms, RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(alarmReceiver, alarms);
+        // Clean up the periodic task installed by older versions, without reading alarms.
+        JobScheduler jobs = getSystemService(JobScheduler.class);
+        if (jobs != null) {
+            jobs.cancel(271);
+            AlarmSync.logEvent(this, "Ancienne tâche 271 : annulation demandée pour " + getPackageName()
+                    + ", encore présente=" + (jobs.getPendingJob(271) != null));
         }
+        AlarmSync.logEvent(this, "Ouverture de Hue Lab : aucune recherche automatique");
         loadServer();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        syncAlarm(false);
-    }
-
     private void syncAlarm(boolean feedback) {
-        AlarmSync.request(this, succeeded -> {
+        boolean accepted = AlarmSync.request(this, succeeded -> {
             if (feedback) runOnUiThread(() -> {
-                if (!isDestroyed()) {
+                if (!isDestroyed() && !isFinishing()) {
+                    Toast.makeText(this, succeeded ? "Réveil confirmé par le Raspberry." :
+                            "Synchronisation non confirmée. Consulte le Journal du réveil.", Toast.LENGTH_LONG).show();
                     web.evaluateJavascript("window.HueDawn?.checkSync(" + succeeded + ")", null);
                 }
             });
         });
+        if (!accepted) Toast.makeText(this, "Synchronisation en cours ou double appui ignoré.", Toast.LENGTH_SHORT).show();
+    }
+
+    private void confirmManualSync() {
+        if (isFinishing() || isDestroyed() || (syncConfirmation != null && syncConfirmation.isShowing())) return;
+        syncConfirmation = new AlertDialog.Builder(this)
+                .setTitle("Synchronisation manuelle")
+                .setMessage("Lire une seule fois la prochaine alarme Android et l’envoyer au Raspberry ?")
+                .setPositiveButton("Synchroniser maintenant", (dialog, which) -> syncAlarm(true))
+                .setNegativeButton("Annuler", null).show();
     }
 
     private void loadServer() {
@@ -136,7 +143,9 @@ public final class MainActivity extends Activity {
             Uri url = request.getUrl();
             if (request.isForMainFrame() && "huelab://sync-alarm".equals(url.toString())
                     && view.getUrl() != null && sameServer(Uri.parse(view.getUrl()))) {
-                syncAlarm(true);
+                // An older Raspberry page may still call this URL automatically after Save.
+                // Such calls must never read Android alarms.
+                confirmManualSync();
                 return true;
             }
             if (sameServer(url)) return false;
@@ -187,23 +196,42 @@ public final class MainActivity extends Activity {
             AlarmSync.preferences(this).edit().putString(SERVER_KEY, server).apply();
             dialog.dismiss();
             loadServer();
-            syncAlarm(false);
         }));
         dialog.show();
+    }
+
+    private void showDiagnosticLog() {
+        String history = AlarmSync.diagnosticLog(this);
+        new AlertDialog.Builder(this)
+                .setTitle("Journal du réveil")
+                .setMessage(history)
+                .setPositiveButton("Partager le journal", (dialog, ignored) -> {
+                    Intent share = new Intent(Intent.ACTION_SEND);
+                    share.setType("text/plain");
+                    share.putExtra(Intent.EXTRA_TEXT, "Journal " + getPackageName() + " 0.3.1\n" + history);
+                    try {
+                        startActivity(Intent.createChooser(share, "Exporter le journal"));
+                    } catch (ActivityNotFoundException error) {
+                        Toast.makeText(this, "Aucune application disponible pour partager.", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Fermer", null)
+                .show();
     }
 
     @Override
     public void onBackPressed() {
         new AlertDialog.Builder(this).setTitle("Hue Lab")
-                .setItems(new String[]{"Changer l’adresse du serveur", "Fermer l’application"}, (dialog, index) -> {
+                .setItems(new String[]{"Changer l’adresse du serveur", "Journal du réveil", "Synchroniser maintenant", "Fermer l’application"}, (dialog, index) -> {
                     if (index == 0) editAddress();
+                    else if (index == 1) showDiagnosticLog();
+                    else if (index == 2) syncAlarm(true);
                     else finish();
                 }).setNegativeButton("Rester", null).show();
     }
 
     @Override
     protected void onDestroy() {
-        unregisterReceiver(alarmReceiver);
         web.destroy();
         super.onDestroy();
     }

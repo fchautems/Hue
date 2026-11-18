@@ -80,8 +80,7 @@
       });
       dirty = false;
       paint(data);
-      askAndroid();
-      showToast("Réveil lumineux enregistré.");
+      showToast("Réveil lumineux enregistré. Appuie sur Synchroniser pour envoyer l’alarme.");
     } catch (error) {
       status.textContent = error.message;
     } finally {

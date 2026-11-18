@@ -11,8 +11,17 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 mkdir -p "$work/classes" "$work/dex"
+manifest="AndroidManifest.xml"
+if [ "${HUE_ANDROID_TEST_VARIANT:-0}" = "1" ]; then
+    # Separate installable test app: keep the production APK and its preferences intact.
+    manifest="$work/test-manifest.xml"
+    sed -e 's/package="ch.huelab.mobile"/package="ch.huelab.mobile.test031"/' \
+        -e 's/android:label="Hue Lab"/android:label="Hue Lab Test 0.3.1"/' \
+        -e 's/android:name="\.MainActivity"/android:name="ch.huelab.mobile.MainActivity"/' \
+        AndroidManifest.xml > "$manifest"
+fi
 "$tools/aapt2" compile --dir res -o "$work/res.zip"
-"$tools/aapt2" link -I "$platform" --manifest AndroidManifest.xml \
+"$tools/aapt2" link -I "$platform" --manifest "$manifest" \
     -o "$work/unsigned.apk" "$work/res.zip"
 javac --release 8 -encoding UTF-8 -classpath "$platform" -d "$work/classes" \
     src/ch/huelab/mobile/*.java
