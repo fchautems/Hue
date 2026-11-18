@@ -93,6 +93,20 @@ Garder l'ancienne version normale arrêtée pendant l'essai, comme dans le proto
 - Les tests JVM ne sont pas une exécution d'Android et ne démontrent pas la stabilité
   du Pixel. CI et signature ne sont pas une preuve de sécurité absolue.
 
+## Livraison vérifiée
+
+Code : `445fb1a60248a969f3ae88a4ef9d2d02d1725a60`. CI checkout synthétique
+`8aa987f914ecedee451fd8433acfaa674c05c8e4`, arbre identique à celui de la branche.
+[Compilation, 19 simulations JVM, signature et package](https://github.com/fchautems/Hue/actions/runs/44261711295) : réussis.
+[230 tests Python, parité, six suites Node et deux parcours Chromium](https://github.com/fchautems/Hue/actions/runs/44261711326) : réussis.
+Les changements de livraison postérieurs à ce code sont uniquement documentaires.
+
+APK : `Hue-Lab-Test-0.3.1.apk`, 20 977 octets. Signatures v2/v3 valides dans le run.
+SHA-256 : `30086744d1ae11bd43eed430968a56c817252852c80018b5c51330aa6b097dcc`.
+[Télécharger l'APK Test](https://chatgpt.com/library?file_id=libfile_733be41c49dc8191a650d4f02118fedf&account_id=personal).
+ZIP artefact ID 14408905508, empreinte vérifiée après téléchargement :
+`f2fd9a785776a2f4303931deb19130d9ae41070147174c50337bdbd87b047e17`.
+
 ## Essai matériel progressif
 
 1. Installer uniquement Hue-Lab-Test-0.3.1.apk. Garder la version normale arrêtée.
