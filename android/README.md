@@ -27,6 +27,22 @@ est annulée au lancement de la nouvelle APK. Le niveau final est maintenu cinq 
 main au mode précédent. Un arrêt manuel pendant la montée annule l’aube en
 cours pour cette lampe.
 
+## Essai sans remplacer l'application existante
+
+La CI de la PR produit aussi **Hue-Lab-Test-0.3.apk** : application séparée « Hue Lab Test »
+(package `ch.huelab.mobile.test`) avec ses propres préférences et données. Elle n'écrase
+pas Hue Lab, mais partage les mêmes services Raspberry si elle est configurée sur la
+même adresse : un réveil envoyé au Raspberry peut donc piloter les vraies lampes.
+Ce prototype ne doit être installé que pour un essai volontaire.
+
+Pour lire le journal, ouvre **Hue Lab Test**, utilise le bouton Retour Android,
+puis **Journal du réveil**. Le menu permet aussi **Partager le journal** vers une
+application de ton choix. Les dernières lignes horodatées sont conservées localement,
+sans surveillance en arrière-plan : ouverture, appui manuel, heure d'alarme lue,
+succès ou échec de l'envoi. Ne partage le journal qu'avec une personne de confiance,
+car il contient l'heure de tes alarmes. Les logs seuls ne démontrent pas l'absence
+absolue de toute activité, qui est aussi contrôlée dans le code.
+
 Compilation avec JDK 17, la plateforme Android 35 et les build-tools 35.0.0.
 `HUE_ANDROID_KEYSTORE` doit pointer vers une clé de test Android conservée en
 privé. Lance `bash android/build.sh /chemin/absolu/Hue-Lab.apk`.
