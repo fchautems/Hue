@@ -1,5 +1,13 @@
 # PROJECT_STATE — Philips Hue Web
 
+## Réveil Android 0.3 — synchronisation uniquement sur demande — 2026-11-18
+- Demande confirmée : lorsque Réveil lumineux est enregistré comme actif, seul le bouton « Synchroniser maintenant » dans l’APK doit consulter la prochaine alarme Android et l’envoyer au Raspberry. La page web du navigateur ne peut pas accéder aux alarmes Android ; le bouton reste réservé à l’APK.
+- Branche de correction : `fix/reveil-manuel-sans-boucle-20261118`. Retirés : réception des changements d'alarme, tâche JobScheduler périodique, synchronisation à l'ouverture/reprise, synchronisation automatique après l'enregistrement ou changement d'adresse. Les composants Android correspondants sont supprimés ; l'ancienne tâche ID 271 est annulée à l'ouverture de l'APK.
+- Conservés : WebView, accès au Raspberry, affichage et paramètres de réveil, lecture et envoi de la prochaine alarme par action explicite, exécution de la rampe sur Raspberry. Un nouveau clic est nécessaire après chaque modification ou annulation de l'alarme Android.
+- Vérification : test de régression statique ajouté `tests/test_android_manual_alarm.py` ; compilation Android et CI à vérifier sur la PR. Aucun APK installé sur le Pixel ; aucune preuve que le risque de redémarrage soit nul.
+- Prochaine action : examiner les contrôles CI/compilation, corriger les échecs éventuels, puis proposer uniquement une APK vérifiée pour essai manuel sans déploiement automatique.
+
+
 ## v0.16.2 — Jonctions du plan et commandes des lampes — 2026-11-15
 - Retour Pixel : murs décalés ou doublés aux jonctions de la chambre, du couloir, du bureau et de la salle de bain. Les limites des pièces et les traits utilisent les mêmes coordonnées. Chaque mur est tracé une seule fois. Le contour et le fond partagent les quatre coins arrondis. La surface garde ses dimensions.
 - Les modes Auto et Manuel sont directement sous le plan dans Pièces. Les positions et affectations gardent leur clé de stockage. Fréd a confirmé que son affectation du Salon survit au rechargement de la v0.16.1.
