@@ -30,5 +30,5 @@ class AndroidManualAlarmTests(TestCase):
         self.assertIn('"huelab://sync-alarm".equals(url.toString())', activity)
         self.assertIn("getNextAlarmClock()", alarm)
         self.assertIn('sync.addEventListener("click", askAndroid);', ui)
-        self.assertEqual(ui.count("askAndroid();"), 1)
+        self.assertNotIn("askAndroid();", ui)
         self.assertIn("sync.hidden = !native || !data.enabled;", ui)
