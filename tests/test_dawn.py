@@ -116,3 +116,16 @@ class DawnTests(TestCase):
         self.tick(self.wake - 700)
         self.tick(self.wake - 600)
         self.assertEqual(self.bridge.calls, [])
+
+    def test_phone_offline_alarm_persists_and_runs_without_any_more_reports(self):
+        self.configure()
+        self.report(self.wake)
+        observed = self.server.dawn_state()["observed_at"]
+        self.server = hue_web.HueServer(self.bridge, self.path)
+        for now in (self.wake - 1199, self.wake - 600, self.wake, self.wake + 240):
+            self.tick(now)
+            self.assertEqual(self.server.dawn_state()["observed_at"], observed)
+            self.assertEqual(self.server.dawn_state()["alarm_at"], self.wake * 1000)
+        self.assertEqual(self.bridge.calls[-1][1]["dimming"]["brightness"], 70)
+        self.tick(self.wake + 301)
+        self.assertIsNone(self.server.dawn_run)

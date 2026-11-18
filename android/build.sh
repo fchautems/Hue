@@ -15,8 +15,8 @@ manifest="AndroidManifest.xml"
 if [ "${HUE_ANDROID_TEST_VARIANT:-0}" = "1" ]; then
     # Separate installable test app: keep the production APK and its preferences intact.
     manifest="$work/test-manifest.xml"
-    sed -e 's/package="ch.huelab.mobile"/package="ch.huelab.mobile.test"/' \
-        -e 's/android:label="Hue Lab"/android:label="Hue Lab Test"/' \
+    sed -e 's/package="ch.huelab.mobile"/package="ch.huelab.mobile.test031"/' \
+        -e 's/android:label="Hue Lab"/android:label="Hue Lab Test 0.3.1"/' \
         -e 's/android:name="\.MainActivity"/android:name="ch.huelab.mobile.MainActivity"/' \
         AndroidManifest.xml > "$manifest"
 fi

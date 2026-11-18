@@ -20,6 +20,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Manual alarm JVM simulations
+        run: bash android/test.sh
       - name: Android SDK
         run: |
           if [ ! -f "$ANDROID_HOME/platforms/android-35/android.jar" ] || [ ! -x "$ANDROID_HOME/build-tools/35.0.0/d8" ]; then
@@ -31,13 +33,13 @@ jobs:
           keytool -genkeypair -keystore "$HUE_ANDROID_KEYSTORE" -storepass android \
             -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 \
             -validity 10000 -dname 'CN=Hue Lab prototype'
-          bash android/build.sh "$RUNNER_TEMP/Hue-Lab-0.3.apk"
-          HUE_ANDROID_TEST_VARIANT=1 bash android/build.sh "$RUNNER_TEMP/Hue-Lab-Test-0.3.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$RUNNER_TEMP/Hue-Lab-Test-0.3.apk" | grep -F "package: name='ch.huelab.mobile.test'"
+          bash android/build.sh "$RUNNER_TEMP/Hue-Lab-0.3.1.apk"
+          HUE_ANDROID_TEST_VARIANT=1 bash android/build.sh "$RUNNER_TEMP/Hue-Lab-Test-0.3.1.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$RUNNER_TEMP/Hue-Lab-Test-0.3.1.apk" | grep -F "package: name='ch.huelab.mobile.test031'"
       - uses: actions/upload-artifact@v4
         with:
           name: hue-lab-android
           path: |
-            ${{ runner.temp }}/Hue-Lab-0.3.apk
-            ${{ runner.temp }}/Hue-Lab-Test-0.3.apk
+            ${{ runner.temp }}/Hue-Lab-0.3.1.apk
+            ${{ runner.temp }}/Hue-Lab-Test-0.3.1.apk
           if-no-files-found: error

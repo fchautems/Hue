@@ -1,5 +1,15 @@
 # PROJECT_STATE — Philips Hue Web
 
+## Audit final réveil Android 0.3.1 — 2026-11-18
+- Reprise de PR brouillon #37 / `fix/reveil-manuel-sans-boucle-20261118`, tête initiale `5526b84acf13b478878c805c5800305a2f85032d`. Anciens runs verts confirmés sur `866e91254348afa43dc7eecc030553a73d666b4a` ; commits documentaires ultérieurs distincts.
+- Retour réel Fréd : Test 0.3 installée, ouvertures sans recherche à 07:49:26 et 07:52:14. Aucune synchronisation manuelle réelle validée. Cause du reboot loop inconnue.
+- Corrigés : empilement des doubles appuis ; fausse confirmation HTTP 200 sans vérifier l'état conservé ; déclenchement depuis une ancienne page Raspberry après Enregistrer. Lien web → confirmation native, puis lecture uniquement sur bouton natif ; accès direct Retour → Synchroniser maintenant. Aucun service/timer/listener ajouté ; thread ponctuel sans file.
+- Journal local borné/exportable enrichi : ms/fuseau, appui ignoré, envoi et état retourné exacts, HTTP et erreurs. Ancien job 271 annulé au lancement et résultat journalisé pour le seul package courant.
+- Test 0.3.1 : `ch.huelab.mobile.test031`, versionCode 5, données séparées de Test 0.3 et normale. Le serveur Raspberry reste éventuellement partagé. Signature CI éphémère : migration normale sur place bloquée sans clé compatible ; aucune désinstallation ou modification du Pixel réalisée.
+- Contrôles locaux : 19 scénarios JVM simulés réussis (vrai AlarmSync, faux Android/HTTP, compilateur ECJ car JDK local absent) ; 230 tests Python, 1 test de parité et 6 suites Node réussis. Chromium local absent ; parcours navigateur et compilation/signature à vérifier sur la nouvelle CI.
+- Audit, limites et protocole complet : `android/AUDIT_MANUAL_ALARM.md`. Aucun déploiement Raspberry, aucune fusion. Prochaine action technique : compilation/signature et CI exactes de la nouvelle révision, puis livrer seulement l'APK Test pour validation Pixel/Raspberry par Fréd.
+
+
 ## Réveil Android 0.3 — variante de test et diagnostic — 2026-11-18
 - La PR brouillon #37 (https://github.com/fchautems/Hue/pull/37) contient maintenant une APK « Hue Lab Test » séparée (package `ch.huelab.mobile.test`), créée avec `HUE_ANDROID_TEST_VARIANT=1`. Elle conserve son espace de données indépendant de l'APK standard. Le serveur Hue peut toutefois être partagé ; une synchronisation de test peut commander les vraies lampes.
 - Journal Android local horodaté et borné : ouverture de l'application, appui sur le bouton, recherche ponctuelle de la prochaine alarme, heure lue, confirmation ou échec d'envoi. Depuis le menu Retour Android → Journal du réveil, consultation et partage via ACTION_SEND. Pas de serveur de logs ni de nouvelle tâche de fond.
