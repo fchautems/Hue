@@ -34,6 +34,11 @@ La CI de la PR produit aussi **Hue-Lab-Test-0.3.apk** : application séparée «
 pas Hue Lab, mais partage les mêmes services Raspberry si elle est configurée sur la
 même adresse : un réveil envoyé au Raspberry peut donc piloter les vraies lampes.
 Ce prototype ne doit être installé que pour un essai volontaire.
+**Important :** l'APK normale déjà installée peut encore exécuter son ancien suivi
+automatique ; installer l'APK Test ne l'arrête pas. Avant l'essai, dans Android,
+ouvre **Paramètres → Applications → Hue Lab → Forcer l'arrêt** pour suspendre
+la version normale, puis n'ouvre que **Hue Lab Test**. Ne réutilise pas la version
+normale pour tester l'absence de surveillance.
 
 Pour lire le journal, ouvre **Hue Lab Test**, utilise le bouton Retour Android,
 puis **Journal du réveil**. Le menu permet aussi **Partager le journal** vers une
