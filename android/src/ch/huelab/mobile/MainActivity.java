@@ -45,7 +45,7 @@ public final class MainActivity extends Activity {
         web = new WebView(this);
         web.setBackgroundColor(0xff142337);
         web.getSettings().setJavaScriptEnabled(true);
-        web.getSettings().setUserAgentString(web.getSettings().getUserAgentString() + " HueLabAndroid/0.2");
+        web.getSettings().setUserAgentString(web.getSettings().getUserAgentString() + " HueLabAndroid/0.3");
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
         web.getSettings().setAllowContentAccess(false);
@@ -78,6 +78,7 @@ public final class MainActivity extends Activity {
         // Clean up the periodic task installed by older versions, without reading alarms.
         JobScheduler jobs = getSystemService(JobScheduler.class);
         if (jobs != null) jobs.cancel(271);
+        AlarmSync.logEvent(this, "Ouverture de Hue Lab : aucune recherche automatique");
         loadServer();
     }
 
@@ -180,11 +181,31 @@ public final class MainActivity extends Activity {
         dialog.show();
     }
 
+    private void showDiagnosticLog() {
+        String history = AlarmSync.diagnosticLog(this);
+        new AlertDialog.Builder(this)
+                .setTitle("Journal du réveil")
+                .setMessage(history)
+                .setPositiveButton("Partager le journal", (dialog, ignored) -> {
+                    Intent share = new Intent(Intent.ACTION_SEND);
+                    share.setType("text/plain");
+                    share.putExtra(Intent.EXTRA_TEXT, "Journal Hue Lab (test)\n" + history);
+                    try {
+                        startActivity(Intent.createChooser(share, "Exporter le journal"));
+                    } catch (ActivityNotFoundException error) {
+                        Toast.makeText(this, "Aucune application disponible pour partager.", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Fermer", null)
+                .show();
+    }
+
     @Override
     public void onBackPressed() {
         new AlertDialog.Builder(this).setTitle("Hue Lab")
-                .setItems(new String[]{"Changer l’adresse du serveur", "Fermer l’application"}, (dialog, index) -> {
+                .setItems(new String[]{"Changer l’adresse du serveur", "Journal du réveil", "Fermer l’application"}, (dialog, index) -> {
                     if (index == 0) editAddress();
+                    else if (index == 1) showDiagnosticLog();
                     else finish();
                 }).setNegativeButton("Rester", null).show();
     }
