@@ -487,6 +487,9 @@ deadline.unref();
  await nav('dashboard').click();
  await solo.uncheck();
  await page.waitForFunction(()=>!state.solo_enabled);
+ // Restore the two lamps extinguished by Solo before testing manual dimming.
+ await page.evaluate(()=>api('/api/lights/switch','POST',{light_ids:['light-0','light-1'],on:true}));
+ await page.waitForFunction(()=>state.lights.slice(0,2).every(light=>light.on));
 
  await page.setViewportSize({width:1320,height:1000});
  await nav('rooms').click();
@@ -505,11 +508,9 @@ deadline.unref();
  await page.waitForFunction(()=>state.lights[0].control_mode==='manuel');
  const brightnessUrl='**/api/light/light-0/brightness';
  let allowBrightness;
- let firstRequest;
- const firstBrightness=new Promise(resolve=>{firstRequest=resolve;});
+ const firstBrightness=page.waitForRequest(brightnessUrl);
  await page.route(brightnessUrl,async route=>{
    const gate=new Promise(release=>{allowBrightness=release;});
-   firstRequest(route.request().postDataJSON());
    await gate;
    await route.continue();
  },{times:1});
@@ -521,7 +522,7 @@ deadline.unref();
    assert.equal(await row.locator('.light-value').textContent(),percent+' %');
  }
  await moveBrightness(42);
- assert.deepEqual(await firstBrightness,{brightness:42,interactive:true});
+ assert.deepEqual((await firstBrightness).postDataJSON(),{brightness:42,interactive:true});
  const requestsBefore=writes.filter(request=>request.url.endsWith('/brightness')).length;
  await moveBrightness(48);
  await moveBrightness(53);
