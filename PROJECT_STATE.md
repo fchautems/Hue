@@ -4,7 +4,8 @@
 
 - Retour sur pont réel : le profil existant du Salon a repris son rouge du soir et sa saturation élevée après installation de la v0.18.0. Les nouveaux profils utilisaient déjà les réglages plus doux.
 - « Appliquer les réglages recommandés » charge dans l’aperçu les teintes, la saturation et la durée recommandées. La durée tient compte de la longueur de la nuit. Horaires, blanc de journée et niveaux de luminosité sont préservés. Les commandes aux lampes suivent la configuration enregistrée.
-- Contrôles : la suite navigateur couvre le bouton à 320 px, l’aperçu, l’annulation, les nuits courtes et l’enregistrement. Prochaine action : confirmer les résultats CI, puis publier sur main.
+- Contrôles réussis : 240 tests Python, parité Python/JavaScript, six suites Node et parcours Chromium sur pont simulé. La [CI 44621833120](https://github.com/fchautems/Hue/actions/runs/44621833120) vérifie l’aperçu, l’annulation, les nuits courtes, l’enregistrement et l’accès à 320 px. Une mise à jour simulée depuis v0.18.0 a conservé les fichiers de configuration à l’octet près.
+- Publication : [PR #40](https://github.com/fchautems/Hue/pull/40) fusionnée sur main à `49a5254ff445`. Prochaine action : mettre à jour Hue Lab sur le Raspberry puis essayer les réglages du Salon sur le pont réel.
 
 ## v0.18.0 — Refonte du profil Soleil — 2026-11-19
 
