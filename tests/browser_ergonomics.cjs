@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 (async()=>{
  const browser=await chromium.launch({headless:true});
  const page=await browser.newPage({locale:'fr-CH',hasTouch:true});
+ page.setDefaultTimeout(15000);
  const errors=[],writes=[];
  page.on('pageerror',e=>errors.push(e.message));
  page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push({url:new URL(r.url()).pathname,data:r.postDataJSON()});});
@@ -199,6 +200,7 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>state.lights[0].on);
  writes.splice(0);
 
+ console.log('Commandes du plan et des groupes vérifiées.');
  // Layout and reachable daily activities at phone/tablet/desktop widths.
  for(const width of [320,390,1320]){
   await page.setViewportSize({width,height:1000});
@@ -356,6 +358,7 @@ const assert=require('node:assert/strict');
    await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
    await page.screenshot({path:`/tmp/hue-ergonomics-solar-${width}.png`,fullPage:true});
  }
+ console.log('Profils et affichage mobile vérifiés.');
  // Both directions, with batch selection and both copy scopes at phone widths.
  const apply=page.locator('#profile-copy-apply');
  const take=page.locator('#profile-copy-take');
@@ -384,6 +387,7 @@ const assert=require('node:assert/strict');
  await page.setViewportSize({width:1320,height:1000});
  await nav('simulation').click();
  assert.match(await page.locator('#simulation-lamp').textContent(), /Salon/);
+ console.log('Copie groupée et copie entrante vérifiées.');
  // Settings includes History, updates and the shared city.
  await nav('settings').click();
  assert.equal(await page.locator('#update-version').textContent(),'old12345');
@@ -431,6 +435,7 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>activeTab==='rooms');
  assert.equal(writes.find(r=>r.url==='/api/setup/pair').data.ip,'10.0.0.12');
  await nav('dashboard').click();
+ console.log('Appairage simulé vérifié.');
  // Dawn settings are saved once, and show the alarm confirmed by the Raspberry.
  await page.setViewportSize({width:320,height:1000});
  await page.getByText('Réveil lumineux',{exact:true}).click();
@@ -453,6 +458,7 @@ const assert=require('node:assert/strict');
  await page.locator('#dawn-enabled').uncheck();
  await page.locator('#dawn-save').click();
  await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent==='Désactivé.');
+ console.log('Réveil Web vérifié.');
  const solo=page.getByRole('switch',{name:'Mode Solo'});
  await solo.check();
  await page.waitForFunction(()=>state.solo_enabled);
@@ -475,6 +481,7 @@ const assert=require('node:assert/strict');
 
  await page.setViewportSize({width:1320,height:1000});
  await nav('rooms').click();
+ console.log('Mode Solo vérifié.');
  // The list is visible on entry, and the slider follows the mode directly.
  const row=page.locator('.mode-row').first();
  const slider=row.locator('.light-brightness');
