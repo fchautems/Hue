@@ -82,8 +82,8 @@ def _scene_targets(action, scenes):
     return set()
 
 
-def dimmer_bindings(instances, groups, lights, scenes=()):
-    """Map (service type, id, event) to the lights controlled by that action."""
+def dimmer_bindings(instances, groups, lights, scenes=(), *, power=False):
+    """Map accessory events to lights for manual dimming or potential power-on."""
     resolve = group_light_resolver(groups, lights)
     bindings = {}
     conflicts = set()
@@ -120,7 +120,10 @@ def dimmer_bindings(instances, groups, lights, scenes=()):
                 for event, action in event_actions.items():
                     where = action.get("where", control.get("where"))
                     targets = _configured_targets(where, resolve)
-                    if kind == "button" and action.get("action") not in ("dim_up", "dim_down"):
+                    if power and (kind != "button" or action.get("action") in ("dim_up", "dim_down")):
+                        continue
+                    if (kind == "button"
+                            and action.get("action") not in (("on", "toggle") if power else ("dim_up", "dim_down"))):
                         lamps = _scene_targets(action, scene_lights)
                         targets = lamps if where is None else targets & lamps
                     key = (kind, uid, event)

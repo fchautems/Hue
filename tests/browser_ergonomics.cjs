@@ -75,10 +75,10 @@ const assert=require('node:assert/strict');
  const tapRoom=()=>page.touchscreen.tap(roomBox.x+roomBox.width*0.87,roomBox.y+roomBox.height-5);
  await tapRoom();
  await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
- assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
+ assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/lights/switch']);
  await tapRoom();
  await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>l.on));
- assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
+ assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/lights/switch']);
 
  const edit=plan.locator('.plan-edit-toggle');
  const assignment=plan.getByRole('combobox',{name:'Pièce de Entrée'});
@@ -160,7 +160,7 @@ const assert=require('node:assert/strict');
  assert.equal(await roomSwitch.locator('.switch > span').count(),1,'the room uses the shared switch design');
  await roomSwitch.click();
  await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>!l.on));
- assert.deepEqual(writes.splice(0).map(r=>r.url).sort(),['/api/light/light-0/switch','/api/light/light-1/switch']);
+ assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/lights/switch']);
  const salon=room.getByRole('button',{name:'Salon',exact:true});
  const salonInZone=zone.getByRole('button',{name:'Salon',exact:true});
  let stale=true;
@@ -356,13 +356,32 @@ const assert=require('node:assert/strict');
    await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(80);
    await page.screenshot({path:`/tmp/hue-ergonomics-solar-${width}.png`,fullPage:true});
  }
- // The displayed lamp is the copy source.
- await page.locator('.profile-copy > summary').click();
- await page.locator('#profile-copy-target').selectOption('light-0');
- page.once('dialog',d=>d.accept());
- await page.locator('#v063-copy-full').click();
- await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Profil complet copié'));
- assert.deepEqual(writes.find(r=>r.url==='/api/profile/copy/light-0').data,{source_uid:'light-1'});
+ // Both directions, with batch selection and both copy scopes at phone widths.
+ const apply=page.locator('#profile-copy-apply');
+ const take=page.locator('#profile-copy-take');
+ await page.setViewportSize({width:320,height:780});
+ await page.getByText('Appliquer aux autres',{exact:true}).click();
+ assert.equal(await apply.locator('input[value="light-1"]').count(),0);
+ await apply.getByLabel('Tout sélectionner').check();
+ assert.equal(await apply.locator('#profile-copy-targets input:checked').count(),2);
+ await apply.locator('input[value="light-2"]').uncheck();
+ assert.equal(await apply.locator('#profile-copy-all').evaluate(el=>el.indeterminate),true);
+ await apply.getByLabel('Tout sélectionner').check();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await apply.getByRole('button',{name:'Appliquer',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Réglages copiés sur 2 lampes'));
+ assert.deepEqual(writes.find(r=>r.url==='/api/profile/copy').data,
+   {source_uid:'light-1',target_uids:['light-0','light-2'],scope:'full'});
+ await page.setViewportSize({width:393,height:830});
+ await page.getByText('Prendre d’une autre',{exact:true}).click();
+ await take.getByLabel('Lampe source').selectOption('light-0');
+ await take.getByLabel('Réglages à copier').selectOption('curve');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await take.getByRole('button',{name:'Copier',exact:true}).click();
+ await page.getByText('Réglages copiés.',{exact:true}).waitFor();
+ assert.deepEqual(writes.filter(r=>r.url==='/api/profile/copy').at(-1).data,
+   {source_uid:'light-0',target_uids:['light-1'],scope:'curve'});
+ await page.setViewportSize({width:1320,height:1000});
  await nav('simulation').click();
  assert.match(await page.locator('#simulation-lamp').textContent(), /Salon/);
  // Settings includes History, updates and the shared city.
@@ -418,19 +437,42 @@ const assert=require('node:assert/strict');
  await page.locator('#dawn-save').waitFor();
  await page.locator('#dawn-enabled').check();
  await page.locator('#dawn-light').selectOption('light-0');
+ await page.getByLabel('Heure du réveil').fill('06:20');
  await page.locator('#dawn-color').fill('#ff7700');
  await page.locator('#dawn-minutes').fill('25');
  await page.locator('#dawn-brightness').fill('65');
  await page.locator('#dawn-save').click();
- await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent.includes('première synchronisation'));
+ await page.getByText(/Prochain réveil.*06:20.*Début de l’aube.*05:55/).waitFor();
  assert.deepEqual(writes.find(r=>r.url==='/api/dawn').data,
-   {enabled:true, light_id:'light-0', color:'#ff7700', minutes:25, brightness:65});
- await page.evaluate(()=>api('/api/dawn/alarm','PUT',{observed_at:Date.now(),alarm_at:Date.now()+36e5}));
- await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent.includes('Réveil reçu'));
+   {enabled:true,wake_time:'06:20',light_id:'light-0',color:'#ff7700',minutes:25,brightness:65});
+ await page.getByLabel('Heure du réveil').fill('07:30');
+ await page.locator('#dawn-save').click();
+ await page.getByText(/Prochain réveil.*07:30.*Début de l’aube.*07:05/).waitFor();
+ assert.equal(writes.filter(r=>r.url==='/api/dawn/alarm').length,0);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.locator('#dawn-enabled').uncheck();
  await page.locator('#dawn-save').click();
  await page.waitForFunction(()=>document.querySelector('#dawn-status').textContent==='Désactivé.');
+ const solo=page.getByRole('switch',{name:'Mode Solo'});
+ await solo.check();
+ await page.waitForFunction(()=>state.solo_enabled);
+ await page.reload();
+ await nav('dashboard').click();
+ await page.waitForFunction(()=>document.querySelector('#solo-enabled').checked);
+ await nav('rooms').click();
+ await page.waitForFunction(()=>!document.querySelector('[data-plan-lamp="light-2"]')?.disabled);
+ const current=await page.evaluate(()=>state.lights.find(l=>l.id==='light-2').on);
+ if(current) {
+   await page.locator('[data-plan-lamp="light-2"]').click();
+   await page.waitForFunction(()=>!state.lights.find(l=>l.id==='light-2').on);
+ }
+ await page.locator('[data-plan-lamp="light-2"]').click();
+ await page.waitForFunction(()=>state.lights.find(l=>l.id==='light-2').on
+   && state.lights.filter(l=>l.id!=='light-2').every(l=>!l.on));
+ await nav('dashboard').click();
+ await solo.uncheck();
+ await page.waitForFunction(()=>!state.solo_enabled);
+
  await page.setViewportSize({width:1320,height:1000});
  await nav('rooms').click();
  // The list is visible on entry, and the slider follows the mode directly.

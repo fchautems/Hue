@@ -50,6 +50,26 @@ DAWN_HOLD_SECONDS = 300
 DAWN_DEFAULTS = {"enabled": False, "light_id": "", "color": "#ff9a55",
                  "minutes": 20, "brightness": 70}
 DAWN_SYNC_DEFAULTS = {"alarm_at": None, "observed_at": 0, "skipped_at": None}
+DAWN_WEB_DEFAULTS = {"wake_time": ""}
+SOLO_GROUP_WINDOW = 1.0  # A Hue zone can report its lights across several updates.
+SOLO_COMMAND_TIMEOUT = 12
+WAKE_TIME_PATTERN = r"(?:[01][0-9]|2[0-3]):[0-5][0-9]"
+
+
+def next_web_alarm(wake_time, now):
+    """Next valid local wall time, including both occurrences at the autumn change."""
+    if not isinstance(wake_time, str) or not re.fullmatch(WAKE_TIME_PATTERN, wake_time):
+        raise ValueError("Saisis l’heure du réveil au format HH:MM.")
+    hour, minute = map(int, wake_time.split(":"))
+    local_now = datetime.fromtimestamp(now, LOCAL_TZ)
+    for offset in range(3):
+        day = local_now + timedelta(days=offset)
+        for fold in (0, 1):
+            local = day.replace(hour=hour, minute=minute, second=0, microsecond=0, fold=fold)
+            timestamp = local.timestamp()
+            if timestamp > now and datetime.fromtimestamp(timestamp, LOCAL_TZ) == local:
+                return int(timestamp * 1000)
+    raise ValueError("Cette heure ne peut pas être programmée.")
 
 
 def validate_dawn(data):
@@ -154,14 +174,20 @@ class HueServer:
         self.dimmer_held = set()
         self._dimmer_events = deque(maxlen=128)
         self._dimmer_generation = 0
-        self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS}
+        self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS, **DAWN_WEB_DEFAULTS}
         self.dawn_run = None
+        self.solo_enabled = False
+        self._solo_rises = set()
+        self._solo_ready_at = 0.0
+        self._solo_power = {}
+        self._solo_accessory = deque(maxlen=128)
         self.vacation = {"enabled": False, "light_ids": [], "seed": "",
                          "plan_date": "", "schedule": [], "overrides": {}}
         if self.settings_path.exists():
             try:
                 loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
+                    self.solo_enabled = loaded.get("solo_enabled") is True
                     saved_dawn = loaded.get("dawn")
                     if isinstance(saved_dawn, dict):
                         try:
@@ -170,6 +196,9 @@ class HueServer:
                                     if type(saved_dawn.get(key)) is int and saved_dawn[key] > 0}
                             self.dawn.update(config)
                             self.dawn.update(sync)
+                            wake_time = saved_dawn.get("wake_time")
+                            if isinstance(wake_time, str) and re.fullmatch(WAKE_TIME_PATTERN, wake_time):
+                                self.dawn["wake_time"] = wake_time
                         except ValueError:
                             self.log.warning("Réglages du réveil lumineux ignorés.")
                     saved_vacation = loaded.get("vacation")
@@ -341,6 +370,7 @@ class HueServer:
             "rgb_auto_enabled": self.settings["rgb_auto_enabled"],
             "vacation": self.vacation,
             "dawn": self.dawn,
+            "solo_enabled": self.solo_enabled,
             "dimmer_held": sorted(self.dimmer_held),
         }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
@@ -360,7 +390,7 @@ class HueServer:
 
     def attach_client(self, client):
         """Change de pont sans réutiliser les anciennes ampoules ou automatismes."""
-        with self.lock:
+        with self._automation_lock, self.lock:
             self.client = client
             self.lights = []
             self.devices = []
@@ -369,6 +399,9 @@ class HueServer:
             self.last_error = None
             self.previous_online.clear()
             self.previous_on.clear()
+            self._solo_rises.clear()
+            self._solo_power.clear()
+            self._solo_accessory.clear()
             self.dimmer_held.clear()
             self._dimmer_events.clear()
             self._dimmer_generation += 1
@@ -377,7 +410,7 @@ class HueServer:
             self.power_tests.clear()
             self.vacation_last_commands.clear()
             self.vacation_test = None
-            self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS}
+            self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS, **DAWN_WEB_DEFAULTS}
             self.dawn_run = None
             self.vacation.update({"enabled": False, "light_ids": [], "schedule": [],
                                   "overrides": {}, "plan_date": ""})
@@ -426,6 +459,11 @@ class HueServer:
         return self._vacation_test_blocks_override(uid)
 
     def poll(self):
+        # Keep bridge snapshots ordered with power writes and their acknowledgements.
+        with self._automation_lock:
+            self._poll_locked()
+
+    def _poll_locked(self):
         with self.lock:
             client = self.client
         if not client:
@@ -440,6 +478,7 @@ class HueServer:
                 if self.client is not client:
                     return  # Ancienne réponse réseau après changement de pont.
                 current_online = {}
+                now = time.monotonic()
                 status_by_device = {c.get("owner", {}).get("rid"): c.get("status") for c in connectivity}
                 for l in lights:
                     uid = l["id"]
@@ -486,6 +525,19 @@ class HueServer:
                             self.save()
                     is_on = l.get("on", {}).get("on")
                     old_on = self.previous_on.get(uid)
+                    expected = self._pending_power(uid, now)
+                    own_power = expected is not None and expected is is_on
+                    solo_off = own_power and self._solo_power[uid][2]
+                    if own_power:
+                        self._solo_power.pop(uid, None)
+                    if (self.solo_enabled and not self.last_error and old_on is False and is_on is True
+                            and old_online is True and online is True and expected is None
+                            and not self._solo_protected(uid)):
+                        if not self._solo_rises:
+                            self._solo_ready_at = now + SOLO_GROUP_WINDOW
+                        self._solo_rises.add(uid)
+                    elif is_on is not True or online is not True:
+                        self._solo_rises.discard(uid)
                     if is_on is False and online is not False and self._resume_dimmer_locked(uid):
                         self.save()
                     # Commande externe (télécommande Hue, app Hue, bouton logiciel) :
@@ -499,7 +551,8 @@ class HueServer:
                             and not self._vacation_test_blocks_override(uid)
                             and isinstance(old_on, bool) and isinstance(is_on, bool)
                             and old_on is not is_on and online is True
-                            and old_online is not False and not own_change):
+                            and old_online is not False and not own_change
+                            and not solo_off):
                         self.vacation["overrides"][uid] = {
                             "on": is_on, "until": time.time() + GRACE_SECONDS}
                         self.save()
@@ -511,10 +564,14 @@ class HueServer:
                             self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_on")
                     elif old_on is True and is_on is False:
                         self.log.info("ÉTAT | %s | OFF observé", l.get("metadata", {}).get("name", uid))
-                        if not own_change and not self._presence_history_suppressed(uid):
+                        if not own_change and not solo_off and not self._presence_history_suppressed(uid):
                             self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_off")
                     self.previous_on[uid] = is_on
-                self.previous_online.update(current_online)
+                self.previous_online = current_online
+                self.previous_on = {uid: self.previous_on[uid] for uid in current_online}
+                self._solo_rises.intersection_update(current_online)
+                self._solo_power = {uid: command for uid, command in self._solo_power.items()
+                                    if uid in current_online and command[1] > now}
                 self.lights = lights
                 self.devices = devices
                 self.connectivity = connectivity
@@ -525,6 +582,8 @@ class HueServer:
                 if self.client is not client:
                     return
                 self.last_error = str(e)
+                self._solo_rises.clear()
+                self._solo_accessory.clear()
             if time.monotonic() - self._error_last_logged > 30:
                 self._error_last_logged = time.monotonic()
                 self.log.warning("Lecture Hue impossible : %s", e)
@@ -677,6 +736,7 @@ class HueServer:
             self._dimmer_events.clear()
             lights = self.lights
         bindings = {}
+        power_bindings = {}
         now = time.monotonic()
         if client and any(kind != "light" and epoch == generation and now - seen <= 3
                           for seen, epoch, kind, _, _ in events):
@@ -686,6 +746,8 @@ class HueServer:
                 groups = [item for item in resources if item.get("type") in GROUP_TYPES]
                 scenes = [item for item in resources if item.get("type") == "scene"]
                 bindings = dimmer_bindings(instances, groups, lights, scenes)
+                if self.solo_enabled:
+                    power_bindings = dimmer_bindings(instances, groups, lights, scenes, power=True)
             except (HueError, KeyError, TypeError, AttributeError) as exc:
                 self.log.info("Télécommandes Hue : lecture des associations indisponible (%s).", type(exc).__name__)
         with self.lock:
@@ -697,7 +759,11 @@ class HueServer:
                 if kind == "light":
                     changed = self._resume_dimmer_locked(uid) or changed
                 elif epoch == self._dimmer_generation and now - seen <= 3:
-                    targets = bindings.get((kind, uid, event), ())
+                    input_key = (kind, uid, event)
+                    power_targets = power_bindings.get(input_key)
+                    targets = bindings.get(input_key, ())
+                    if self.solo_enabled and (power_targets or targets):
+                        self._solo_accessory.append((seen, epoch, power_targets, targets))
                     if not targets and kind == "relative_rotary" and event == "start":
                         self.log.info("Molette Hue %s : cible de gradation non résolue.", uid)
                     for light_id in targets:
@@ -724,6 +790,7 @@ class HueServer:
             if self._dimmer_input_pending_locked():
                 return
         dawn_light = self._dawn_tick_locked()
+        self._apply_solo_rises()
         with self.lock:
             clock_mode = self.clock_mode
             minute = simulated_minutes(self.sim) if clock_mode == "accelere" else wall_clock_minutes()
@@ -783,6 +850,9 @@ class HueServer:
                         if payload:
                             try:
                                 self.client.resource(f"light/{uid}", "PUT", payload)
+                                if "on" in payload:
+                                    with self.lock:
+                                        self._remember_power(uid, desired_on)
                                 self.log.info("MANUEL RESTAURÉ | %s", uid)
                             except HueError as exc:
                                 self.log.warning("Restauration manuelle impossible | %s | %s", uid, exc)
@@ -859,21 +929,42 @@ class HueServer:
 
     def dawn_state(self):
         with self.lock:
-            return {key: self.dawn[key] for key in (*DAWN_DEFAULTS, "alarm_at", "observed_at")}
+            result = {key: self.dawn[key] for key in
+                      (*DAWN_DEFAULTS, *DAWN_WEB_DEFAULTS, "alarm_at", "observed_at")}
+            alarm = result["alarm_at"]
+            result["next_alarm_at"] = (alarm if result["enabled"] and alarm
+                                       and alarm > time.time() * 1000
+                                       and alarm != self.dawn["skipped_at"] else None)
+            result["time_zone"] = LOCAL_TZ.key
+            return result
 
     def set_dawn(self, data):
-        config = validate_dawn(data)
+        if not isinstance(data, dict):
+            raise ValueError("Réglages du réveil lumineux incomplets.")
+        config = validate_dawn({key: value for key, value in data.items() if key != "wake_time"})
         with self._automation_lock, self.lock:
+            wake_time = data.get("wake_time", self.dawn["wake_time"])
+            if not isinstance(wake_time, str) or (wake_time and not re.fullmatch(WAKE_TIME_PATTERN, wake_time)):
+                raise ValueError("Saisis l’heure du réveil au format HH:MM.")
             if config["enabled"]:
                 light = self.require_light(config["light_id"])
                 if "color" not in light or "dimming" not in light:
                     raise ValueError("Choisis une lampe qui gère la couleur et la luminosité.")
-            if not config["enabled"] or not self.dawn["enabled"]:
-                self.dawn.update(DAWN_SYNC_DEFAULTS)
-            if any(self.dawn[key] != config[key] for key in DAWN_DEFAULTS):
+            previous = self.dawn.copy()
+            schedule = "wake_time" in data and config["enabled"] and bool(wake_time)
+            reset = (not config["enabled"] or not previous["enabled"]
+                     or wake_time != previous["wake_time"] or schedule)
+            alarm = next_web_alarm(wake_time, time.time()) if schedule else None
+            if reset:
+                self.dawn.update(DAWN_SYNC_DEFAULTS, alarm_at=alarm)
+            self.dawn.update(config, wake_time=wake_time)
+            try:
+                self.save()
+            except OSError:
+                self.dawn = previous
+                raise
+            if reset or any(previous[key] != config[key] for key in DAWN_DEFAULTS):
                 self.dawn_run = None
-            self.dawn.update(config)
-            self.save()
             result = self.dawn_state()
         self._event_wakeup.set()
         return result
@@ -888,7 +979,7 @@ class HueServer:
         if alarm is not None and (type(alarm) is not int or not 0 < alarm < 4_102_444_800_000):
             raise ValueError("Date du prochain réveil invalide.")
         with self._automation_lock, self.lock:
-            if self.dawn["enabled"] and observed > self.dawn["observed_at"]:
+            if self.dawn["enabled"] and not self.dawn["wake_time"] and observed > self.dawn["observed_at"]:
                 self.dawn.update(alarm_at=alarm if alarm and alarm > now else None,
                                  observed_at=observed)
                 self.save()
@@ -959,6 +1050,8 @@ class HueServer:
             except HueError as exc:
                 self.log.warning("RÉVEIL LUMINEUX | %s | %s", uid, exc)
                 return uid
+            if "on" in payload:
+                self._remember_power(uid, True)
             run["last"] = brightness
             self.manual_restore_pending.discard(uid)
             self.last_sent.pop(uid, None)
@@ -1199,6 +1292,7 @@ class HueServer:
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
+                    self._remember_power(uid, on)
                     self.vacation_last_commands[uid] = {"on": on, "at": time.time()}
                     if event and self.vacation_test is test:
                         test["last_event"] = {
@@ -1261,6 +1355,7 @@ class HueServer:
             try:
                 self.client.resource(f"light/{uid}", "PUT", payload)
                 with self.lock:
+                    self._remember_power(uid, should_on)
                     self.vacation_last_commands[uid] = {"on": should_on, "at": time.time()}
                 self.log.info("VACANCES | %s | %s", light.get("metadata", {}).get("name", uid),
                               "ON" if should_on else "OFF")
@@ -1315,6 +1410,7 @@ class HueServer:
                 "error": self.last_error,
                 "last_poll": self.last_poll,
                 "auto": self.settings["auto"],  # Ancien indicateur compatible v0.4.
+                "solo_enabled": self.solo_enabled,
                 "auto_count": sum(l.get("control_mode") == "auto" for l in self.get_lights()),
                 "clock_mode": self.clock_mode,
                 "simulation": public_sim(self.sim),
@@ -1450,41 +1546,63 @@ class HueServer:
         self._event_wakeup.set()
 
     def copy_profile(self, source_uid, target_uid):
-        """Copie uniquement les courbes et couleurs automatiques, sans activer Auto.
+        return self.copy_profiles(source_uid, [target_uid], "full")[0]
 
-        Le mode de pilotage, l'état ON/OFF et la luminosité manuelle de
-        la destination sont conservés. Aucune commande n'est envoyée au pont.
-        """
+    def copy_profiles(self, source_uid, target_uids, scope):
+        """Copy recorded settings as one save, without sending a power command."""
+        if (scope not in ("full", "curve") or not isinstance(target_uids, list)
+                or not target_uids or not all(isinstance(uid, str) for uid in target_uids)
+                or len(set(target_uids)) != len(target_uids) or source_uid in target_uids):
+            raise ValueError("Choisis une source, des destinations distinctes et le type de copie.")
         with self.lock:
             self.require_light(source_uid)
-            self.require_light(target_uid)
-            if source_uid == target_uid:
-                raise ValueError("Choisis deux ampoules différentes.")
+            targets = [self.require_light(uid) for uid in target_uids]
             kind = self.settings["profile_types"].get(source_uid, "custom")
             if kind not in ("simple", "custom", "solar"):
                 raise ValueError("Type de courbe source invalide.")
-            custom = validate_points(copy.deepcopy(
-                self.settings["profiles"].get(source_uid, DEFAULT_POINTS)))
-            simple = validate_simple_profile(copy.deepcopy(
-                self.settings["simple_profiles"].get(source_uid, DEFAULT_SIMPLE_PROFILE)))
-            # Ne jamais activer les couleurs si la cible n'est pas RGB.
-            source_rgb = bool(self.settings["rgb_auto_enabled"].get(source_uid))
-            target = self.require_light(target_uid)
-            can_rgb = "color" in target and "dimming" in target
-            colors = validate_rgb_phases(copy.deepcopy(
-                self.settings["rgb_profiles"].get(source_uid, DEFAULT_RGB_PHASES)))
-            if kind == "solar":
-                self.settings["solar_profiles"][target_uid] = copy.deepcopy(self.settings["solar_profiles"][source_uid])
-            self.settings["profiles"][target_uid] = custom
-            self.settings["simple_profiles"][target_uid] = simple
-            self.settings["profile_types"][target_uid] = kind
-            self.settings["rgb_profiles"][target_uid] = colors
-            self.settings["rgb_auto_enabled"][target_uid] = source_rgb and can_rgb
-            self._profile_changed(target_uid)
-            self.save()
-        self.log.info("PROFIL COPIÉ | %s -> %s", source_uid, target_uid)
-        return {"source": source_uid, "target": target_uid, "type": kind,
-                "rgb_auto": source_rgb and can_rgb}
+            changes = {}
+            if scope == "full" or kind == "custom":
+                changes["profiles"] = validate_points(
+                    self.settings["profiles"].get(source_uid, DEFAULT_POINTS))
+            if scope == "full" or kind in ("simple", "solar"):
+                params = (self._effective_simple(source_uid) if scope == "curve" else
+                          self.settings["simple_profiles"].get(source_uid, DEFAULT_SIMPLE_PROFILE))
+                simple = validate_simple_profile(params)
+                if scope == "curve" and "solar_rhythm" in simple:
+                    simple["solar_colors"] = False
+                changes["simple_profiles"] = simple
+            if scope == "full":
+                if kind == "solar":
+                    changes["solar_profiles"] = self.settings["solar_profiles"][source_uid]
+                changes["rgb_profiles"] = validate_rgb_phases(
+                    self.settings["rgb_profiles"].get(source_uid, DEFAULT_RGB_PHASES))
+                changes["rgb_auto_enabled"] = None  # Adapted to the target's capabilities below.
+            if scope == "curve" and kind == "solar":
+                kind = "simple"  # Preserve the previous fixed snapshot of today's solar curve.
+            changes["profile_types"] = kind
+            previous = self.settings
+            updated = {**previous, **{key: previous[key].copy() for key in changes}}
+            results = []
+            for uid, target in zip(target_uids, targets):
+                rgb_auto = bool(previous["rgb_auto_enabled"].get(uid))
+                if scope == "full":
+                    rgb_auto = bool(previous["rgb_auto_enabled"].get(source_uid)
+                                    and "color" in target and "dimming" in target)
+                    updated["rgb_auto_enabled"][uid] = rgb_auto
+                for key, value in changes.items():
+                    if key != "rgb_auto_enabled":
+                        updated[key][uid] = copy.deepcopy(value)
+                results.append({"source": source_uid, "target": uid, "type": kind, "rgb_auto": rgb_auto})
+            self.settings = updated
+            try:
+                self.save()
+            except OSError:
+                self.settings = previous
+                raise
+            for uid in target_uids:
+                self._profile_changed(uid)
+        self.log.info("PROFIL COPIÉ | %s -> %s", source_uid, ", ".join(target_uids))
+        return results
 
     def apply_solar_draft(self, uid, data):
         """Save brightness and compatible RGB together; preserve modes and on/off."""
@@ -1659,56 +1777,181 @@ class HueServer:
         self.log.info("SIMULATION | %s", json.dumps(result, ensure_ascii=False))
         return result
 
+    def set_solo(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError("Indique si le mode Solo est actif.")
+        with self._automation_lock, self.lock:
+            previous = self.solo_enabled
+            self.solo_enabled = enabled
+            try:
+                self.save()
+            except OSError:
+                self.solo_enabled = previous
+                raise
+            if enabled != previous:
+                self._solo_rises.clear()
+                self._solo_accessory.clear()
+        return {"enabled": enabled}
+
+    def _remember_power(self, uid, on, *, solo_off=False):
+        self._solo_power[uid] = (on, time.monotonic() + SOLO_COMMAND_TIMEOUT, solo_off)
+        self._solo_rises.discard(uid)
+
+    def _pending_power(self, uid, now):
+        command = self._solo_power.get(uid)
+        return command[0] if command and command[1] > now else None
+
+    def _solo_protected(self, uid):
+        return ((self.dawn_run and self.dawn_run["uid"] == uid)
+                or (self.vacation["enabled"] and uid in self.vacation["light_ids"])
+                or self._vacation_test_blocks_override(uid))
+
+    def _apply_solo_rises(self):
+        with self.lock:
+            now = time.monotonic()
+            if not self._solo_rises or now < self._solo_ready_at:
+                return
+            lit = {uid for uid in self._solo_rises if not self._solo_protected(uid)}
+            self._solo_rises.clear()
+            relevant = [(seen, epoch, power, dimmed) for seen, epoch, power, dimmed in self._solo_accessory
+                        if now - seen <= 3 and epoch == self._dimmer_generation]
+            self._solo_accessory.clear()
+            self._solo_accessory.extend(relevant)
+            for _, _, power, dimmed in relevant:
+                if not power:
+                    lit.difference_update(dimmed)
+            keep = set(lit)
+            for _, _, power, _ in relevant:
+                if power and lit & power:
+                    keep.update(power)
+            self._solo_keep_rooms(keep)
+
+    def _solo_keep_rooms(self, keep):
+        if not self.solo_enabled or not keep:
+            return
+        try:
+            rooms = self.client.resource("room")
+            resolve = group_light_resolver(rooms, self.lights)
+            groups = [resolve({"rtype": "room", "rid": room["id"]}) for room in rooms]
+        except (HueError, KeyError, TypeError, AttributeError) as exc:
+            self.log.warning("SOLO | pièces indisponibles : %s", exc)
+            return
+        kept_rooms = [members for members in groups if members & keep]
+        if not kept_rooms:
+            return  # Une lampe hors pièce ne désigne aucune pièce active.
+        candidates = set().union(*groups) - set().union(*kept_rooms)
+        changed = False
+        for uid in sorted(candidates):
+            current = self._pending_power(uid, time.monotonic())
+            if current is None:
+                current = self.previous_on.get(uid)
+            if current is not True or self.previous_online.get(uid) is not True or self._solo_protected(uid):
+                continue
+            try:
+                self.client.resource(f"light/{uid}", "PUT", {"on": {"on": False}})
+            except HueError as exc:
+                self.log.warning("SOLO | extinction refusée pour %s : %s", uid, exc)
+                continue
+            self._remember_power(uid, False, solo_off=True)
+            self._resume_dimmer_locked(uid)
+            self.manual_restore_pending.discard(uid)
+            self.last_sent.pop(uid, None)
+            manual = self.settings["manual_states"].get(uid)
+            if manual:
+                manual["on"] = False
+            changed = True
+            self.log.info("SOLO | extinction %s", uid)
+        if changed:
+            self.save()
+            self._event_wakeup.set()
+
     def switch(self, uid, on, brightness=None):
-        if not self.client:
-            raise HueError("Pont non configuré")
-        if not isinstance(on, bool):
+        self._switch_lights([uid], on, brightness, single=True)
+
+    def switch_lights(self, uids, on):
+        return self._switch_lights(uids, on)
+
+    def _switch_lights(self, uids, on, brightness=None, *, single=False):
+        if type(on) is not bool:
             raise ValueError("on doit être vrai ou faux")
+        if (not isinstance(uids, list) or not uids or not all(isinstance(uid, str) for uid in uids)
+                or len(set(uids)) != len(uids)):
+            raise ValueError("Choisis des lampes distinctes.")
         with self._automation_lock:
             with self.lock:
-                light = self.require_light(uid)
-                supports_dimming = "dimming" in light
-                name = light.get("metadata", {}).get("name", uid)
-                mode = self.settings["light_modes"].get(uid, "manuel")
-                current_brightness = light.get("dimming", {}).get("brightness")
-                stored = self.settings["manual_states"].get(uid, {})
-                if mode == "auto":
-                    target = self._target_for(uid, self.simulated_time())
+                if not self.client:
+                    raise HueError("Pont non configuré")
+                for uid in uids:
+                    self.require_light(uid)
+                now = time.monotonic()
+                previous = {uid: self._pending_power(uid, now) for uid in uids}
+                for uid, value in previous.items():
+                    if value is None:
+                        previous[uid] = self.previous_on.get(uid)
+            errors = {}
+            accepted = []
+            for uid in uids:
+                try:
+                    self._switch_light(uid, on, brightness)
+                except HueError as exc:
+                    if single:
+                        raise
+                    errors[uid] = str(exc)
                 else:
-                    target = stored.get("brightness", current_brightness or 50)
-            payload = {"on": {"on": on}}
-            if on and supports_dimming:
-                selected = brightness if brightness is not None else target
-                if isinstance(selected, bool) or not isinstance(selected, (float, int)) or not 1 <= selected <= 100:
-                    raise ValueError("Luminosité : 1 à 100 %")
-                payload["dimming"] = {"brightness": float(selected)}
-            if on and "color" in light:
-                choice = None
-                if mode == "manuel":
-                    choice = self.settings["rgb_manual"].get(uid)
-                elif (self.settings["profile_types"].get(uid, "custom") in ("simple", "solar")
-                      and self.settings["rgb_auto_enabled"].get(uid)
-                      and uid in self.settings["rgb_profiles"]):
-                    choice = rgb_at(
-                        self.settings["rgb_profiles"][uid],
-                        self._effective_simple(uid),
-                        self._profile_minute(uid, self.simulated_time()))
-                if choice:
-                    payload["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
-            self.client.resource(f"light/{uid}", "PUT", payload)
+                    accepted.append(uid)
             with self.lock:
-                if not on and self._resume_dimmer_locked(uid):
-                    self.save()
-                self._skip_dawn_locked(uid)
-                self.last_user_action[uid] = time.monotonic()
-                self.last_sent.pop(uid, None)
-                if mode == "manuel":
-                    self.manual_restore_pending.discard(uid)
-                    self.settings["manual_states"][uid] = {
-                        "on": on, "brightness": float(payload.get("dimming", {}).get("brightness", target))}
-                    self.save()
-                else:
-                    self.auto_transition_pending.add(uid)
+                if self.solo_enabled and on and any(previous[uid] is False for uid in accepted):
+                    self._solo_rises.clear()
+                    self._solo_accessory.clear()
+                    self._solo_keep_rooms(set(accepted))
+            return {"accepted": accepted, "errors": errors}
+
+    def _switch_light(self, uid, on, brightness):
+        with self.lock:
+            light = self.require_light(uid)
+            supports_dimming = "dimming" in light
+            name = light.get("metadata", {}).get("name", uid)
+            mode = self.settings["light_modes"].get(uid, "manuel")
+            current_brightness = light.get("dimming", {}).get("brightness")
+            stored = self.settings["manual_states"].get(uid, {})
+            if mode == "auto":
+                target = self._target_for(uid, self.simulated_time())
+            else:
+                target = stored.get("brightness", current_brightness or 50)
+        payload = {"on": {"on": on}}
+        if on and supports_dimming:
+            selected = brightness if brightness is not None else target
+            if isinstance(selected, bool) or not isinstance(selected, (float, int)) or not 1 <= selected <= 100:
+                raise ValueError("Luminosité : 1 à 100 %")
+            payload["dimming"] = {"brightness": float(selected)}
+        if on and "color" in light:
+            choice = None
+            if mode == "manuel":
+                choice = self.settings["rgb_manual"].get(uid)
+            elif (self.settings["profile_types"].get(uid, "custom") in ("simple", "solar")
+                  and self.settings["rgb_auto_enabled"].get(uid)
+                  and uid in self.settings["rgb_profiles"]):
+                choice = rgb_at(
+                    self.settings["rgb_profiles"][uid],
+                    self._effective_simple(uid),
+                    self._profile_minute(uid, self.simulated_time()))
+            if choice:
+                payload["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
+        self.client.resource(f"light/{uid}", "PUT", payload)
+        with self.lock:
+            self._remember_power(uid, on)
+            if not on and self._resume_dimmer_locked(uid):
+                self.save()
+            self._skip_dawn_locked(uid)
+            self.last_user_action[uid] = time.monotonic()
+            self.last_sent.pop(uid, None)
+            if mode == "manuel":
+                self.manual_restore_pending.discard(uid)
+                self.settings["manual_states"][uid] = {
+                    "on": on, "brightness": float(payload.get("dimming", {}).get("brightness", target))}
+                self.save()
+            else:
+                self.auto_transition_pending.add(uid)
         self.log.info("COMMANDE | %s | %s", name, payload)
         self._event_wakeup.set()
 
@@ -2121,6 +2364,11 @@ def set_profile(uid: str, data: dict = Body(...)):
     return ok(controller.set_profile(uid, data.get("points")))
 
 
+@app.post("/api/profile/copy")
+def copy_profiles(data: dict = Body(...)):
+    return ok(controller.copy_profiles(data.get("source_uid"), data.get("target_uids"), data.get("scope")))
+
+
 @app.post("/api/profile/copy/{target_uid}")
 def copy_profile(target_uid: str, data: dict = Body(...)):
     return ok(controller.copy_profile(data.get("source_uid"), target_uid))
@@ -2149,6 +2397,11 @@ def rgb_profile(uid: str):
 @app.put("/api/rgb/{uid}")
 def save_rgb_profile(uid: str, data: dict = Body(...)):
     return ok(controller.save_rgb_profile(uid, data))
+
+
+@app.post("/api/lights/switch")
+def switch_lights(data: dict = Body(...)):
+    return ok(controller.switch_lights(data.get("light_ids"), data.get("on")))
 
 
 @app.post("/api/light/{uid}/switch")
@@ -2188,6 +2441,11 @@ def vacation_test(data: dict = Body(...)):
 @app.get("/api/vacation/schedule")
 def vacation_schedule():
     return ok(controller.vacation_schedule())
+
+
+@app.put("/api/solo")
+def put_solo(data: dict = Body(...)):
+    return ok(controller.set_solo(data.get("enabled")))
 
 
 @app.get("/api/dawn")

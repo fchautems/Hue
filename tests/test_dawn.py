@@ -116,3 +116,51 @@ class DawnTests(TestCase):
         self.tick(self.wake - 700)
         self.tick(self.wake - 600)
         self.assertEqual(self.bridge.calls, [])
+
+    def test_web_alarm_replaces_schedule_and_runs_once_without_android(self):
+        now = self.clock.return_value
+        chosen = hue_web.datetime.fromtimestamp(now + 3600, hue_web.LOCAL_TZ)
+        wake_time = chosen.strftime("%H:%M")
+        settings = {**hue_web.DAWN_DEFAULTS, "enabled": True, "light_id": "light-0"}
+        self.configure()
+        self.report(self.wake)
+        invalid = self.client.put("/api/dawn", json={**settings, "wake_time": "24:00"})
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(self.server.dawn_state()["alarm_at"], self.wake * 1000)
+
+        saved = self.client.put("/api/dawn", json={**settings, "wake_time": wake_time}).json()["data"]
+        wake = int(chosen.replace(second=0, microsecond=0).timestamp())
+        self.assertEqual(saved["next_alarm_at"], wake * 1000)
+        self.assertEqual(saved["observed_at"], 0)
+        self.assertEqual(self.report(None).json()["data"]["alarm_at"], wake * 1000)
+        self.server = hue_web.HueServer(self.bridge, self.path)
+        self.assertEqual(self.server.dawn_state()["wake_time"], wake_time)
+        self.tick(wake - 1201)
+        self.assertEqual(self.bridge.calls, [])
+        self.tick(wake - 1200)
+        self.tick(wake - 600)
+        self.tick(wake)
+        self.assertEqual([p["dimming"]["brightness"] for _, p in self.bridge.calls], [1, 35.5, 70])
+        self.assertIsNone(self.server.dawn_state()["next_alarm_at"])
+        self.server = hue_web.HueServer(self.bridge, self.path)
+        self.bridge.calls.clear()
+        self.tick(wake + 86400 - 600)
+        self.assertFalse(any(p.get("on", {}).get("on") for _, p in self.bridge.calls))
+
+    def test_resaving_same_hour_schedules_next_day_after_execution(self):
+        local = hue_web.datetime(2026, 11, 19, 6, 30, tzinfo=hue_web.LOCAL_TZ)
+        self.clock.return_value = local.timestamp() - 60
+        settings = {**hue_web.DAWN_DEFAULTS, "enabled": True, "light_id": "light-0", "wake_time": "06:30"}
+        self.assertEqual(self.server.set_dawn(settings)["next_alarm_at"], local.timestamp() * 1000)
+        self.clock.return_value = local.timestamp()
+        tomorrow = local + hue_web.timedelta(days=1)
+        self.assertEqual(self.server.set_dawn(settings)["next_alarm_at"], tomorrow.timestamp() * 1000)
+
+    def test_nonexistent_and_repeated_hours_follow_zurich_time(self):
+        local = hue_web.datetime(2026, 3, 29, 0, 0, tzinfo=hue_web.LOCAL_TZ)
+        next_valid = local.replace(day=30, hour=2, minute=30)
+        self.assertEqual(hue_web.next_web_alarm("02:30", local.timestamp()), next_valid.timestamp() * 1000)
+        first = hue_web.datetime(2026, 10, 25, 2, 30, tzinfo=hue_web.LOCAL_TZ)
+        second = first.replace(fold=1)
+        self.assertEqual(hue_web.next_web_alarm("02:30", first.timestamp() - 60), first.timestamp() * 1000)
+        self.assertEqual(hue_web.next_web_alarm("02:30", first.timestamp() + 60), second.timestamp() * 1000)

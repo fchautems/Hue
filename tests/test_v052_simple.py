@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from hue_simple_profile import DEFAULT_SIMPLE_PROFILE, simple_brightness_at, validate_simple_profile
@@ -139,5 +140,43 @@ class SimpleCurveHTTPTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/profile/light-1').json()['data'],hue_web.controller.profile('light-1'))
         self.assertEqual(self.client.post('/api/profile/type/light-1',json={'type':'garbage'}).status_code,400)
         self.assertEqual(self.client.put(path,json={'params':{'min_brightness':-1}}).status_code,400)
+
+    def test_copy_batch_validates_before_saving_and_only_writes_selected_profiles(self):
+        server = hue_web.controller
+        server.set_simple_profile("light-0", dict(DEFAULT_SIMPLE_PROFILE, max_brightness=88))
+        before = copy.deepcopy(server.settings)
+        disk = server.settings_path.read_bytes()
+        request = {"source_uid": "light-0", "target_uids": ["light-1", "missing"], "scope": "curve"}
+        self.assertEqual(self.client.post("/api/profile/copy", json=request).status_code, 400)
+        self.assertEqual(server.settings, before)
+        self.assertEqual(server.settings_path.read_bytes(), disk)
+
+        request["target_uids"] = ["light-1"]
+        result = self.client.post("/api/profile/copy", json=request).json()["data"]
+        self.assertEqual([entry["target"] for entry in result], ["light-1"])
+        self.assertEqual(server.simple_profile("light-1")["params"]["max_brightness"], 88)
+        self.assertEqual(server.settings["profiles"], before["profiles"])
+        for key in ("rgb_profiles", "rgb_auto_enabled", "rgb_manual", "light_modes", "manual_states"):
+            self.assertEqual(server.settings[key], before[key])
+        self.assertEqual(server.simple_profile("light-2")["type"], "custom")
+        self.assertEqual(self.bridge.calls, [])
+
+    def test_batch_copy_saves_once_and_rolls_back_after_disk_failure(self):
+        server = hue_web.controller
+        server.set_simple_profile("light-0", dict(DEFAULT_SIMPLE_PROFILE, max_brightness=88))
+        before = copy.deepcopy(server.settings)
+        with patch.object(server, "save", side_effect=OSError("disk unavailable")):
+            with self.assertRaises(OSError):
+                server.copy_profiles("light-0", ["light-1", "light-2"], "full")
+        self.assertEqual(server.settings, before)
+        with patch.object(server, "save", wraps=server.save) as save:
+            result = server.copy_profiles("light-0", ["light-1", "light-2"], "full")
+            save.assert_called_once()
+        self.assertEqual([entry["target"] for entry in result], ["light-1", "light-2"])
+        for target in ("light-1", "light-2"):
+            self.assertEqual(server.simple_profile(target)["params"]["max_brightness"], 88)
+        self.assertEqual(server.settings["manual_states"], before["manual_states"])
+        self.assertEqual(self.bridge.calls, [])
+
 
 if __name__=='__main__': unittest.main()

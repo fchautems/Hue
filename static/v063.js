@@ -1,52 +1,87 @@
 "use strict";
 (() => {
-  const lamp = document.querySelector("#profile-light");
-  const target = document.querySelector("#profile-copy-target");
-  const button = document.querySelector("#v063-copy-full");
-  const details = button.closest("details");
+  const lamp = $("#profile-light");
+  const panel = $("#profile-copy");
+  const apply = $("#profile-copy-apply");
+  const take = $("#profile-copy-take");
+  const source = take.elements.source;
+  const all = $("#profile-copy-all");
+  const targets = $("#profile-copy-targets");
   let busy = false;
 
-  function sync() {
-    const previous = target.value;
-    const others = [...lamp.options].filter(option => option.value && option.value !== lamp.value);
-    target.replaceChildren(new Option("Choisir une lampe", ""), ...others.map(
+  function updateButtons() {
+    const boxes = [...targets.querySelectorAll("input")];
+    const checked = boxes.filter(box => box.checked).length;
+    all.checked = checked > 0 && checked === boxes.length;
+    all.indeterminate = checked > 0 && checked < boxes.length;
+    apply.querySelector("button").disabled = busy || checked === 0;
+    take.querySelector("button").disabled = busy || !source.value;
+  }
+
+  function fillChoices(reset = false) {
+    const previous = reset ? "" : source.value;
+    const selected = new Set(reset ? [] : [...targets.querySelectorAll("input:checked")].map(box => box.value));
+    const others = lamp.value ? [...lamp.options].filter(option => option.value && option.value !== lamp.value) : [];
+    source.replaceChildren(new Option("Choisir une lampe", ""), ...others.map(
       option => new Option(option.textContent, option.value)
     ));
-    target.value = others.some(option => option.value === previous) ? previous : "";
-    details.hidden = others.length === 0;
-    target.disabled = busy;
-    button.disabled = busy || !target.value;
+    if (others.some(option => option.value === previous)) source.value = previous;
+    targets.replaceChildren(...others.map(option => {
+      const label = document.createElement("label");
+      label.className = "profile-copy-choice";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = option.value;
+      box.checked = selected.has(option.value);
+      label.append(box, option.textContent);
+      return label;
+    }));
+    panel.hidden = others.length === 0;
+    updateButtons();
   }
-  lamp.addEventListener("change", () => { target.value = ""; sync(); });
-  target.addEventListener("change", () => { button.disabled = !target.value; });
-  new MutationObserver(sync).observe(lamp, {childList: true});
-  sync();
 
-  button.addEventListener("click", () => safe(async () => {
-    const fromId = selectedId;
-    const toId = target.value;
-    if (busy || !fromId || !target.selectedOptions[0] || !toId || fromId === toId) return;
+  async function copy(form, from, to) {
+    if (busy || !from || !to.length) return;
     if (window.HueProfiles?.hasUnsaved() || window.HueRGB?.hasChanges()) {
-      throw Error("Enregistre ou annule les modifications en cours avant de copier le profil.");
+      throw Error("Enregistre ou annule les modifications en cours avant de copier.");
     }
-    const from = lamp.selectedOptions[0].textContent;
-    const to = target.selectedOptions[0].textContent;
-    if (!window.confirm(`Copier le profil de « ${from} » vers « ${to} » ? La courbe et les couleurs automatiques compatibles de la destination seront remplacées.`)) return;
+    const current = lamp.value;
+    const scope = form.elements.scope.value;
     busy = true;
-    sync();
+    const elements = [...apply.elements, ...take.elements, ...targets.querySelectorAll("input")];
+    elements.forEach(element => { element.disabled = true; });
     try {
-      await api("/api/profile/copy/" + encodeURIComponent(toId), "POST", {source_uid: fromId});
-      if (selectedId === toId && !window.HueProfiles?.hasUnsaved() && !window.HueRGB?.hasChanges()) {
+      await api("/api/profile/copy", "POST", {source_uid: from, target_uids: to, scope});
+      if (to.includes(current) && lamp.value === current
+          && !window.HueProfiles?.hasUnsaved() && !window.HueRGB?.hasChanges()) {
         await window.HueProfiles?.reload();
-        window.HueRGB?.reloadIfClean(toId);
+        window.HueRGB?.reloadIfClean(current);
       }
       await refresh();
-      details.open = false;
-      target.value = "";
-      showToast("Profil complet copié.");
+      form.closest("details").open = false;
+      fillChoices(true);
+      showToast(to.length === 1 ? "Réglages copiés." : `Réglages copiés sur ${to.length} lampes.`);
     } finally {
+      elements.forEach(element => { element.disabled = false; });
       busy = false;
-      sync();
+      updateButtons();
     }
-  }));
+  }
+
+  all.addEventListener("change", () => {
+    for (const box of targets.querySelectorAll("input")) box.checked = all.checked;
+  });
+  apply.addEventListener("change", updateButtons);
+  take.addEventListener("change", updateButtons);
+  apply.addEventListener("submit", event => {
+    event.preventDefault();
+    safe(() => copy(apply, lamp.value, [...targets.querySelectorAll("input:checked")].map(box => box.value)));
+  });
+  take.addEventListener("submit", event => {
+    event.preventDefault();
+    safe(() => copy(take, source.value, [lamp.value]));
+  });
+  lamp.addEventListener("change", () => fillChoices(true));
+  new MutationObserver(() => fillChoices()).observe(lamp, {childList: true});
+  fillChoices();
 })();
