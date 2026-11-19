@@ -348,7 +348,6 @@ deadline.unref();
  // Daily solar settings: date is preview-only; activation persists the rhythm.
  await page.locator('.v052-mode[data-type="solar"]').click();
  assert.equal(await page.locator('#solar-preview').getAttribute('open'),null);
- await page.locator('#v052-solar-editor .profile-options > summary').first().click();
  await page.locator('#solar-preview > summary').click();
  await page.locator('#solar-wake').fill('05:15');
  await page.locator('#solar-bed').fill('22:30');

@@ -4,7 +4,7 @@ from hue_simple_profile import validate_simple_profile, simple_brightness_at
 from hue_rgb import DEFAULT_RGB_PHASES, rgb_at, validate_rgb_phases
 from math import isfinite
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from hue_solar_rhythm import RHYTHM_DEFAULTS, validate_rhythm
+from hue_solar_rhythm import RHYTHM_DEFAULTS, solar_rhythm_times, validate_rhythm
 
 LEGACY_SOLAR_CONFIG = dict(latitude=46.46, longitude=6.22, tz="Europe/Zurich",
                             wake=420, bed=1350, low=10, high=85)
@@ -48,8 +48,6 @@ def validate_solar_config(raw):
 def draft_profile(day, latitude, longitude, tz, wake, bed, low=10, high=85, **rhythm):
     validate_solar_config(dict(latitude=latitude, longitude=longitude, tz=tz,
                                wake=wake, bed=bed, low=low, high=high, **rhythm))
-    if type(wake) is not int or type(bed) is not int or not 0 <= wake < bed <= 1439 or bed - wake < 180:
-        raise ValueError("Réveil avant coucher, avec au moins trois heures entre les deux (sans passage de minuit).")
     times = solar_times(day, latitude, longitude, tz)
     minute = lambda value: value.hour * 60 + value.minute
     rise, sunset = times['sunrise'], times['sunset']
@@ -62,22 +60,29 @@ def draft_profile(day, latitude, longitude, tz, wake, bed, low=10, high=85, **rh
     params = validate_simple_profile(dict(wake=wake, morning_end=morning_end,
         evening_start=evening_start, bed=bed, min_brightness=low, max_brightness=high,
         transition_shape="asymmetric"))
+    timing = None
     if rhythm:
+        # Reach the evening hue at sunset when it falls inside the waking day.
+        # Reserve a final minute for a continuous transition if the sun sets late.
+        warm_at = max(wake + 31, min(bed - 1, set_minute))
+        params['morning_end'] = min(morning_end, warm_at - 1)
+        params['solar_warm_at'] = warm_at
         params['solar_rhythm'] = dict(rhythm, wake=wake, bed=bed)
-        validate_simple_profile(params)
+        params = validate_simple_profile(params)
+        timing = solar_rhythm_times(params)
     colors = validate_rgb_phases(DEFAULT_RGB_PHASES)
     sample_minutes = list(range(0, 1441, 15))
     if rhythm:
         sample_minutes = sorted(set(range(0, 1441, 5)) | {
-            (wake-rhythm['transition']) % 1440, wake, morning_end, evening_start,
-            bed, (bed+rhythm['transition']) % 1440})
+            *(m % 1440 for m in timing.values()), wake, bed, params['morning_end']})
     samples = [dict(minute=m, brightness=simple_brightness_at(params, m),
                     color=rgb_at(colors, params, m)) for m in sample_minutes]
     note = ""
-    if rise and sunset and (morning_end != rise_minute or evening_start != set_minute):
-        note = "Soleil hors de ta plage de veille : horaires ajustés pour conserver l’ordre et au moins 30 minutes par transition."
+    if rise and sunset and (params['morning_end'] != rise_minute or
+                            (timing['warm_at'] if timing else evening_start) != set_minute):
+        note = "Les transitions solaires sont adaptées à tes horaires de réveil et de coucher."
     return dict(day=day.isoformat(), params=params, colors=colors, samples=samples,
-                timing_note=note,
+                timing_note=note, timing=timing,
                 sunrise=rise.isoformat() if rise else None,
                 sunset=sunset.isoformat() if sunset else None,
                 timezone=tz,

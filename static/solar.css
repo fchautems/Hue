@@ -23,7 +23,8 @@
 
 #v052-solar-editor{padding:0;border:0;margin:16px 0 0}
 .solar-preview{margin-top:24px;padding-top:18px;border-top:1px solid var(--border)}
-#solar-curve{width:100%;height:auto;margin-top:12px}
+#solar-curve{display:block;width:100%;height:clamp(112px,20vw,172px);margin-top:12px}
+#solar-graph[aria-busy="true"]{opacity:.55}
 #solar-swatch{height:36px;border-radius:8px}
 #solar-results .solar-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 .solar-preview .solar-routine{align-items:end}
@@ -35,8 +36,20 @@
 .solar-group .solar-routine{margin:8px 0 12px}
 .solar-hue{width:100%;min-height:44px;accent-color:#efbf6d;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red);border-radius:10px}
 .solar-hue-swatch{display:block;height:28px;border-radius:7px;border:1px solid #ffffff50}
-.solar-legend{display:flex;gap:20px;font-size:12px}
-.solar-legend span:first-child{color:#efbf6d}.solar-legend span:last-child{color:#85d5c0}
+.solar-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0;font-size:12px}
+#solar-landmarks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;list-style:none;margin:8px 0 0;padding:0;font-size:12px}
+.solar-landmark.wake{--marker:#b7caff}
+.solar-landmark.sunrise{--marker:#f6d586}
+.solar-landmark.sunset{--marker:#f7a983}
+.solar-landmark.bed{--marker:#d9b5e7}
+#solar-landmarks li{display:flex;align-items:baseline;gap:6px;font-variant-numeric:tabular-nums}
+#solar-landmarks li::before{content:"";width:.55em;height:.55em;flex:none;border-radius:50%;background:var(--marker)}
+#solar-graph-lines line{stroke:var(--marker);stroke-width:1;vector-effect:non-scaling-stroke}
+#solar-graph-lines :is(.sunrise,.sunset){stroke-dasharray:3 3}
+.solar-essentials{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+#solar-advanced{margin-top:18px}
+@media(max-width:560px){.solar-essentials{grid-template-columns:repeat(2,minmax(0,1fr))}.solar-essentials label:last-child{grid-column:1/-1}}
+.solar-legend span:first-child{color:#efbf6d}.solar-legend span:nth-child(2){color:#85d5c0}
 
 .solar-hue::-webkit-slider-runnable-track{height:8px;border-radius:8px;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}
 .solar-hue::-moz-range-track{height:8px;border-radius:8px;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}

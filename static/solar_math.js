@@ -3,7 +3,10 @@
 window.HueRhythm={brightness(p,minute){
   const r=p.solar_rhythm,start=r.wake-r.transition;
   const m=(((minute-start)%1440)+1440)%1440+start;
-  const times=[start,r.wake,p.morning_end,p.evening_start,r.bed,r.bed+r.transition];
+  const duration=Math.min(r.transition,Math.floor((r.bed-p.morning_end)/2));
+  const times=p.solar_warm_at===undefined
+    ? [start,r.wake,p.morning_end,p.evening_start,r.bed,r.bed+r.transition]
+    : [start,r.wake,p.morning_end,r.bed-2*duration,r.bed-duration,r.bed];
   const levels=[p.min_brightness,r.comfort,p.max_brightness,p.max_brightness,r.comfort,p.min_brightness];
   for(let i=0;i<5;i++){
     if(m<times[i]||m>=times[i+1])continue;
