@@ -139,7 +139,7 @@
   $$('.rgb-phase').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;selectedPhase=button.dataset.phase;render()}));
   $$('.rgb-seg button').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;draft.mode=button.dataset.mode;render()}));
   $$('#rgb-presets button').forEach(button=>button.addEventListener('click',()=>{if(!draft)return;selected().h=Number(button.dataset.h);selected().s=Number(button.dataset.s);render()}));
-  function editSchedule(){delete draft.simple_params.solar_rhythm;delete draft.simple_params.solar_colors;}
+  function editSchedule(){delete draft.simple_params.solar_rhythm;delete draft.simple_params.solar_colors;delete draft.simple_params.solar_warm_at;}
   $('#rgb-sat').addEventListener('input',e=>{if(!draft)return;selected().s=Number(e.target.value);render()});
   $('#rgb-bright').addEventListener('input',e=>{if(!draft)return;if(draft.mode==='manuel')draft.manual.b=Number(e.target.value);else {editSchedule();draft.simple_params.max_brightness=Number(e.target.value);}render()});
   $('#rgb-min').addEventListener('input',e=>{if(!draft)return;editSchedule();draft.simple_params.min_brightness=Number(e.target.value);render()});

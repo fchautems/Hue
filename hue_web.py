@@ -2254,7 +2254,8 @@ def solar_preview(day: str | None = None, latitude: float = 46.46,
 def solar_draft(day: str, wake: int, bed: int, latitude: float = 46.46,
                 longitude: float = 6.22, tz: str = "Europe/Zurich", low: int = 10, high: int = 85, uid: str | None = None,
                 transition: int | None = None, comfort: int = 55, saturation: int = 45,
-                morning_hue: int = 34, evening_hue: int = 28, night_hue: int = 16, day_kelvin: int = 5000):
+                morning_hue: int = 34, evening_hue: int = 28, night_hue: int = DEFAULT_SOLAR_CONFIG["night_hue"],
+                day_kelvin: int = DEFAULT_SOLAR_CONFIG["day_kelvin"]):
     try:
         ZoneInfo(tz)
         selected = date.fromisoformat(day)

@@ -20,7 +20,7 @@ def validate_simple_profile(raw):
     Une copie solaire peut porter des transitions nocturnes cycliques supplémentaires.
     """
     if (not isinstance(raw, dict) or
-            set(raw) - {"transition_shape", "solar_rhythm", "solar_colors"} != set(DEFAULT_SIMPLE_PROFILE)):
+            set(raw) - {"transition_shape", "solar_rhythm", "solar_colors", "solar_warm_at"} != set(DEFAULT_SIMPLE_PROFILE)):
         raise ValueError("La courbe simple nécessite quatre horaires et deux luminosités.")
     if "transition_shape" in raw and raw["transition_shape"] != "asymmetric":
         raise ValueError("Forme de transition inconnue.")
@@ -40,6 +40,10 @@ def validate_simple_profile(raw):
         raise ValueError("Le minimum doit être inférieur au maximum (entre 1 et 100 %).")
     if "solar_colors" in raw and (raw["solar_colors"] is not False or "solar_rhythm" not in raw):
         raise ValueError("Options de couleur solaire invalides.")
+    if "solar_warm_at" in raw:
+        warm_at = raw["solar_warm_at"]
+        if "solar_rhythm" not in raw or type(warm_at) is not int or not morning_end < warm_at < bed:
+            raise ValueError("Horaire de couleur du soir invalide.")
     if "solar_rhythm" in raw:
         from hue_solar_rhythm import validate_rhythm
         rhythm = raw['solar_rhythm']

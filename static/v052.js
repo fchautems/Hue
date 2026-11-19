@@ -122,7 +122,7 @@
   for(const [key,field] of Object.entries(fields)) {
     field.addEventListener(clockKeys.includes(key)?'change':'input',()=>{
       const value=clockKeys.includes(key)?parseTime(field.value):Number(field.value);
-      delete params.solar_rhythm;delete params.solar_colors;
+      delete params.solar_rhythm;delete params.solar_colors;delete params.solar_warm_at;
       params[key]=value;
       if(!clockKeys.includes(key))document.querySelector(`#v052-${key}-value`).textContent=`${value} %`;
       draw();

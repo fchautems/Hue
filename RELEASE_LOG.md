@@ -1,3 +1,9 @@
+## v0.18.0 — Profil Soleil — 2026-11-19
+
+- **Code concret :** dans Profil → Soleil, le graphique affiche le réveil, le lever du soleil, le coucher du soleil et ton coucher. Les deux horaires et le blanc de journée sont accessibles directement. Le blanc de journée propose aussi 2’700 K et 3’000 K.
+- Le soir, la couleur atteint sa teinte au coucher du soleil et la luminosité baisse avant ton coucher. Les nouveaux profils proposent un blanc à 2’700 K, un ambre de nuit et une montée de 30 minutes avant le réveil.
+- Les niveaux, les teintes et la durée se règlent dans « Réglages avancés ».
+
 ## v0.17.0 — Réveil Web, copie des profils et Solo — 2026-11-19
 - Programme le prochain réveil depuis Hue Web. Le Raspberry lance l’aube à l’heure affichée, même si le téléphone est hors ligne.
 - Applique la courbe ou le profil complet à plusieurs lampes en une fois, ou reprends les réglages d’une autre lampe.

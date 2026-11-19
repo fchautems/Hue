@@ -1,5 +1,12 @@
 # PROJECT_STATE — Philips Hue Web
 
+## v0.18.0 — Refonte du profil Soleil — 2026-11-19
+
+- L’onglet Profil → Soleil affiche une courbe de luminosité et de saturation, un aperçu des teintes et quatre repères horaires. Réveil, coucher et blanc de journée sont accessibles directement. Niveaux, durée et teintes se règlent sous « Réglages avancés ».
+- Les nouveaux profils utilisent 2’700 K, un ambre de nuit et une montée de 30 minutes avant le réveil. 2’700 K et 3’000 K sont acceptés par le calcul et envoyés au pont sous forme de coordonnées colorimétriques, en tenant compte du gamut de la lampe. Les valeurs enregistrées restent les mêmes.
+- La teinte du soir est atteinte au coucher du soleil lorsque celui-ci tombe pendant les heures de veille. La baisse de luminosité est calée sur le coucher personnel et atteint le minimum de nuit à cette heure. Les anciens profils fixes et les profils solaires d’avant le rythme personnalisé gardent leur comportement jusqu’à modification.
+- Contrôles locaux réussis : 240 tests Python sur pont simulé, parité Python/JavaScript, six suites Node, compilation et syntaxe. Chromium local bloqué par l’environnement. Prochaine action : valider les deux parcours dans GitHub Actions avant publication, puis essayer sur le Raspberry Pi et le pont réels.
+
 ## v0.16.2 — Jonctions du plan et commandes des lampes — 2026-11-15
 - Retour Pixel : murs décalés ou doublés aux jonctions de la chambre, du couloir, du bureau et de la salle de bain. Les limites des pièces et les traits utilisent les mêmes coordonnées. Chaque mur est tracé une seule fois. Le contour et le fond partagent les quatre coins arrondis. La surface garde ses dimensions.
 - Les modes Auto et Manuel sont directement sous le plan dans Pièces. Les positions et affectations gardent leur clé de stockage. Fréd a confirmé que son affectation du Salon survit au rechargement de la v0.16.1.

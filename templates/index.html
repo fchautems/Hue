@@ -195,34 +195,45 @@
         </div>
         <div id="v052-solar-editor" class="solar-card" hidden>
           <div id="solar-graph" hidden>
-              <svg id="solar-curve" viewBox="0 0 720 130" role="img" aria-label="Courbe solaire de luminosité sur vingt-quatre heures"><polyline id="solar-curve-line" fill="none" stroke="#efbf6d" stroke-width="3"/><polyline id="solar-saturation-line" fill="none" stroke="#85d5c0" stroke-width="2" stroke-dasharray="5 3"/></svg>
-              <div class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
-              <p class="solar-legend"><span>Luminosité</span><span>Saturation</span></p>
+            <svg id="solar-curve" viewBox="0 0 720 144" preserveAspectRatio="none" role="img" aria-label="Luminosité, saturation et teinte sur vingt-quatre heures" aria-describedby="solar-landmarks">
+              <defs><linearGradient id="solar-color-gradient"></linearGradient></defs>
+              <g id="solar-graph-lines" aria-hidden="true"></g>
+              <polyline id="solar-curve-line" fill="none" stroke="#efbf6d" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+              <polyline id="solar-saturation-line" fill="none" stroke="#85d5c0" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>
+              <rect id="solar-color-band" x="0" y="126" width="720" height="14" rx="5" fill="url(#solar-color-gradient)"/>
+            </svg>
+            <div class="solar-scale" aria-hidden="true"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+            <p class="solar-legend"><span>Luminosité</span><span id="solar-saturation-key">Saturation</span><span id="solar-color-key">Teinte indicative</span></p>
+            <ul id="solar-landmarks" aria-label="Repères horaires du graphique"></ul>
           </div>
-          <details class="profile-options">
-            <summary>Réglages du profil</summary>
-          <div class="solar-routine">
+          <div class="solar-routine solar-essentials">
             <label>Mon réveil<input id="solar-wake" class="field" type="time" step="60"></label>
             <label>Mon coucher<input id="solar-bed" class="field" type="time" step="60"></label>
+            <label>Blanc de journée<select id="solar-day_kelvin" class="field">
+              <option value="2700">2’700 K</option><option value="3000">3’000 K</option><option value="4000">4’000 K</option><option value="4500">4’500 K</option><option value="5000">5’000 K</option><option value="5500">5’500 K</option><option value="6000">6’000 K</option><option value="6500">6’500 K</option>
+            </select></label>
           </div>
-          <fieldset class="solar-group"><legend>Au réveil et au coucher</legend>
+          <p id="solar-save-status" role="status" aria-live="polite"></p>
+          <div class="solar-actions"><button id="solar-cancel" type="button" class="btn muted" disabled>Annuler</button><button id="solar-save" type="button" class="btn primary" disabled>Enregistrer et activer Soleil</button></div>
+          <details class="profile-options" id="solar-advanced">
+            <summary>Réglages avancés</summary>
+          <fieldset class="solar-group"><legend>Niveaux intermédiaires</legend>
             <div class="solar-routine solar-pair">
               <label>Luminosité de confort (%)<input id="solar-comfort" class="field" type="number" min="1" max="100"></label>
               <label>Saturation (%)<input id="solar-saturation" class="field" type="number" min="0" max="100"></label>
             </div>
-            <small>Ces niveaux sont atteints à tes deux horaires. Entre le soleil et ces horaires, la lumière évolue progressivement.</small>
+            <small>La luminosité de confort est atteinte au réveil et pendant la baisse du soir. La saturation choisie est atteinte au réveil et au coucher du soleil.</small>
           </fieldset>
-          <fieldset class="solar-group"><legend>Passage à la nuit et au réveil</legend>
+          <fieldset class="solar-group"><legend>Réveil et baisse du soir</legend>
             <div class="solar-routine solar-pair">
               <label>Transition (minutes)<input id="solar-transition" class="field" type="number" min="1" max="180"></label>
               <label>Luminosité de nuit (%)<input id="solar-low" class="field" type="number" min="1" max="99"></label>
             </div>
-            <small id="solar-rhythm-summary">La montée commence avant ton réveil ; le minimum est atteint après ton coucher. La saturation de nuit est toujours de 100 %.</small>
+            <small id="solar-rhythm-summary"></small>
           </fieldset>
           <fieldset class="solar-group"><legend>Couleurs et journée</legend>
-            <div class="solar-routine solar-pair">
+            <div class="solar-routine">
               <label>Luminosité de journée (%)<input id="solar-high" class="field" type="number" min="2" max="100"></label>
-              <label>Blanc de journée<select id="solar-day_kelvin" class="field"><option value="4000">Plus chaud · 4’000 K</option><option value="4500">Doux · 4’500 K</option><option value="5000">Lumière du jour · 5’000 K</option><option value="5500">Neutre frais · 5’500 K</option><option value="6000">Frais · 6’000 K</option><option value="6500">Lumière du jour froide · 6’500 K</option></select></label>
             </div>
             <div id="solar-hues" class="solar-routine">
               <label>Matin <output id="solar-morning-swatch" class="solar-hue-swatch" aria-hidden="true"></output><input id="solar-morning_hue" class="solar-hue" type="range" min="0" max="359" step="1"></label>
@@ -231,16 +242,13 @@
             </div>
             <small id="solar-color-note">Choisis des couleurs pleines ; le profil règle leur saturation et leur luminosité. Le blanc de journée est indépendant. Le rendu sur écran est indicatif.</small>
           </fieldset>
-          <p id="solar-save-status" role="status" aria-live="polite"></p>
-          <div class="solar-actions"><button id="solar-cancel" type="button" class="btn muted" disabled>Annuler</button><button id="solar-save" type="button" class="btn primary" disabled>Enregistrer et activer Soleil</button></div>
           </details>
           <details class="solar-preview profile-options" id="solar-preview">
             <summary>Aperçu de la journée</summary>
             <div class="solar-routine"><label>Date de l’aperçu · sans modifier la lampe<input id="solar-date" class="field" type="date"></label><button id="solar-today" class="btn muted" type="button">Aujourd’hui</button></div>
             <p id="solar-status" class="solar-status" role="status" aria-live="polite"></p>
             <div id="solar-results" hidden>
-              <div class="solar-stats"><div><span>LEVER DU SOLEIL</span><strong id="solar-rise">—</strong></div><div><span>COUCHER DU SOLEIL</span><strong id="solar-set">—</strong></div></div>
-<p id="solar-draft-hours"></p>
+              <p id="solar-draft-hours"></p>
               <label>Heure de l’aperçu<input id="solar-sample" type="range" min="0" max="1440" step="1" value="720"></label>
               <p id="solar-sample-label"></p><div id="solar-swatch" aria-hidden="true"></div>
               <small>Calcul local approximatif, sans météo ni relief. La simulation accélérée utilise le profil solaire d’aujourd’hui.</small>
