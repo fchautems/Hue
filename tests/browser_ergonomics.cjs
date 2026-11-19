@@ -1,6 +1,11 @@
 // Real browser, actual API and simulated bridge. Never contacts the user's lamps.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
+const deadline=setTimeout(()=>{
+ console.error('Délai global du parcours Chromium dépassé.');
+ process.exit(1);
+},75000);
+deadline.unref();
 (async()=>{
  const browser=await chromium.launch({headless:true});
  const page=await browser.newPage({locale:'fr-CH',hasTouch:true});
@@ -81,6 +86,7 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>state.lights.slice(0,2).every(l=>l.on));
  assert.deepEqual(writes.splice(0).map(r=>r.url),['/api/lights/switch']);
 
+ console.log('Commandes tactiles du plan vérifiées.');
  const edit=plan.locator('.plan-edit-toggle');
  const assignment=plan.getByRole('combobox',{name:'Pièce de Entrée'});
  await edit.tap();
@@ -126,7 +132,9 @@ const assert=require('node:assert/strict');
  await edit.tap();
  assert.equal(writes.length,0,'assignment, drag and reload do not command lamps');
 
+ console.log('Édition et persistance du plan vérifiées.');
  const dense=await browser.newPage({locale:'fr-CH',hasTouch:true,viewport:{width:320,height:680}});
+ dense.setDefaultTimeout(15000);
  dense.on('pageerror',e=>errors.push(e.message));
  const salonIds=['light-0', ...Array.from({length:4},(_,index)=>`salon-${index+2}`)];
  await dense.route('**/api/state',async route=>{
@@ -149,6 +157,7 @@ const assert=require('node:assert/strict');
  await dense.screenshot({path:'/tmp/hue-ergonomics-salon-five-lamps.png'});
  await dense.close();
 
+ console.log('Plan dense vérifié.');
  await listToggle.click();
  const room=page.locator('.room-card').filter({has:page.getByRole('heading',{name:'Couloir',exact:true})});
  await room.waitFor();
@@ -555,8 +564,10 @@ const assert=require('node:assert/strict');
  await panel('updates').click();
  await check(page.locator('#update-apply').isEnabled(),'installation remains accessible');
  // First installation: no made-up IP and association opens inside Settings.
+ console.log('Modes, historique, diagnostics et mises à jour vérifiés.');
  const first=await browser.newPage();
  first.on('pageerror',e=>errors.push(e.message));
+ first.setDefaultTimeout(15000);
  await first.route('**/api/state',async route=>{
    const response=await route.fetch();const json=await response.json();
    json.needs_setup=true;json.connected=false;json.lights=[];
