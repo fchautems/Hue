@@ -18,10 +18,15 @@
     return {...location,...Object.fromEntries(rhythmIds.map(k=>[k,Number($(k).value)])),
       wake:minutes($('wake').value),bed:minutes($('bed').value),low:Number($('low').value),high:Number($('high').value)};
   }
+  const validHours=c=>Number.isInteger(c.wake)&&Number.isInteger(c.bed)&&c.wake>=0&&c.bed<1440&&c.bed-c.wake>=180;
+  const maxTransition=c=>Math.floor((1440-(c.bed-c.wake))/2);
+  function recommended(c){
+    const {morning_hue,evening_hue,night_hue,saturation}=defaults;
+    return {morning_hue,evening_hue,night_hue,saturation,transition:Math.min(defaults.transition,maxTransition(c))};
+  }
   function valid(c){
-    return Number.isInteger(c.wake)&&Number.isInteger(c.bed)&&c.wake>=0&&c.bed<1440&&c.bed-c.wake>=180&&
-      Number.isInteger(c.low)&&Number.isInteger(c.high)&&c.low>=1&&c.low<c.high&&c.high<=100&&
-      rhythmIds.every(k=>Number.isInteger(c[k])&&$(k).value!=='')&&c.transition>=1&&c.transition<=180&&2*c.transition<=1440-(c.bed-c.wake)&&
+    return validHours(c)&&Number.isInteger(c.low)&&Number.isInteger(c.high)&&c.low>=1&&c.low<c.high&&c.high<=100&&
+      rhythmIds.every(k=>Number.isInteger(c[k])&&$(k).value!=='')&&c.transition>=1&&c.transition<=180&&c.transition<=maxTransition(c)&&
       c.comfort>=c.low&&c.comfort<=c.high&&c.saturation>=0&&c.saturation<=100&&
       ['morning_hue','evening_hue','night_hue'].every(k=>c[k]>=0&&c[k]<=359)&&c.day_kelvin>=2700&&c.day_kelvin<=6500&&
       Number.isFinite(c.latitude)&&Math.abs(c.latitude)<=90&&Number.isFinite(c.longitude)&&Math.abs(c.longitude)<=180&&!!c.tz;
@@ -43,6 +48,8 @@
     $('color-note').textContent=lightColorNote();
     $('save').disabled=loading||saving||!uid||!valid(c)||(!changed&&active==='solar'&&!legacy);
     $('cancel').disabled=loading||saving||!changed;
+    $('recommended').disabled=loading||saving||!saved||!validHours(c)||maxTransition(c)<1||
+      Object.entries(recommended(c)).every(([key,value])=>Number($(key).value)===value&&$(key).value!=='');
     $('save').textContent=saving?'Enregistrement…':legacy?'Adopter ce rythme Soleil':active==='solar'?'Enregistrer les réglages':'Enregistrer et activer Soleil';
     const light=state?.lights.find(l=>l.id===uid);
     const reason=light?.vacation_active?'Vacances est prioritaire.':light?.control_mode!=='auto'?'Passe en Auto pour suivre ce profil.':!light?.on?'Le suivi reprendra après allumage.':'Suivi automatique actif.';
@@ -180,6 +187,11 @@
   $('sample').addEventListener('input',sample);
   function discard(){if(saved)fill(saved);invalidate(true);status();}
   $('cancel').onclick=()=>{discard();renderPreview();};
+  $('recommended').onclick=()=>{
+    if($('recommended').disabled)return;
+    for(const [key,value] of Object.entries(recommended(config())))$(key).value=value;
+    schedule();
+  };
   async function reload(id){
     const token=++loadToken;uid=id;loading=true;saved=null;invalidate(true);status();
     if(!id){loading=false;status();return;}
