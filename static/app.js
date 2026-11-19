@@ -65,21 +65,28 @@ async function changePower(ids, on) {
     return [id,command];
   });
   renderPower();
-  const results=await Promise.allSettled(commands.map(async ([id,command])=>{
-    try{
-      await api(`/api/light/${encodeURIComponent(id)}/switch`,"POST",{on});
-      if(pendingPower.get(id)!==command)return;
-      command.accepted=true;
-    }catch(error){
-      if(pendingPower.get(id)===command)pendingPower.delete(id);
-      throw error;
+  let accepted, errors;
+  try {
+    if (ids.length === 1) {
+      await api(`/api/light/${encodeURIComponent(ids[0])}/switch`,"POST",{on});
+      accepted = ids;
+      errors = {};
+    } else {
+      ({accepted, errors} = await api("/api/lights/switch", "POST", {on, light_ids: ids}));
     }
-  }));
-  if(state.bridge_ip!==bridge)return;
-  const rejected=results.filter(result=>result.status==='rejected');
-  if(rejected.length){
-    showToast(ids.length===1?rejected[0].reason.message
-      :`${ids.length-rejected.length}/${ids.length} commandes acceptées par le pont.`,true);
+  } catch (error) {
+    accepted = [];
+    errors = Object.fromEntries(ids.map(id => [id, error.message]));
+  }
+  if (state.bridge_ip !== bridge) return;
+  for (const [id, command] of commands) {
+    if (pendingPower.get(id) !== command) continue;
+    if (accepted.includes(id)) command.accepted = true;
+    else pendingPower.delete(id);
+  }
+  if (accepted.length !== ids.length) {
+    showToast(ids.length === 1 ? errors[ids[0]] :
+      `${accepted.length}/${ids.length} commandes acceptées par le pont.`, true);
     renderPower();
   }
   await refresh();
@@ -311,15 +318,42 @@ function setTab(tab) {
   return true;
 }
 
+const soloSwitch = $("#solo-enabled");
+let soloSaving = false;
+let soloGeneration = 0;
+soloSwitch.addEventListener("change", async () => {
+  const enabled = soloSwitch.checked;
+  soloSaving = true;
+  soloGeneration++;
+  soloSwitch.disabled = true;
+  try {
+    await api("/api/solo", "PUT", {enabled});
+    showToast(enabled ? "Mode Solo activé." : "Mode Solo désactivé.");
+  } catch (error) {
+    soloSwitch.checked = !enabled;
+    showToast(error.message, true);
+  } finally {
+    soloSaving = false;
+    soloGeneration++;
+    soloSwitch.disabled = false;
+    await refresh();
+  }
+});
+
 async function refresh() {
   if(refreshBusy)return; refreshBusy=true;
   const generation=stateGeneration;
+  const soloRead=soloGeneration;
   try{
     const s=await api('/api/state');
     if(generation!==stateGeneration)return;
     confirmPower(s);
     state=s;lastStateAt=performance.now();
     window.HueDawn?.refresh(s.lights);
+    if (!soloSaving && soloRead === soloGeneration) {
+      soloSwitch.checked = s.solo_enabled;
+      soloSwitch.disabled = false;
+    }
     $('#bridge-dot').classList.toggle('online',s.connected);
     $('#bridge-label').textContent=s.connected?'Pont connecté':'Pont non connecté';
     $('#bridge-ip').textContent=s.bridge_ip??'Association requise';

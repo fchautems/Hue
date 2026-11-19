@@ -61,12 +61,20 @@
     </section>
 
     <section id="tab-dashboard" class="tab hidden">
+      <section class="card solo-card" aria-label="Mode Solo">
+        <label class="solo-toggle">
+          <input id="solo-enabled" type="checkbox" role="switch" aria-describedby="solo-help" disabled>
+          <span>Mode Solo</span>
+        </label>
+        <p id="solo-help">Quand tu allumes dans une autre pièce, les lumières des autres pièces s’éteignent.</p>
+      </section>
       <details class="activity-details">
         <summary>Réveil lumineux</summary>
         <section class="card vacation-card" aria-label="Réveil lumineux">
         <form id="dawn-form">
           <label><input type="checkbox" id="dawn-enabled"> Activer le réveil lumineux</label>
           <div class="dawn-fields" id="dawn-fields" hidden>
+            <label>Heure du réveil <input type="time" id="dawn-time" class="field" step="60"></label>
             <label>Lampe <select id="dawn-light" class="field"></select></label>
             <label>Couleur <input type="color" id="dawn-color" class="field" value="#ff9a55"></label>
             <label>Minutes avant le réveil <input type="number" id="dawn-minutes" class="field" min="1" max="120" value="20"></label>
@@ -246,14 +254,38 @@
         <div id="point-rows" class="point-rows"></div>
         <div class="profile-actions"><button id="add-point" class="btn muted">+ Ajouter un point</button><span id="profile-edit-status" role="status" aria-live="polite">✓ Courbe enregistrée</span><button id="cancel-profile" class="btn muted" type="button">Annuler</button><button id="save-profile" class="btn primary" type="button">Enregistrer</button></div>
         </details>
-        <details class="profile-copy">
-          <summary>Copier le profil vers…</summary>
-          <div class="profile-copy-fields">
-            <label for="profile-copy-target">Lampe de destination</label>
-            <select id="profile-copy-target" class="field"></select>
-            <button id="v063-copy-full" type="button" class="btn muted" disabled>Copier le profil complet</button>
-          </div>
-        </details>
+        <div class="profile-copy" id="profile-copy" hidden>
+          <details>
+            <summary>Appliquer aux autres</summary>
+            <form class="profile-copy-fields" id="profile-copy-apply">
+              <fieldset>
+                <legend>Lampes de destination</legend>
+                <label class="profile-copy-choice"><input type="checkbox" id="profile-copy-all"> Tout sélectionner</label>
+                <div id="profile-copy-targets"></div>
+              </fieldset>
+              <label>Réglages à copier
+                <select name="scope" class="field">
+                  <option value="full">Profil complet</option>
+                  <option value="curve">Courbe de luminosité seule</option>
+                </select>
+              </label>
+              <button type="submit" class="btn muted" disabled>Appliquer</button>
+            </form>
+          </details>
+          <details>
+            <summary>Prendre d’une autre</summary>
+            <form class="profile-copy-fields" id="profile-copy-take">
+              <label>Lampe source <select name="source" class="field" required></select></label>
+              <label>Réglages à copier
+                <select name="scope" class="field">
+                  <option value="full">Profil complet</option>
+                  <option value="curve">Courbe de luminosité seule</option>
+                </select>
+              </label>
+              <button type="submit" class="btn muted" disabled>Copier</button>
+            </form>
+          </details>
+        </div>
       </div>
       <details class="activity-details" id="profile-colors"><summary>Couleurs du profil</summary>
     <section id="tab-colors" class="rgb-integrated" aria-labelledby="rgb-heading">

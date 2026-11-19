@@ -1,3 +1,8 @@
+## v0.17.0 — Réveil Web, copie des profils et Solo — 2026-11-19
+- Programme le prochain réveil depuis Hue Web. Le Raspberry lance l’aube à l’heure affichée, même si le téléphone est hors ligne.
+- Applique la courbe ou le profil complet à plusieurs lampes en une fois, ou reprends les réglages d’une autre lampe.
+- Active Solo dans Automatisations pour éteindre les autres pièces quand tu allumes dans une nouvelle pièce.
+
 ## v0.16.2 — Jonctions du plan et commandes des lampes — 2026-11-15
 
 - Dans Pièces, les murs se rejoignent aux mêmes coordonnées. Les bords du couloir, du bureau et de la salle de bain forment des lignes continues et les quatre coins extérieurs sont arrondis.
