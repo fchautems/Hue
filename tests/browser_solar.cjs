@@ -93,10 +93,13 @@ const assert=require('node:assert/strict');
  assert.equal((await page.evaluate(()=>api('/api/profile/solar/light-0'))).type,'solar');
  // New values and colours persist after save/reload; cancel restores all fields.
  await page.locator('#solar-comfort').fill('62');await page.locator('#solar-saturation').fill('58');await page.locator('#solar-transition').fill('45');
- await page.locator('#solar-day_kelvin').selectOption('3000');await page.locator('#solar-night_hue').fill('0');
+ await page.locator('#solar-day_kelvin').selectOption('3000');
+ await page.locator('#solar-morning_hue').fill('20');
+ await page.locator('#solar-evening_hue').fill('0');
+ await page.locator('#solar-night_hue').fill('320');
  await page.locator('#solar-save').click();await page.waitForFunction(()=>!window.HueSolar.isBusy()&&document.querySelector('#solar-save').disabled);
  const changed=await page.evaluate(()=>api('/api/profile/solar/light-0'));
- assert.equal(changed.config.comfort,62);assert.equal(changed.config.saturation,58);assert.equal(changed.config.transition,45);assert.equal(changed.config.day_kelvin,3000);assert.equal(changed.config.night_hue,0);
+ assert.equal(changed.config.comfort,62);assert.equal(changed.config.saturation,58);assert.equal(changed.config.transition,45);assert.equal(changed.config.day_kelvin,3000);assert.equal(changed.config.night_hue,320);
  await page.route('**/static/solar_daily.js?*',async route=>{
   await new Promise(resolve=>setTimeout(resolve,350));
   await route.continue();
@@ -114,6 +117,36 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#solar-status').textContent.includes('Vérifie'));
  assert.equal(await page.locator('#solar-results').isVisible(),false);
  await page.locator('#solar-cancel').click();
+ // Recommended settings are accessible at phone width and preview before saving.
+ await page.setViewportSize({width:320,height:780});
+ await page.locator('#solar-advanced > summary').click();
+ const recommended=page.getByRole('button',{name:'Appliquer les réglages recommandés'});
+ const writesBeforeReset=writes.length;
+ await recommended.click();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ assert.equal(await page.locator('#solar-advanced').getAttribute('open'),null);
+ assert.equal(await page.locator('#solar-evening_hue').inputValue(),'28');
+ await page.locator('#solar-graph[aria-busy]').waitFor({state:'detached'});
+ assert.equal(writes.length,writesBeforeReset);
+ assert.deepEqual(await page.evaluate(()=>api('/api/profile/solar/light-0')),changed);
+ await page.locator('#solar-cancel').click();
+ assert.equal(await page.locator('#solar-evening_hue').inputValue(),'0');
+ assert.equal(await page.locator('#solar-saturation').inputValue(),'58');
+ // A short night caps the recommended duration while keeping the drafted hours.
+ await page.locator('#solar-wake').fill('00:10');await page.locator('#solar-bed').fill('23:20');
+ await recommended.click();
+ assert.equal(await page.locator('#solar-transition').inputValue(),'25');
+ assert.equal(await page.locator('#solar-wake').inputValue(),'00:10');
+ assert.equal(await page.locator('#solar-bed').inputValue(),'23:20');
+ assert.equal(await page.locator('#solar-save').isEnabled(),true);
+ await page.locator('#solar-cancel').click();
+ await recommended.click();
+ await page.locator('#solar-save').click();
+ await page.waitForFunction(()=>!window.HueSolar.isBusy()&&document.querySelector('#solar-save').disabled);
+ const reset=await page.evaluate(()=>api('/api/profile/solar/light-0'));
+ assert.deepEqual(reset.config,{...changed.config,transition:30,saturation:45,morning_hue:34,evening_hue:28,night_hue:30});
+ assert.equal(await recommended.isDisabled(),true);
+ await page.setViewportSize({width:390,height:830});
  // Settings validate the shared city before replacing the per-lamp location.
  await page.locator('.nav [data-tab="settings"]').click();
  await page.locator('.settings-nav [data-tab="location"]').click();

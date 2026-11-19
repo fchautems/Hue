@@ -1,3 +1,7 @@
+## v0.18.1 — Réglages recommandés du profil Soleil — 2026-11-19
+
+- **Code concret :** dans Profil → Soleil, « Appliquer les réglages recommandés » remet les teintes, la saturation et la durée de transition sur les valeurs conseillées. Tu peux les voir dans l’aperçu, puis les enregistrer ou annuler.
+
 ## v0.18.0 — Profil Soleil — 2026-11-19
 
 - **Code concret :** dans Profil → Soleil, le graphique affiche le réveil, le lever du soleil, le coucher du soleil et ton coucher. Les deux horaires et le blanc de journée sont accessibles directement. Le blanc de journée propose aussi 2’700 K et 3’000 K.
