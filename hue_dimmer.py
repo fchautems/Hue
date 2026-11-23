@@ -133,7 +133,7 @@ def dimmer_bindings(instances, groups, lights, scenes=(), *, power=False):
     return {key: targets for key, targets in bindings.items() if targets and key not in conflicts}
 
 
-def dimmer_events(containers):
+def dimmer_events(containers, stable_scene_targets=None):
     """Read real input reports and OFF events from CLIP v2 SSE updates."""
     if not isinstance(containers, list):
         return
@@ -147,6 +147,15 @@ def dimmer_events(containers):
             if not isinstance(item, dict) or not isinstance(item.get("id"), str):
                 continue
             kind, uid = item.get("type"), item["id"]
+            if (kind == "scene" and change == "update" and "group" not in item
+                    and "actions" in item and uid in (stable_scene_targets or {})):
+                actions = item.get("actions")
+                if isinstance(actions, list) and all(
+                        isinstance(step, dict) and step.get("target", {}).get("rtype") == "light"
+                        for step in actions):
+                    targets = frozenset(step["target"].get("rid") for step in actions)
+                    if targets == stable_scene_targets[uid]:
+                        continue
             if (kind in (*GROUP_TYPES, "behavior_instance", "device")
                     or kind == "scene" and (change != "update" or "actions" in item or "group" in item)):
                 yield "config", uid, kind

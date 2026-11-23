@@ -1,5 +1,22 @@
 # PROJECT_STATE — Philips Hue Web
 
+## v0.18.2 — Allumage au réglage du profil — 2026-11-23
+
+- Depuis Hue Lab, une seule commande envoie marche, luminosité et couleur de la même heure, avec une transition nulle pour les ampoules Auto compatibles. La boucle conserve cette consigne pour éviter de lancer une deuxième transition.
+- Paramètres → Diagnostics et journaux crée ou réutilise une scène « Hue Lab - Allumage » par pièce ou zone choisie. Toutes les pièces et zones peuvent être préparées en une opération. L’affectation de la scène à l’action d’allumage du bouton se fait dans Philips Hue.
+- La boucle vérifie les scènes enregistrées toutes les 30 s en temps réel. Elle envoie une modification si les cibles changent, si un niveau varie d’au moins un point ou si la chromaticité varie d’au moins 0,003 en coordonnées xy. Les mises à jour éditent les actions de la scène et ne la rappellent jamais. La simulation suspend ces écritures.
+- Les scènes d’allumage sont distinguées des scènes manuelles. Un changement de niveau de scène ne rend pas obsolète un appui en attente. Pour un bouton qui garde sa commande native, le niveau est corrigé sans rampe après observation du nouvel allumage. Gradation, réveil, Vacances, Solo et reconnexion gardent la priorité prévue.
+- Contrôles : 245 tests Python, dont cinq nouveaux scénarios d’allumage sur pont simulé. La validation matérielle reste à faire sur une pièce ou une zone avec les deux commandes.
+
+## Audit de l’allumage Hue — 2026-11-23
+
+- Base vérifiée : `main` à `87ffbefecc71e`, 240 tests Python réussis. Revue du plan, des routes de commande, des écritures CLIP, des événements de télécommande, du profil Auto, de la gradation, de Solo, de Vacances, de l’aube et du retour Zigbee.
+- Le démarrage secteur à 10 % relève du micrologiciel. Une lampe qui reste alimentée obéit d’abord à la commande du pont. Pour un bouton Hue, le Raspberry voit l’allumage après la commande native et son traitement Auto peut encore ajouter une transition.
+- Le plan envoie déjà marche, luminosité et couleur ensemble. L’allumage réarme toutefois la transition Auto et efface l’historique de commande. Le calcul de couleur prend également l’heure séparément.
+- Une scène Hue ordinaire est interprétée comme une intervention manuelle. Ajouter ou modifier des scènes peut invalider les événements de bouton en file. Une scène d’allumage gérée doit être identifiée comme une commande de marche, et une actualisation de ses seuls niveaux et couleurs ne doit pas invalider la gradation.
+- Priorités à conserver : une gradation native suspend Auto jusqu’à l’extinction, l’aube et Vacances gardent leur lampe, Solo conserve le périmètre du bouton et une reconnexion Zigbee conserve sa transition dédiée. Le pont réel et l’affectation exacte des boutons du Salon restent à vérifier.
+- Suite : unifier la consigne d’allumage, préparer une scène dédiée par groupe à la demande, vérifier les collisions sur pont simulé, puis essayer les deux parcours sur un pont réel.
+
 ## v0.18.1 — Réglages recommandés pour les profils Soleil existants — 2026-11-19
 
 - Retour sur pont réel : le profil existant du Salon a repris son rouge du soir et sa saturation élevée après installation de la v0.18.0. Les nouveaux profils utilisaient déjà les réglages plus doux.

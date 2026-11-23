@@ -31,7 +31,16 @@ room_groups = {
     ],
 }
 
+scenes = []
+
 def resource(path, method="GET", payload=None):
+    if method == "GET" and path == "":
+        return copy.deepcopy([dict(group, type=kind) for kind, groups in room_groups.items()
+                              for group in groups] + scenes)
+    if method == "POST" and path == "scene":
+        uid = f"scene-{len(scenes)}"
+        scenes.append({"id": uid, "type": "scene", **copy.deepcopy(payload)})
+        return [{"rid": uid, "rtype": "scene"}]
     if method == "GET" and path in room_groups:
         return room_groups[path]
     return original_resource(path, method, payload)

@@ -53,6 +53,9 @@ DAWN_SYNC_DEFAULTS = {"alarm_at": None, "observed_at": 0, "skipped_at": None}
 DAWN_WEB_DEFAULTS = {"wake_time": ""}
 SOLO_GROUP_WINDOW = 1.0  # A Hue zone can report its lights across several updates.
 SOLO_COMMAND_TIMEOUT = 12
+START_SCENE_APPDATA = "huelab-auto-on"
+START_SCENE_NAME = "Hue Lab - Allumage"
+START_SCENE_INTERVAL = 30
 WAKE_TIME_PATTERN = r"(?:[01][0-9]|2[0-3]):[0-5][0-9]"
 
 
@@ -174,6 +177,9 @@ class HueServer:
         self.dimmer_held = set()
         self._dimmer_events = deque(maxlen=128)
         self._dimmer_generation = 0
+        self.start_scene_ids = set()
+        self._start_scene_targets = {}
+        self._next_start_scene_sync = 0
         self.dawn = {**DAWN_DEFAULTS, **DAWN_SYNC_DEFAULTS, **DAWN_WEB_DEFAULTS}
         self.dawn_run = None
         self.solo_enabled = False
@@ -188,6 +194,9 @@ class HueServer:
                 loaded = json.loads(self.settings_path.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
                     self.solo_enabled = loaded.get("solo_enabled") is True
+                    scene_ids = loaded.get("start_scene_ids")
+                    if isinstance(scene_ids, list):
+                        self.start_scene_ids = {uid for uid in scene_ids if isinstance(uid, str)}
                     saved_dawn = loaded.get("dawn")
                     if isinstance(saved_dawn, dict):
                         try:
@@ -319,6 +328,7 @@ class HueServer:
         self.previous_online = {}
         self.previous_on = {}
         self.reconnect_pending = set()
+        self.external_on_pending = set()
         self.last_sent = {}  # id -> {at, target}
         self.vacation_last_commands = {}  # id -> dernière commande ON/OFF du moteur
         self.vacation_test = None  # simulation accélérée 60 s, jamais persistée
@@ -371,6 +381,7 @@ class HueServer:
             "vacation": self.vacation,
             "dawn": self.dawn,
             "solo_enabled": self.solo_enabled,
+            "start_scene_ids": sorted(self.start_scene_ids),
             "dimmer_held": sorted(self.dimmer_held),
         }
         tmp = self.settings_path.with_name(self.settings_path.name + ".tmp")
@@ -405,7 +416,11 @@ class HueServer:
             self.dimmer_held.clear()
             self._dimmer_events.clear()
             self._dimmer_generation += 1
+            self.start_scene_ids.clear()
+            self._start_scene_targets.clear()
+            self._next_start_scene_sync = 0
             self.reconnect_pending.clear()
+            self.external_on_pending.clear()
             self.last_sent.clear()
             self.power_tests.clear()
             self.vacation_last_commands.clear()
@@ -558,7 +573,15 @@ class HueServer:
                         self.save()
                         self.log.info("VACANCES | priorité manuelle %s pendant 10 min | %s",
                                       "ON" if is_on else "OFF", l.get("metadata", {}).get("name", uid))
+                    if is_on is not True or online is not True:
+                        self.external_on_pending.discard(uid)
                     if old_on is False and is_on is True:
+                        if (old_online is True and online is True and expected is None
+                                and uid not in self.reconnect_pending
+                                and self.settings["light_modes"].get(uid) == "auto"
+                                and not self._solo_protected(uid)):
+                            self.external_on_pending.add(uid)
+                            self.last_sent.pop(uid, None)
                         self.log.info("ÉTAT | %s | ON observé", l.get("metadata", {}).get("name", uid))
                         if not own_change and not self._presence_history_suppressed(uid):
                             self.presence_log.record(uid, l.get("metadata", {}).get("name", uid), "light_on")
@@ -703,6 +726,7 @@ class HueServer:
             self._automate_locked()
             self._vacation_test_tick_locked()
             self._vacation_apply_locked()
+            self._sync_start_scenes()
         finally:
             self._automation_lock.release()
 
@@ -711,7 +735,7 @@ class HueServer:
             if client is not self.client:
                 return
             now = time.monotonic()
-            for kind, uid, event in dimmer_events(data):
+            for kind, uid, event in dimmer_events(data, self._start_scene_targets):
                 if kind == "config":
                     self._dimmer_generation += 1
                 else:
@@ -745,7 +769,8 @@ class HueServer:
                 instances = [item for item in resources if item.get("type") == "behavior_instance"]
                 groups = [item for item in resources if item.get("type") in GROUP_TYPES]
                 scenes = [item for item in resources if item.get("type") == "scene"]
-                bindings = dimmer_bindings(instances, groups, lights, scenes)
+                manual_scenes = [scene for scene in scenes if scene["id"] not in self.start_scene_ids]
+                bindings = dimmer_bindings(instances, groups, lights, manual_scenes)
                 if self.solo_enabled:
                     power_bindings = dimmer_bindings(instances, groups, lights, scenes, power=True)
             except (HueError, KeyError, TypeError, AttributeError) as exc:
@@ -809,11 +834,17 @@ class HueServer:
             manual = copy.deepcopy(self.settings["manual_states"])
             status = {c.get("owner", {}).get("rid"): c.get("status") for c in self.connectivity}
             reconnecting = set(self.reconnect_pending)
+            self.external_on_pending.difference_update(self.dimmer_held)
+            starting = set(self.external_on_pending)
             held = set(self.dimmer_held)
             restoring = set(self.manual_restore_pending)
             transitioning = set(self.auto_transition_pending)
         for light in lights:
             uid = light["id"]
+            if (uid == dawn_light or uid in held or modes.get(uid) != "auto"
+                    or self.vacation["enabled"] and uid in self.vacation["light_ids"]):
+                with self.lock:
+                    self.external_on_pending.discard(uid)
             if uid == dawn_light or uid in held:
                 continue
             if self.vacation["enabled"] and uid in self.vacation["light_ids"]:
@@ -881,6 +912,9 @@ class HueServer:
             xy_drift = (target_xy is not None and observed_xy is not None
                         and (not last or now-last["at"] >= 8)
                         and xy_distance(observed_xy, target_xy) >= 0.025)
+            initial = uid in starting and uid not in reconnecting
+            if initial:
+                xy_changed = target_xy is not None and xy_distance(observed_xy, target_xy) >= 0.003
             reconnect = uid in reconnecting
             transition = uid in transitioning
             observed_drift = (
@@ -900,12 +934,15 @@ class HueServer:
                 with self.lock:
                     self.auto_transition_pending.discard(uid)
                     self.reconnect_pending.discard(uid)
+                    self.external_on_pending.discard(uid)
+                    if initial:
+                        self.last_sent[uid] = {"at": now, "target": target, "xy": target_xy}
                 continue
             payload = {"dimming": {"brightness": max(1, min(100, target))}}
             if target_xy is not None:
                 payload["color"] = {"xy": target_xy}
             if "dynamics" in light:
-                payload["dynamics"] = {"duration": (2000 if transition else
+                payload["dynamics"] = {"duration": (0 if initial else 2000 if transition else
                     reconnect_transition_ms(current, target) if urgent_correction else
                     1800 if clock_mode == "accelere" else
                     8000 if target_xy is not None else 3000)}
@@ -917,6 +954,7 @@ class HueServer:
                 with self.lock:
                     self.last_sent[uid] = {"at": now, "target": target, "xy": target_xy}
                     self.reconnect_pending.discard(uid)
+                    self.external_on_pending.discard(uid)
                     self.auto_transition_pending.discard(uid)
                     if reconnect:
                         elapsed = round((time.monotonic() - self.reconnect_at.get(uid, now)) * 1000)
@@ -1437,6 +1475,104 @@ class HueServer:
             for kind, groups in by_type.items() for group in groups
         ]
 
+    def _start_scene_actions(self, resources, group):
+        groups = [item for item in resources if item.get("type") in GROUP_TYPES]
+        if not any(item["id"] == group["rid"] and item["type"] == group["rtype"] for item in groups):
+            return []
+        with self.lock:
+            resolve = group_light_resolver(groups, self.lights)
+            ids = resolve(group)
+            minute = wall_clock_minutes()
+            actions = []
+            for light in sorted(self.lights, key=lambda item: item["id"]):
+                uid = light["id"]
+                if uid not in ids:
+                    continue
+                mode = self.settings["light_modes"].get(uid, "manuel")
+                _, levels = self._on_levels(light, mode, minute)
+                actions.append({"target": {"rtype": "light", "rid": uid},
+                                "action": {"on": {"on": True}, **levels}})
+            return actions
+
+    def _update_start_scene(self, scene, actions):
+        def by_target(steps):
+            return {step["target"]["rid"]: step["action"] for step in steps
+                    if step.get("target", {}).get("rtype") == "light"}
+
+        before = by_target(scene["actions"])
+        after = by_target(actions)
+        uid = scene["id"]
+        with self.lock:
+            self._start_scene_targets[uid] = frozenset(before)
+        if before.keys() == after.keys() and all(
+                before[light].get("on") == state.get("on")
+                and abs(before[light].get("dimming", {}).get("brightness", 0)
+                        - state.get("dimming", {}).get("brightness", 0)) < 1
+                and bool(before[light].get("color")) == bool(state.get("color"))
+                and (not state.get("color") or xy_distance(before[light]["color"].get("xy"),
+                                state["color"].get("xy")) < 0.003)
+                for light, state in after.items()):
+            return
+        self.client.resource(f"scene/{uid}", "PUT", {"actions": actions})
+        with self.lock:
+            self._start_scene_targets[uid] = frozenset(after)
+
+    def prepare_start_scene(self, group_id, kind):
+        if kind not in ("room", "zone") or not isinstance(group_id, str):
+            raise ValueError("Choisis une pièce ou une zone Hue.")
+        with self._automation_lock:
+            if self.client is None or self.last_error:
+                raise HueError("Pont Hue indisponible.")
+            if self.clock_mode != "reel":
+                raise ValueError("Reviens à l’heure réelle pour préparer la scène.")
+            resources = self.client.resource("")
+            group = {"rid": group_id, "rtype": kind}
+            actions = self._start_scene_actions(resources, group)
+            if not actions:
+                raise ValueError("Cette pièce ou zone ne contient aucune lampe disponible.")
+            scene = next((item for item in resources if item.get("type") == "scene"
+                          and item.get("metadata", {}).get("appdata") == START_SCENE_APPDATA
+                          and item.get("group") == group), None)
+            if scene:
+                self._update_start_scene(scene, actions)
+                uid = scene["id"]
+                name = scene.get("metadata", {}).get("name") or START_SCENE_NAME
+            else:
+                result = self.client.resource("scene", "POST", {
+                    "group": group, "actions": actions,
+                    "metadata": {"name": START_SCENE_NAME, "appdata": START_SCENE_APPDATA},
+                })
+                uid = next((item.get("rid") for item in result if item.get("rtype") == "scene"), None)
+                if not isinstance(uid, str):
+                    raise HueError("La création de la scène n’a pas été confirmée par le pont.")
+                name = START_SCENE_NAME
+            with self.lock:
+                self.start_scene_ids.add(uid)
+                self.save()
+            return {"name": name}
+
+    def _sync_start_scenes(self):
+        now = time.monotonic()
+        if (not self.start_scene_ids or self.clock_mode != "reel"
+                or now < self._next_start_scene_sync):
+            return
+        self._next_start_scene_sync = now + START_SCENE_INTERVAL
+        try:
+            resources = self.client.resource("")
+        except HueError as exc:
+            self.log.warning("SCÈNES D’ALLUMAGE | lecture indisponible : %s", exc)
+            return
+        for scene in resources:
+            if (scene.get("type") != "scene" or scene.get("id") not in self.start_scene_ids
+                    or scene.get("metadata", {}).get("appdata") != START_SCENE_APPDATA):
+                continue
+            actions = self._start_scene_actions(resources, scene["group"])
+            if actions:
+                try:
+                    self._update_start_scene(scene, actions)
+                except HueError as exc:
+                    self.log.warning("SCÈNE D’ALLUMAGE | %s | %s", scene["id"], exc)
+
     def _target_for(self, uid, minute, profiles=None, simple_profiles=None, profile_types=None):
         """Consigne calculée selon le type actif de chaque lampe (verrou déjà pris)."""
         types = self.settings["profile_types"] if profile_types is None else profile_types
@@ -1906,40 +2042,51 @@ class HueServer:
                     self._solo_keep_rooms(set(accepted))
             return {"accepted": accepted, "errors": errors}
 
+    def _on_levels(self, light, mode, minute):
+        """Use one profile calculation for a web command and a bridge scene."""
+        uid = light["id"]
+        choice = None
+        if mode == "auto":
+            kind = self.settings["profile_types"].get(uid)
+            if kind in ("simple", "solar"):
+                profile = self._effective_simple(uid)
+                minute = self._profile_minute(uid, minute)
+                level = simple_brightness_at(profile, minute)
+                colors = self.settings["rgb_profiles"].get(uid)
+                if colors and "color" in light and self.settings["rgb_auto_enabled"].get(uid):
+                    choice = rgb_at(colors, profile, minute)
+            else:
+                level = self._target_for(uid, minute)
+        else:
+            stored = self.settings["manual_states"].get(uid, {})
+            level = stored.get("brightness", light.get("dimming", {}).get("brightness") or 50)
+            choice = self.settings["rgb_manual"].get(uid)
+        fields = {}
+        if "dimming" in light:
+            fields["dimming"] = {"brightness": float(level)}
+        if choice and "color" in light:
+            fields["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
+        return level, fields
+
     def _switch_light(self, uid, on, brightness):
         with self.lock:
             light = self.require_light(uid)
-            supports_dimming = "dimming" in light
             name = light.get("metadata", {}).get("name", uid)
             mode = self.settings["light_modes"].get(uid, "manuel")
-            current_brightness = light.get("dimming", {}).get("brightness")
-            stored = self.settings["manual_states"].get(uid, {})
-            if mode == "auto":
-                target = self._target_for(uid, self.simulated_time())
-            else:
-                target = stored.get("brightness", current_brightness or 50)
-        payload = {"on": {"on": on}}
-        if on and supports_dimming:
-            selected = brightness if brightness is not None else target
-            if isinstance(selected, bool) or not isinstance(selected, (float, int)) or not 1 <= selected <= 100:
-                raise ValueError("Luminosité : 1 à 100 %")
-            payload["dimming"] = {"brightness": float(selected)}
-        if on and "color" in light:
-            choice = None
-            if mode == "manuel":
-                choice = self.settings["rgb_manual"].get(uid)
-            elif (self.settings["profile_types"].get(uid, "custom") in ("simple", "solar")
-                  and self.settings["rgb_auto_enabled"].get(uid)
-                  and uid in self.settings["rgb_profiles"]):
-                choice = rgb_at(
-                    self.settings["rgb_profiles"][uid],
-                    self._effective_simple(uid),
-                    self._profile_minute(uid, self.simulated_time()))
-            if choice:
-                payload["color"] = {"xy": hsv_to_xy(choice, light["color"].get("gamut"))}
+            target, levels = self._on_levels(light, mode, self.simulated_time())
+            payload = {"on": {"on": on}}
+            if on:
+                payload.update(levels)
+                if brightness is not None and "dimming" in light:
+                    if type(brightness) not in (int, float) or not 1 <= brightness <= 100:
+                        raise ValueError("Luminosité : 1 à 100 %")
+                    payload["dimming"] = {"brightness": float(brightness)}
+                if mode == "auto" and "dynamics" in light:
+                    payload["dynamics"] = {"duration": 0}
         self.client.resource(f"light/{uid}", "PUT", payload)
         with self.lock:
             self._remember_power(uid, on)
+            self.external_on_pending.discard(uid)
             if not on and self._resume_dimmer_locked(uid):
                 self.save()
             self._skip_dawn_locked(uid)
@@ -1950,8 +2097,14 @@ class HueServer:
                 self.settings["manual_states"][uid] = {
                     "on": on, "brightness": float(payload.get("dimming", {}).get("brightness", target))}
                 self.save()
-            else:
-                self.auto_transition_pending.add(uid)
+            elif on:
+                self.auto_transition_pending.discard(uid)
+                self.reconnect_pending.discard(uid)
+                if "dimming" in payload:
+                    self.last_sent[uid] = {
+                        "at": time.monotonic(), "target": payload["dimming"]["brightness"],
+                        "xy": payload.get("color", {}).get("xy"),
+                    }
         self.log.info("COMMANDE | %s | %s", name, payload)
         self._event_wakeup.set()
 
@@ -2309,6 +2462,11 @@ def state():
 @app.get("/api/lighting-groups")
 def lighting_groups():
     return ok(controller.lighting_groups())
+
+
+@app.post("/api/start-scenes")
+def prepare_start_scene(data: dict = Body(...)):
+    return ok(controller.prepare_start_scene(data.get("group_id"), data.get("kind")))
 
 
 @app.get("/api/setup/status")

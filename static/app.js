@@ -313,7 +313,7 @@ function setTab(tab) {
   if(tab==='presence')window.HuePresence?.refresh();
   if(tab==='profiles' && state?.lights?.length)window.HueRGB?.open(selectedId,false,true);
   if(tab==='setup')safe(initializeSetup);
-  if(tab==='diagnostics'){safe(refreshDiagnostics);safe(refreshLogs);}
+  if(tab==='diagnostics'){safe(refreshDiagnostics);safe(refreshLogs);safe(loadStartSceneGroups);}
   if(tab==='updates')safe(refreshUpdater);
   return true;
 }
@@ -445,6 +445,47 @@ function renderChart() {
   const current=currentMinute();
   svg.innerHTML=`<defs><linearGradient id="curve-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#efbf6d" stop-opacity=".30"/><stop offset="100%" stop-color="#efbf6d" stop-opacity="0"/></linearGradient></defs>${grid.join('')}<path d="${path} L${right},${bottom} L${left},${bottom}Z" fill="url(#curve-fill)"/><path d="${path}" stroke="#efbf6d" fill="none" stroke-width="3" vector-effect="non-scaling-stroke"/>${dots}<line x1="${x(current)}" y1="${top}" x2="${x(current)}" y2="${bottom}" stroke="#80d4c5" stroke-width="2" stroke-dasharray="5,4"/><circle cx="${x(current)}" cy="${y(interpolation(points,current))}" r="6" fill="#80d4c5"/>`;
 }
+async function loadStartSceneGroups() {
+  const select = $('#start-scene-group');
+  const submit = $('#prepare-start-scenes');
+  submit.disabled = true;
+  select.replaceChildren();
+  const groups = (await api('/api/lighting-groups')).filter(group => group.light_ids.length);
+  select.add(new Option('Toutes les pièces et zones', 'all'));
+  for (const group of groups) {
+    select.add(new Option(group.name, JSON.stringify({group_id: group.id, kind: group.kind})));
+  }
+  submit.disabled = groups.length === 0;
+}
+
+$('#start-scenes-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const submit = $('#prepare-start-scenes');
+  const select = $('#start-scene-group');
+  const status = $('#start-scenes-status');
+  const groups = select.value === 'all' ? [...select.options].slice(1) : [select.selectedOptions[0]];
+  submit.disabled = select.disabled = true;
+  status.textContent = 'Préparation sur le pont…';
+  const prepared = [];
+  const failed = [];
+  try {
+    for (const group of groups) {
+      try {
+        const scene = await api('/api/start-scenes', 'POST', JSON.parse(group.value));
+        prepared.push(`${group.text} (${scene.name})`);
+      } catch (error) {
+        failed.push(`${group.text} — ${error.message}`);
+      }
+    }
+    const messages = [];
+    if (prepared.length) messages.push(`Scènes prêtes : ${prepared.join(', ')}.`);
+    if (failed.length) messages.push(`À réessayer : ${failed.join(', ')}.`);
+    status.textContent = messages.join(' ');
+  } finally {
+    submit.disabled = select.disabled = false;
+  }
+});
+
 async function refreshDiagnostics(){
   const diag=await api('/api/diagnostics');
   $('#diag-meta').textContent=`Pont ${diag.bridge_ip??'inconnu'} · dernière lecture ${diag.last_poll??'jamais'} · ${diag.lights.length} ampoule(s) · événements Hue : ${diag.event_stream?.status??'inconnu'}`;
