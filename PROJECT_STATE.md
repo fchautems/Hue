@@ -6,7 +6,8 @@
 - Paramètres → Diagnostics et journaux crée ou réutilise une scène « Hue Lab - Allumage » par pièce ou zone choisie. Toutes les pièces et zones peuvent être préparées en une opération. L’affectation de la scène à l’action d’allumage du bouton se fait dans Philips Hue.
 - La boucle vérifie les scènes enregistrées toutes les 30 s en temps réel. Elle envoie une modification si les cibles changent, si un niveau varie d’au moins un point ou si la chromaticité varie d’au moins 0,003 en coordonnées xy. Les mises à jour éditent les actions de la scène et ne la rappellent jamais. La simulation suspend ces écritures.
 - Les scènes d’allumage sont distinguées des scènes manuelles. Un changement de niveau de scène ne rend pas obsolète un appui en attente. Pour un bouton qui garde sa commande native, le niveau est corrigé sans rampe après observation du nouvel allumage. Gradation, réveil, Vacances, Solo et reconnexion gardent la priorité prévue.
-- Contrôles : 245 tests Python, dont cinq nouveaux scénarios d’allumage sur pont simulé. La validation matérielle reste à faire sur une pièce ou une zone avec les deux commandes.
+- Contrôles : 245 tests Python, dont cinq nouveaux scénarios d’allumage, parité Python/JavaScript, six suites Node et parcours Chromium sur pont simulé. La [CI](https://github.com/fchautems/Hue/actions/runs/45221945482) vérifie aussi la préparation groupée sans allumer les lampes.
+- Publication : [PR #41](https://github.com/fchautems/Hue/pull/41) fusionnée sur main à `4621913d8263`, avec le même arbre que la révision testée. Prochaine action : mise à jour depuis Hue Lab sur le Raspberry, préparation des scènes et essai avec un bouton associé et le plan. Le pont réel reste à tester.
 
 ## Audit de l’allumage Hue — 2026-11-23
 
