@@ -1,3 +1,9 @@
+## v0.18.2 — Luminosité et couleur à l’allumage — 2026-11-23
+
+- Depuis le plan, une lampe en Auto démarre avec la luminosité et la couleur du profil au moment de la commande.
+- Dans Paramètres → Diagnostics et journaux, prépare les scènes d’allumage pour une pièce, une zone ou les deux en une fois. Associe ensuite la scène « Hue Lab - Allumage » à l’action d’allumage du bouton dans Philips Hue.
+- Hue Lab actualise les scènes préparées sur le pont quand leur luminosité ou leur couleur change. Le bouton applique la scène au moment de l’appui.
+
 ## v0.18.1 — Réglages recommandés du profil Soleil — 2026-11-19
 
 - **Code concret :** dans Profil → Soleil, « Appliquer les réglages recommandés » remet les teintes, la saturation et la durée de transition sur les valeurs conseillées. Tu peux les voir dans l’aperçu, puis les enregistrer ou annuler.

@@ -472,6 +472,14 @@
     </section>
 
     <section id="tab-diagnostics" class="settings-panel hidden">
+      <form id="start-scenes-form" class="card">
+        <h2>Allumage avec les boutons Hue</h2>
+        <label for="start-scene-group">Pièce ou zone Hue</label>
+        <select id="start-scene-group" class="field" required></select>
+        <button id="prepare-start-scenes" type="submit" class="btn primary" disabled>Préparer</button>
+        <p>Dans l’application Philips Hue, choisis la scène « Hue Lab - Allumage » pour l’action d’allumage du bouton.</p>
+        <p id="start-scenes-status" role="status"></p>
+      </form>
       <div class="section-title space-top"><h2>Comportement après coupure secteur</h2><span>À paramétrer par ampoule dans les paramètres avancés</span></div>
       <div class="card auto-card"><div><h3>Démarrage doux — 10 % recommandé</h3><p>Configure chaque ampoule compatible à 10 % dans les paramètres avancés. Pour une lampe en Auto, le serveur corrige ensuite progressivement vers la courbe de luminosité.</p></div></div>
       <div class="hint">Si l'interrupteur mural coupe le courant, la luminosité au tout premier instant dépend du réglage <strong>powerup</strong> de l'ampoule. Le serveur ne peut intervenir qu'après la reconnexion au pont.</div>
